@@ -3,8 +3,8 @@
 
 ## Установка
 
-1. Скопируйте файл [russia-address-helper.jar](https://github.com/De-Luxis/JOSM-Russia-address-helper-plugin/releases/download/0.1.0/russia-address-helper.jar) в `%appdata%\JOSM\plugins`
-2. В JOSM включите плагин в `Правка - Настройки - Модули`. 
+1. Скопируйте файл [russia-address-helper.jar](https://github.com/De-Luxis/JOSM-Russia-address-helper-plugin/releases/latest/download/russia-address-helper.jar) в `%appdata%\JOSM\plugins`
+2. Включите плагин в `Правка - Настройки - Модули`. 
 
 ## Как пользоваться
 
