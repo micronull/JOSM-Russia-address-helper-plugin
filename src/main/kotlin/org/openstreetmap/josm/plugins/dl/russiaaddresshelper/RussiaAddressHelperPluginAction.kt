@@ -93,11 +93,11 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
                                     if (!way.hasTag("addr:housenumber")) {
                                         val houseNumber = arAddress.last().replace(Regex("""(?:дом|д\.?)\s?"""), "")
 
-                                        cmds.add(ChangePropertyCommand(way, "addr:housenumber",houseNumber))
+                                        cmds.add(ChangePropertyCommand(way, "addr:housenumber",houseNumber.trim()))
                                     }
 
                                     if (!way.hasTag("addr:street")) {
-                                        cmds.add(ChangePropertyCommand(way, "addr:street", arAddress[arAddress.lastIndex - 1]))
+                                        cmds.add(ChangePropertyCommand(way, "addr:street", arAddress[arAddress.lastIndex - 1].trim()))
                                     }
 
                                     if (!way.hasTag("addr:full")) {
