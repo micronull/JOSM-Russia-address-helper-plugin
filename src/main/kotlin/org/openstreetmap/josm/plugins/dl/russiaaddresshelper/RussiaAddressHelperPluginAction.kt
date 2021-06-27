@@ -97,7 +97,8 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
                                     }
 
                                     if (!way.hasTag("addr:street")) {
-                                        cmds.add(ChangePropertyCommand(way, "addr:street", arAddress[arAddress.lastIndex - 1].trim()))
+                                        val street = arAddress[arAddress.lastIndex - 1].trim().replace("ул.","улица")
+                                        cmds.add(ChangePropertyCommand(way, "addr:street", street))
                                     }
 
                                     if (!way.hasTag("addr:full")) {
