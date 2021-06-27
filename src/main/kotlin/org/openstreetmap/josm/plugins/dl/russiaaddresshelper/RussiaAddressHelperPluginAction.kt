@@ -106,7 +106,7 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
 
                                     if (cmdsBeforeSize < cmds.size) {
                                         cmds.add(ChangePropertyCommand(way, "fixme", "Адрес загружен из ЕГРН, требуется проверка правильности заполнения тегов."))
-                                        cmds.add(ChangePropertyCommand(way, "addr:source", ""))
+                                        cmds.add(ChangePropertyCommand(way, "addr:source", "ЕГРН"))
                                     }
                                 }
                             }
