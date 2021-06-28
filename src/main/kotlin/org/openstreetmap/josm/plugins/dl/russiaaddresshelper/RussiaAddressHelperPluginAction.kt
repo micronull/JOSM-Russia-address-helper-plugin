@@ -29,7 +29,7 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
 
     class DataForProcessing(val way: Way, val res: HttpClient.Response)
 
-    @ExperimentalTime @OptIn(ObsoleteCoroutinesApi::class) override fun actionPerformed(e: ActionEvent) {
+    @OptIn(ObsoleteCoroutinesApi::class) override fun actionPerformed(e: ActionEvent) {
         val layerManager = MainApplication.getLayerManager()
         val dataSet: DataSet = layerManager.editDataSet
         val selected = dataSet.selected.toMutableList()
@@ -53,7 +53,7 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
             val channel = Channel<DataForProcessing>()
 
             val job = scope.async {
-                selected.map {
+                selected.mapIndexed { index, it ->
                     launch {
                         try {
                             semaphore.acquire()
@@ -65,7 +65,10 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
                                         EgrnQuery(center).httpClient.connect()
                                     }.onSuccess { res ->
                                         channel.send(DataForProcessing(it, res))
-                                        delay((EgrnReader.REQUEST_DELAY.get() * 1000).toLong())
+
+                                        if (selected.size - limit >= index) {
+                                            delay((EgrnReader.REQUEST_DELAY.get() * 1000).toLong())
+                                        }
                                     }
                                 }
                                 else -> {
