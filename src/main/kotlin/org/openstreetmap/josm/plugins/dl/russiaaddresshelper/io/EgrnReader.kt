@@ -19,5 +19,11 @@ class EgrnReader {
          * @since 0.0.1
          */
         val REQUEST_LIMIT = IntegerProperty("dl.russiaaddresshelper.egrn.request.limit", 3)
+
+        /**
+         * Property for delay between requests in seconds.
+         * @since 0.1.3
+         */
+        val REQUEST_DELAY = IntegerProperty("dl.russiaaddresshelper.egrn.request.delay", 3)
     }
 }

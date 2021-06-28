@@ -18,13 +18,18 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnReader
 import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.HttpClient
 import org.openstreetmap.josm.tools.I18n
+import org.openstreetmap.josm.tools.Logging
 import java.awt.event.ActionEvent
+import kotlin.time.Duration
+import kotlin.time.DurationUnit
+import kotlin.time.ExperimentalTime
+import kotlin.time.toDuration
 
 class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACTION_NAME, RussiaAddressHelperPlugin.ICON_NAME, null, null, false) {
 
     class DataForProcessing(val way: Way, val res: HttpClient.Response)
 
-    @OptIn(ObsoleteCoroutinesApi::class) override fun actionPerformed(e: ActionEvent) {
+    @ExperimentalTime @OptIn(ObsoleteCoroutinesApi::class) override fun actionPerformed(e: ActionEvent) {
         val layerManager = MainApplication.getLayerManager()
         val dataSet: DataSet = layerManager.editDataSet
         val selected = dataSet.selected.toMutableList()
@@ -58,7 +63,10 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
 
                                     runCatching {
                                         EgrnQuery(center).httpClient.connect()
-                                    }.onSuccess { res -> channel.send(DataForProcessing(it, res)) }
+                                    }.onSuccess { res ->
+                                        channel.send(DataForProcessing(it, res))
+                                        delay((EgrnReader.REQUEST_DELAY.get() * 1000).toLong())
+                                    }
                                 }
                                 else -> {
                                 }
@@ -93,11 +101,11 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
                                     if (!way.hasTag("addr:housenumber")) {
                                         val houseNumber = arAddress.last().replace(Regex("""(?:дом|д\.?)\s?"""), "")
 
-                                        cmds.add(ChangePropertyCommand(way, "addr:housenumber",houseNumber.trim()))
+                                        cmds.add(ChangePropertyCommand(way, "addr:housenumber", houseNumber.trim()))
                                     }
 
                                     if (!way.hasTag("addr:street")) {
-                                        val street = arAddress[arAddress.lastIndex - 1].trim().replace("ул.","улица")
+                                        val street = arAddress[arAddress.lastIndex - 1].trim().replace("ул.", "улица")
                                         cmds.add(ChangePropertyCommand(way, "addr:street", street))
                                     }
 

@@ -4,6 +4,7 @@ import org.openstreetmap.josm.gui.widgets.JosmTextField
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnReader
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
+import org.openstreetmap.josm.tools.Logging
 import java.awt.GridBagLayout
 import javax.swing.BorderFactory
 import javax.swing.Box
@@ -12,7 +13,8 @@ import javax.swing.JPanel
 
 class EgrnRequestPanel : JPanel(GridBagLayout()) {
     private val egrnUrl = JosmTextField();
-    private val egrnRequestLimit = JosmTextField(4);
+    private val egrnRequestLimit = JosmTextField(3);
+    private val egrnRequestDelay = JosmTextField(3);
 
     init {
         val panel: JPanel = this
@@ -24,6 +26,9 @@ class EgrnRequestPanel : JPanel(GridBagLayout()) {
         panel.add(JLabel(I18n.tr("Request limit (from 1 to 10):")), GBC.std().insets(5, 5, 5, 5))
         panel.add(egrnRequestLimit, GBC.eop())
 
+        panel.add(JLabel(I18n.tr("Request between requests in seconds:")), GBC.std().insets(5, 5, 5, 5))
+        panel.add(egrnRequestDelay, GBC.eop())
+
         panel.add(Box.createVerticalGlue(), GBC.eol().fill())
     }
 
@@ -33,6 +38,7 @@ class EgrnRequestPanel : JPanel(GridBagLayout()) {
     fun initFromPreferences() {
         egrnUrl.text = EgrnReader.EGRN_URL_REQUEST.get()
         egrnRequestLimit.text = EgrnReader.REQUEST_LIMIT.get().toString()
+        egrnRequestDelay.text = EgrnReader.REQUEST_DELAY.get().toString()
     }
 
     /**
@@ -53,8 +59,20 @@ class EgrnRequestPanel : JPanel(GridBagLayout()) {
             }
 
             EgrnReader.REQUEST_LIMIT.put(limit)
-        } catch (e: NumberFormatException){
+        } catch (e: NumberFormatException) {
+            Logging.warn(e.message + "(need numeric)")
+        }
 
+        try {
+            var delay = Integer.valueOf(egrnRequestDelay.text)
+
+            if (delay <= 0) {
+                delay = 1
+            }
+
+            EgrnReader.REQUEST_DELAY.put(delay)
+        } catch (e: NumberFormatException) {
+            Logging.warn(e.message + "(need numeric)")
         }
     }
 }
