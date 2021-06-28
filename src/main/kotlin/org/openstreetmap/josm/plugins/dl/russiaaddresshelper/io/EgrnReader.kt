@@ -18,6 +18,6 @@ class EgrnReader {
          * Property for limiting concurrent requests.
          * @since 0.0.1
          */
-        val REQUEST_LIMIT = IntegerProperty("dl.russiaaddresshelper.egrn.request.limit", 5)
+        val REQUEST_LIMIT = IntegerProperty("dl.russiaaddresshelper.egrn.request.limit", 3)
     }
 }
