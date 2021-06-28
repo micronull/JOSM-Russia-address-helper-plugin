@@ -1,7 +1,7 @@
 # JOSM-Russia-address-helper-plugin
 Плагин JOSM для загрузки адресов из ЕГРН.
 
-Плагин автоматически проиводит фильтрация выделенных объектов, выбираяя только полигоны с тегом [bulding](https://wiki.openstreetmap.org/wiki/RU:Key:building).
+Плагин автоматически производит фильтрацию выделенных объектов, выбирая только полигоны с тегом [bulding](https://wiki.openstreetmap.org/wiki/RU:Key:building).
 
 ## Установка
 
