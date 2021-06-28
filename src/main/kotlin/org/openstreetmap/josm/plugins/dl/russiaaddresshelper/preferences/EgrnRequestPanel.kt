@@ -21,7 +21,7 @@ class EgrnRequestPanel : JPanel(GridBagLayout()) {
         panel.add(JLabel(I18n.tr("EGRN request url:")), GBC.std().insets(5, 5, 5, 5))
         panel.add(egrnUrl, GBC.eop().fill(GBC.HORIZONTAL))
 
-        panel.add(JLabel(I18n.tr("Request limit:")), GBC.std().insets(5, 5, 5, 5))
+        panel.add(JLabel(I18n.tr("Request limit (from 1 to 10):")), GBC.std().insets(5, 5, 5, 5))
         panel.add(egrnRequestLimit, GBC.eop())
 
         panel.add(Box.createVerticalGlue(), GBC.eol().fill())
@@ -38,8 +38,23 @@ class EgrnRequestPanel : JPanel(GridBagLayout()) {
     /**
      * Saves the current values to the preferences
      */
-    fun saveToPreferences(){
+    fun saveToPreferences() {
         EgrnReader.EGRN_URL_REQUEST.put(egrnUrl.text)
-        EgrnReader.REQUEST_LIMIT.parseAndPut(egrnRequestLimit.text)
+
+        try {
+            var limit = Integer.valueOf(egrnRequestLimit.text)
+
+            if (limit <= 0) {
+                limit = 1
+            }
+
+            if (limit > 10) {
+                limit = 10;
+            }
+
+            EgrnReader.REQUEST_LIMIT.put(limit)
+        } catch (e: NumberFormatException){
+
+        }
     }
 }
