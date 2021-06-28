@@ -1,16 +1,11 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper
 
 import org.openstreetmap.josm.data.Version
-import org.openstreetmap.josm.data.validation.OsmValidator
 import org.openstreetmap.josm.gui.MainApplication
-import org.openstreetmap.josm.gui.MainMenu
-import org.openstreetmap.josm.gui.MapFrame
-import org.openstreetmap.josm.gui.download.DownloadDialog
 import org.openstreetmap.josm.gui.preferences.PreferenceSetting
 import org.openstreetmap.josm.plugins.Plugin
 import org.openstreetmap.josm.plugins.PluginInformation
 import org.openstreetmap.josm.tools.I18n
-import javax.swing.ImageIcon
 
 
 class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {

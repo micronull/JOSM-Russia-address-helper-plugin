@@ -1,9 +1,7 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api
 
 import org.openstreetmap.josm.data.coor.EastNorth
-import org.openstreetmap.josm.data.coor.LatLon
 import org.openstreetmap.josm.data.projection.Projections
-import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.io.OsmTransferException
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnReader
