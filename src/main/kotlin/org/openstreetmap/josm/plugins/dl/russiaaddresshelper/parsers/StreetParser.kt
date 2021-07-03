@@ -55,7 +55,7 @@ class StreetParser() : Parser {
         for (i in streetsShort.indices) {
             val streetName = streetsShortList[i]
 
-            if (egrnStreet == streetName || distance.apply(egrnStreet, streetName) <= 2){
+            if (egrnStreet == streetName || egrnStreet.length == streetName.length && distance.apply(egrnStreet, streetName) < 3){
                 return streetsList[i]
             }
         }
