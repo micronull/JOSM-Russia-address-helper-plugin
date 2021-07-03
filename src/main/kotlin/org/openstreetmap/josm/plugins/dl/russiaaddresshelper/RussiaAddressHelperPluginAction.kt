@@ -3,6 +3,7 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import org.apache.commons.text.StringEscapeUtils
+import org.apache.commons.text.similarity.HammingDistance
 import org.openstreetmap.josm.actions.JosmAction
 import org.openstreetmap.josm.command.ChangePropertyCommand
 import org.openstreetmap.josm.command.Command
@@ -15,6 +16,8 @@ import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnQuery
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.HouseNumberParser
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.StreetParser
 import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.HttpClient
 import org.openstreetmap.josm.tools.I18n
@@ -81,6 +84,8 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
                 }
 
                 val defers: MutableList<Deferred<Boolean>> = mutableListOf()
+                val streetParser = StreetParser()
+                val houseNumberParser = HouseNumberParser()
 
                 repeat(selected.size) {
                     val dataForProcessing = channel.receive()
@@ -97,28 +102,29 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
                                 val way = dataForProcessing.way
 
                                 if (match != null && !way.hasTag("fixme")) {
-                                    val address = match.groupValues[1]
-                                    val arAddress = address.split(",")
                                     val cmdsBeforeSize = cmds.size
+                                    val address = match.groupValues[1]
 
-                                    if (!way.hasTag("addr:housenumber")) {
-                                        val houseNumber = arAddress.last().replace(Regex("""(?:дом|д\.?)\s?"""), "")
+                                    val streetParse = streetParser.parse(address)
+                                    val houseNumberParse = houseNumberParser.parse(address)
 
-                                        cmds.add(ChangePropertyCommand(way, "addr:housenumber", houseNumber.trim()))
-                                    }
+                                    if (streetParse != "" && houseNumberParse != "") {
+                                        if (!way.hasTag("addr:RU:egrn")) {
+                                            cmds.add(ChangePropertyCommand(way, "addr:RU:egrn", address))
+                                        }
 
-                                    if (!way.hasTag("addr:street")) {
-                                        val street = arAddress[arAddress.lastIndex - 1].trim().replace("ул.", "улица")
-                                        cmds.add(ChangePropertyCommand(way, "addr:street", street))
-                                    }
+                                        if (!way.hasTag("addr:housenumber")) {
+                                            cmds.add(ChangePropertyCommand(way, "addr:housenumber", houseNumberParse))
+                                        }
 
-                                    if (!way.hasTag("addr:full")) {
-                                        cmds.add(ChangePropertyCommand(way, "addr:full", address))
-                                    }
+                                        if (!way.hasTag("addr:street")) {
+                                            cmds.add(ChangePropertyCommand(way, "addr:street", streetParse))
+                                        }
 
-                                    if (cmdsBeforeSize < cmds.size) {
-                                        cmds.add(ChangePropertyCommand(way, "fixme", "Адрес загружен из ЕГРН, требуется проверка правильности заполнения тегов."))
-                                        cmds.add(ChangePropertyCommand(way, "source:addr", "ЕГРН"))
+                                        if (cmdsBeforeSize < cmds.size) {
+                                            cmds.add(ChangePropertyCommand(way, "fixme", "Адрес загружен из ЕГРН, требуется проверка правильности заполнения тегов."))
+                                            cmds.add(ChangePropertyCommand(way, "source:addr", "ЕГРН"))
+                                        }
                                     }
                                 }
                             }
