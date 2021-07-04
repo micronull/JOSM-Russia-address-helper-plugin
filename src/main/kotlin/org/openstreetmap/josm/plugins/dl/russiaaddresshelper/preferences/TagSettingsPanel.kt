@@ -1,7 +1,6 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.preferences
 
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.TagSettingsReader
-import org.openstreetmap.josm.spi.preferences.Config
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagLayout

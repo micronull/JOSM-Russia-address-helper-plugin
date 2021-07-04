@@ -7,9 +7,16 @@ class StreetParser() : Parser {
     private val streets: MutableList<String> = mutableListOf()
     private val streetsShort: MutableList<String> = mutableListOf()
 
+    private lateinit var egrnStreet: String
+
     init {
         loadStreets()
     }
+
+    val extracted: String
+        get() {
+            return egrnStreet
+        }
 
     companion object {
         val OSM_STREET_NAME_REGEXP = Regex("^(?:ул\\S*\\s+)?(?<street>.+?)(?:\\s+ул\\S*)?\$")
@@ -33,8 +40,6 @@ class StreetParser() : Parser {
     }
 
     override fun parse(egrnAddress: String): String {
-        var egrnStreet = ""
-
         for (pattern in regexList) {
             val match = pattern.find(egrnAddress)
 
@@ -55,7 +60,7 @@ class StreetParser() : Parser {
         for (i in streetsShort.indices) {
             val streetName = streetsShortList[i]
 
-            if (egrnStreet == streetName || egrnStreet.length == streetName.length && distance.apply(egrnStreet, streetName) < 3){
+            if (egrnStreet == streetName || egrnStreet.length == streetName.length && distance.apply(egrnStreet, streetName) < 3) {
                 return streetsList[i]
             }
         }
