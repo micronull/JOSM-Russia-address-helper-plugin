@@ -1,7 +1,7 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.preferences
 
 import org.openstreetmap.josm.gui.widgets.JosmTextField
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnSettingsReader
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
@@ -11,7 +11,7 @@ import javax.swing.Box
 import javax.swing.JLabel
 import javax.swing.JPanel
 
-class EgrnRequestPanel : JPanel(GridBagLayout()) {
+class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
     private val egrnUrl = JosmTextField();
     private val egrnRequestLimit = JosmTextField(3);
     private val egrnRequestDelay = JosmTextField(3);
@@ -19,7 +19,6 @@ class EgrnRequestPanel : JPanel(GridBagLayout()) {
     init {
         val panel: JPanel = this
         panel.border = BorderFactory.createEmptyBorder(5, 5, 5, 5)
-
 
         panel.add(JLabel(I18n.tr("EGRN request url:")), GBC.std())
         panel.add(egrnUrl, GBC.eop().fill(GBC.HORIZONTAL).insets(5, 0, 0, 5))
@@ -37,16 +36,16 @@ class EgrnRequestPanel : JPanel(GridBagLayout()) {
      * Initializes the panel from preferences
      */
     fun initFromPreferences() {
-        egrnUrl.text = EgrnReader.EGRN_URL_REQUEST.get()
-        egrnRequestLimit.text = EgrnReader.REQUEST_LIMIT.get().toString()
-        egrnRequestDelay.text = EgrnReader.REQUEST_DELAY.get().toString()
+        egrnUrl.text = EgrnSettingsReader.EGRN_URL_REQUEST.get()
+        egrnRequestLimit.text = EgrnSettingsReader.REQUEST_LIMIT.get().toString()
+        egrnRequestDelay.text = EgrnSettingsReader.REQUEST_DELAY.get().toString()
     }
 
     /**
      * Saves the current values to the preferences
      */
     fun saveToPreferences() {
-        EgrnReader.EGRN_URL_REQUEST.put(egrnUrl.text)
+        EgrnSettingsReader.EGRN_URL_REQUEST.put(egrnUrl.text)
 
         try {
             var limit = Integer.valueOf(egrnRequestLimit.text)
@@ -59,7 +58,7 @@ class EgrnRequestPanel : JPanel(GridBagLayout()) {
                 limit = 10;
             }
 
-            EgrnReader.REQUEST_LIMIT.put(limit)
+            EgrnSettingsReader.REQUEST_LIMIT.put(limit)
         } catch (e: NumberFormatException) {
             Logging.warn(e.message + "(need numeric)")
         }
@@ -71,7 +70,7 @@ class EgrnRequestPanel : JPanel(GridBagLayout()) {
                 delay = 1
             }
 
-            EgrnReader.REQUEST_DELAY.put(delay)
+            EgrnSettingsReader.REQUEST_DELAY.put(delay)
         } catch (e: NumberFormatException) {
             Logging.warn(e.message + "(need numeric)")
         }

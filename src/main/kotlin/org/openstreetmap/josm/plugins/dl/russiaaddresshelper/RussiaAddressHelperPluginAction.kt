@@ -3,7 +3,6 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import org.apache.commons.text.StringEscapeUtils
-import org.apache.commons.text.similarity.HammingDistance
 import org.openstreetmap.josm.actions.JosmAction
 import org.openstreetmap.josm.command.ChangePropertyCommand
 import org.openstreetmap.josm.command.Command
@@ -15,18 +14,14 @@ import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnQuery
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.TagSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.HouseNumberParser
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.StreetParser
 import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.HttpClient
 import org.openstreetmap.josm.tools.I18n
-import org.openstreetmap.josm.tools.Logging
 import java.awt.event.ActionEvent
-import kotlin.time.Duration
-import kotlin.time.DurationUnit
-import kotlin.time.ExperimentalTime
-import kotlin.time.toDuration
 
 class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACTION_NAME, RussiaAddressHelperPlugin.ICON_NAME, null, null, false) {
 
@@ -50,7 +45,7 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
             var center: EastNorth
             val cmds: MutableList<Command> = mutableListOf()
 
-            val limit = EgrnReader.REQUEST_LIMIT.get()
+            val limit = EgrnSettingsReader.REQUEST_LIMIT.get()
             val semaphore = kotlinx.coroutines.sync.Semaphore(limit)
             val scope = CoroutineScope(newFixedThreadPoolContext(limit, "EGRN request by limit"))
             val channel = Channel<DataForProcessing>()
@@ -70,7 +65,7 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
                                         channel.send(DataForProcessing(it, res))
 
                                         if (selected.size - limit >= index) {
-                                            delay((EgrnReader.REQUEST_DELAY.get() * 1000).toLong())
+                                            delay((EgrnSettingsReader.REQUEST_DELAY.get() * 1000).toLong())
                                         }
                                     }
                                 }
@@ -101,18 +96,18 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
                                 val match = Regex("""address":\s"(.+?)"""").find(remoteResponse)
                                 val way = dataForProcessing.way
 
-                                if (match != null && !way.hasTag("fixme")) {
+                                if (match != null) {
                                     val cmdsBeforeSize = cmds.size
                                     val address = match.groupValues[1]
+
+                                    if (TagSettingsReader.EGRN_ADDR_RECORD.get() && !way.hasTag("addr:RU:egrn")){
+                                        cmds.add(ChangePropertyCommand(way, "addr:RU:egrn", address))
+                                    }
 
                                     val streetParse = streetParser.parse(address)
                                     val houseNumberParse = houseNumberParser.parse(address)
 
                                     if (streetParse != "" && houseNumberParse != "") {
-                                        if (!way.hasTag("addr:RU:egrn")) {
-                                            cmds.add(ChangePropertyCommand(way, "addr:RU:egrn", address))
-                                        }
-
                                         if (!way.hasTag("addr:housenumber")) {
                                             cmds.add(ChangePropertyCommand(way, "addr:housenumber", houseNumberParse))
                                         }

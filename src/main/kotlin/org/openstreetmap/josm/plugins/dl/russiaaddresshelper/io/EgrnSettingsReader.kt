@@ -3,7 +3,7 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io
 import org.openstreetmap.josm.data.preferences.IntegerProperty
 import org.openstreetmap.josm.data.preferences.StringProperty
 
-class EgrnReader {
+class EgrnSettingsReader {
     companion object {
         /**
          * Property for current EGRN server.

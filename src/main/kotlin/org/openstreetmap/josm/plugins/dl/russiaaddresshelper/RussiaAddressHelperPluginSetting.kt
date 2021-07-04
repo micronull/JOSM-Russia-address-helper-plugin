@@ -3,7 +3,8 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper
 import org.openstreetmap.josm.gui.preferences.DefaultTabPreferenceSetting
 import org.openstreetmap.josm.gui.preferences.PreferenceTabbedPane
 import org.openstreetmap.josm.gui.widgets.VerticallyScrollablePanel
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.preferences.EgrnRequestPanel
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.preferences.EgrnRequestSettingsPanel
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.preferences.TagSettingsPanel
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagConstraints
@@ -14,19 +15,20 @@ import javax.swing.JSeparator
 
 class RussiaAddressHelperPluginSetting : DefaultTabPreferenceSetting("icon.svg", I18n.tr("Russia address helper settings"), "", false) {
     companion object {
-        val egrnPanel = EgrnRequestPanel()
+        val egrnSettingsPanel = EgrnRequestSettingsPanel()
+        val tagSettingsPanel = TagSettingsPanel()
     }
 
     override fun addGui(gui: PreferenceTabbedPane) {
         val panel = VerticallyScrollablePanel(GridBagLayout())
 
         panel.add(JLabel(I18n.tr("Network settings.")), GBC.eol())
-        panel.add(egrnPanel, GBC.eop().fill(GridBagConstraints.HORIZONTAL))
-        egrnPanel.initFromPreferences()
+        panel.add(egrnSettingsPanel, GBC.eop().fill(GridBagConstraints.HORIZONTAL))
+        egrnSettingsPanel.initFromPreferences()
 
         panel.add(JSeparator(), GBC.eop().fill(GBC.HORIZONTAL))
 
-
+        panel.add(tagSettingsPanel, GBC.eop().fill(GridBagConstraints.HORIZONTAL))
 
         panel.add(Box.createVerticalGlue(), GBC.eol().fill(GBC.VERTICAL))
 
@@ -34,8 +36,8 @@ class RussiaAddressHelperPluginSetting : DefaultTabPreferenceSetting("icon.svg",
     }
 
     override fun ok(): Boolean {
-        egrnPanel.saveToPreferences()
-
+        egrnSettingsPanel.saveToPreferences()
+        tagSettingsPanel.saveToPreferences()
         return false
     }
 }
