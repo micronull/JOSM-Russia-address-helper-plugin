@@ -21,6 +21,7 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.StreetParse
 import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.HttpClient
 import org.openstreetmap.josm.tools.I18n
+import org.openstreetmap.josm.tools.Logging
 import java.awt.event.ActionEvent
 import javax.swing.DefaultListModel
 import javax.swing.JList
@@ -132,7 +133,7 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
                                         notFoundStreet.add(streetParser.extracted)
                                     }
                                 }
-                            }
+                            }.onFailure { e -> Logging.error(e.message) }
 
                             true
                         }

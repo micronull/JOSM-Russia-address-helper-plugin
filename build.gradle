@@ -6,7 +6,7 @@ plugins {
 }
 
 group 'org.openstreetmap.josm.plugins.dl.russiaaddresshelper'
-version '0.3'
+version '0.3.1'
 
 repositories {
     mavenCentral()
