@@ -20,14 +20,15 @@ class EgrnRequestPanel : JPanel(GridBagLayout()) {
         val panel: JPanel = this
         panel.border = BorderFactory.createEmptyBorder(5, 5, 5, 5)
 
-        panel.add(JLabel(I18n.tr("EGRN request url:")), GBC.std().insets(5, 5, 5, 5))
-        panel.add(egrnUrl, GBC.eop().fill(GBC.HORIZONTAL))
 
-        panel.add(JLabel(I18n.tr("Request limit (from 1 to 10):")), GBC.std().insets(5, 5, 5, 5))
-        panel.add(egrnRequestLimit, GBC.eop())
+        panel.add(JLabel(I18n.tr("EGRN request url:")), GBC.std())
+        panel.add(egrnUrl, GBC.eop().fill(GBC.HORIZONTAL).insets(5, 0, 0, 5))
 
-        panel.add(JLabel(I18n.tr("Request between requests in seconds:")), GBC.std().insets(5, 5, 5, 5))
-        panel.add(egrnRequestDelay, GBC.eop())
+        panel.add(JLabel(I18n.tr("Request limit (from 1 to 10):")), GBC.std())
+        panel.add(egrnRequestLimit, GBC.eop().insets(5, 0, 0, 5))
+
+        panel.add(JLabel(I18n.tr("Request between requests in seconds:")), GBC.std())
+        panel.add(egrnRequestDelay, GBC.eop().insets(5, 0, 0, 5))
 
         panel.add(Box.createVerticalGlue(), GBC.eol().fill())
     }
