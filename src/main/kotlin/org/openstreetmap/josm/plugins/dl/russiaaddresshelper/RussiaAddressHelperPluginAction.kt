@@ -54,7 +54,7 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
 
             val limit = EgrnSettingsReader.REQUEST_LIMIT.get()
             val semaphore = kotlinx.coroutines.sync.Semaphore(limit)
-            val scope = CoroutineScope(newFixedThreadPoolContext(limit, "EGRN request by limit"))
+            val scope = CoroutineScope(newSingleThreadContext("EGRN requests"))
             val channel = Channel<DataForProcessing>()
 
             val job = scope.async {
