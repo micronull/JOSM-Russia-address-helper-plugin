@@ -71,8 +71,16 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
                                     }.onSuccess { res ->
                                         channel.send(DataForProcessing(it, res))
 
-                                        if (selected.size - limit >= index) {
+                                        if (selected.size - 1 == index) {
+                                            channel.close()
+                                        } else if (selected.size - limit >= index) {
                                             delay((EgrnSettingsReader.REQUEST_DELAY.get() * 1000).toLong())
+                                        }
+                                    }.onFailure {
+                                        Logging.warn(it.message)
+
+                                        if (selected.size - 1 == index) {
+                                            channel.close()
                                         }
                                     }
                                 }
@@ -89,9 +97,7 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
                 val streetParser = StreetParser()
                 val houseNumberParser = HouseNumberParser()
 
-                repeat(selected.size) {
-                    val dataForProcessing = channel.receive()
-
+                for (dataForProcessing in channel) {
                     progressDialog.worked(1)
 
                     if (dataForProcessing.res.responseCode == 200) {
@@ -133,7 +139,7 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
                                         notFoundStreet.add(streetParser.extracted)
                                     }
                                 }
-                            }.onFailure { e -> Logging.error(e.message) }
+                            }.onFailure { Logging.error(it.message) }
 
                             true
                         }
