@@ -6,7 +6,7 @@ plugins {
 }
 
 group 'org.openstreetmap.josm.plugins.dl.russiaaddresshelper'
-version '0.3.1'
+version '0.3.2'
 
 repositories {
     mavenCentral()
@@ -29,7 +29,7 @@ test {
 
 josm {
     debugPort = 1729
-    josmCompileVersion = 17919
+    josmCompileVersion = 18004
     manifest {
         description = "Плагин JOSM для загрузки адресов из ЕГРН "
         mainClass = "org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin"
