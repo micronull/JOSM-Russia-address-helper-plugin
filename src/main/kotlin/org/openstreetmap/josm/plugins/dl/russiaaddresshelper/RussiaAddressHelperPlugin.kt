@@ -16,7 +16,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             menu.addSeparator()
         }
 
-        menu.add(NewRussiaAddressHelperPluginAction())
+        menu.add(RussiaAddressHelperPluginAction())
 
         versionInfo = String.format("JOSM/%s JOSM-RussiaAddressHelper/%s", Version.getInstance().versionString, info.version)
     }

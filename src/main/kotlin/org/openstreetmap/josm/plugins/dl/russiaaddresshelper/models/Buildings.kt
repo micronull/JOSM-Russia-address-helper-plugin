@@ -10,7 +10,6 @@ import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.data.osm.Way
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPluginAction
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnQuery
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.TagSettingsReader
