@@ -3,9 +3,14 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import org.apache.commons.text.StringEscapeUtils
+import org.openstreetmap.josm.command.ChangePropertyCommand
+import org.openstreetmap.josm.command.Command
+import org.openstreetmap.josm.command.SequenceCommand
+import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.data.osm.Way
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPluginAction
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnQuery
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.TagSettingsReader
@@ -13,6 +18,7 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.HouseNumber
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.StreetParser
 import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.HttpClient
+import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
 
 class Buildings(selected: List<OsmPrimitive>) {
@@ -27,6 +33,7 @@ class Buildings(selected: List<OsmPrimitive>) {
         var onResponse: ((res: HttpClient.Response?) -> Unit)? = null
         var onResponseContinue: (() -> Unit)? = null
         var onNotFoundStreetParser: ((street: String) -> Unit)? = null
+        var onComplete: (() -> Unit)? = null
     }
 
     private class Building(val osmPrimitive: OsmPrimitive) {
@@ -70,7 +77,24 @@ class Buildings(selected: List<OsmPrimitive>) {
 
             parseResponses(channel, loadListener).awaitAll()
 
+            items.removeAll { it.preparedTags.isEmpty() }
 
+            if (items.size > 0) {
+                val cmds: MutableList<Command> = mutableListOf()
+
+                for (building in items) {
+                    building.preparedTags.forEach { (key, value) ->
+                        cmds.add(ChangePropertyCommand(building.osmPrimitive, key, value))
+                    }
+                }
+
+                if (cmds.size > 0) {
+                    val c: Command = SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper "), cmds)
+                    UndoRedoHandler.getInstance().add(c)
+                }
+            }
+
+            loadListener?.onComplete?.invoke()
         }
         return scope
     }
@@ -85,19 +109,28 @@ class Buildings(selected: List<OsmPrimitive>) {
                 try {
                     semaphore.acquire()
 
-                    building.request()
+                    runCatching {
+                        building.request()
+                    }.onSuccess {
+                        if (building.httpResponse?.responseCode == 200) {
+                            channel.send(building)
+                        }
 
-                    if (building.httpResponse?.responseCode == 200) {
-                        channel.send(building)
-                    }
+                        loadListener?.onResponse?.invoke(building.httpResponse)
 
-                    loadListener?.onResponse?.invoke(building.httpResponse)
+                        if (items.size - 1 == index) {
+                            loadListener?.onResponseContinue?.invoke()
+                            channel.close()
+                        } else if (items.size - limit >= index) {
+                            delay((EgrnSettingsReader.REQUEST_DELAY.get() * 1000).toLong())
+                        }
+                    }.onFailure {
+                        Logging.warn(it.message)
 
-                    if (items.size - 1 == index) {
-                        loadListener?.onResponseContinue?.invoke()
-                        channel.close()
-                    } else if (items.size - limit >= index) {
-                        delay((EgrnSettingsReader.REQUEST_DELAY.get() * 1000).toLong())
+                        if (items.size - 1 == index) {
+                            loadListener?.onResponseContinue?.invoke()
+                            channel.close()
+                        }
                     }
                 } finally {
                     if (scope.isActive) semaphore.release()

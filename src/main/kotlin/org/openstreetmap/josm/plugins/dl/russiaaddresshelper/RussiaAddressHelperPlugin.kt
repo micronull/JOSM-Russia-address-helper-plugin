@@ -6,8 +6,6 @@ import org.openstreetmap.josm.gui.preferences.PreferenceSetting
 import org.openstreetmap.josm.plugins.Plugin
 import org.openstreetmap.josm.plugins.PluginInformation
 import org.openstreetmap.josm.tools.I18n
-import org.openstreetmap.josm.tools.Logging
-
 
 class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
     init {

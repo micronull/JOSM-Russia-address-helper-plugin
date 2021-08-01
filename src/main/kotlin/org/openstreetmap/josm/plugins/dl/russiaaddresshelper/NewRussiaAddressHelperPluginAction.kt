@@ -42,6 +42,10 @@ class NewRussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.
             if (!notFoundStreet.contains(it)) notFoundStreet.add(it)
         }
 
+        listener.onComplete = {
+            progressDialog.close()
+        }
+
         val scope = buildings.load(listener)
 
         progressDialog.addCancelListener {
