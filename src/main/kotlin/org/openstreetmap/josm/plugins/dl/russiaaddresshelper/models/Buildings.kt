@@ -202,10 +202,12 @@ class Buildings(selected: List<OsmPrimitive>) {
         return defers
     }
 
-    private fun sanitize(){
+    private fun sanitize() {
         items.removeAll { it.preparedTags.isEmpty() }
 
-        items = Doubles().clear(items)
+        if (TagSettingsReader.ENABLE_CLEAR_DOUBLE.get()) {
+            items = Doubles().clear(items)
+        }
     }
 
     private fun filter() {
