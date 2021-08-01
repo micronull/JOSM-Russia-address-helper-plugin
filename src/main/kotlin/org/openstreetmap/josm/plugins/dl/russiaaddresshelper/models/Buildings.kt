@@ -214,7 +214,7 @@ class Buildings(selected: List<OsmPrimitive>) {
         items.removeAll {
             val el = it.osmPrimitive
 
-            el !is Way || !el.hasKey("building") || el.hasKey("fixme") || el.hasKey("addr:housenumber")
+            el !is Way || !el.hasKey("building") || el.hasKey("fixme") || el.hasKey("addr:housenumber") || el.get("building") == "shed" || el.get("building") == "garage"
         }
     }
 }
