@@ -33,7 +33,7 @@ class Buildings(selected: List<OsmPrimitive>) {
         var onResponse: ((res: HttpClient.Response?) -> Unit)? = null
         var onResponseContinue: (() -> Unit)? = null
         var onNotFoundStreetParser: ((street: String) -> Unit)? = null
-        var onComplete: (() -> Unit)? = null
+        var onComplete: ((changeBuildings: Array<OsmPrimitive>) -> Unit)? = null
     }
 
     private class Building(val osmPrimitive: OsmPrimitive) {
@@ -79,12 +79,18 @@ class Buildings(selected: List<OsmPrimitive>) {
 
             items.removeAll { it.preparedTags.isEmpty() }
 
+            val changeBuildings: MutableList<OsmPrimitive> = mutableListOf()
+
             if (items.size > 0) {
                 val cmds: MutableList<Command> = mutableListOf()
 
                 for (building in items) {
                     building.preparedTags.forEach { (key, value) ->
                         cmds.add(ChangePropertyCommand(building.osmPrimitive, key, value))
+
+                        if (!changeBuildings.contains(building.osmPrimitive)) {
+                            changeBuildings.add(building.osmPrimitive)
+                        }
                     }
                 }
 
@@ -94,7 +100,7 @@ class Buildings(selected: List<OsmPrimitive>) {
                 }
             }
 
-            loadListener?.onComplete?.invoke()
+            loadListener?.onComplete?.invoke(changeBuildings.toTypedArray())
         }
         return scope
     }

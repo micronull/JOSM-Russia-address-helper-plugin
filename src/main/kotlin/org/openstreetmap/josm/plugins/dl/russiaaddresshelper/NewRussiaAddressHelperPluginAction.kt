@@ -43,6 +43,7 @@ class NewRussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.
         }
 
         listener.onComplete = {
+            layerManager.editDataSet.setSelected(*it)
             progressDialog.close()
         }
 
