@@ -19,6 +19,7 @@ class NewRussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.
         val listener = Buildings.LoadListener()
         val progressDialog = PleaseWaitProgressMonitor()
         var ticksCount = buildings.size
+        val notFoundStreet = mutableListOf<String>()
 
         progressDialog.beginTask(I18n.tr("Download data"), ticksCount)
         progressDialog.showForegroundDialog()
@@ -33,7 +34,12 @@ class NewRussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.
         }
 
         listener.onResponseContinue = {
-            progressDialog.close()
+            progressDialog.ticks = 0
+            progressDialog.indeterminateSubTask(I18n.tr("Data processing"))
+        }
+
+        listener.onNotFoundStreetParser = {
+            if (!notFoundStreet.contains(it)) notFoundStreet.add(it)
         }
 
         val scope = buildings.load(listener)
