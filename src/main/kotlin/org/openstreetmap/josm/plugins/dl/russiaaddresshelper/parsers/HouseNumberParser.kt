@@ -6,7 +6,7 @@ class HouseNumberParser: Parser {
             val match = pattern.find(egrnAddress)
 
             if (match != null) {
-                return match.groups["housenumber"]!!.value.uppercase()
+                return match.groups["housenumber"]!!.value.trim().uppercase()
             }
         }
 
