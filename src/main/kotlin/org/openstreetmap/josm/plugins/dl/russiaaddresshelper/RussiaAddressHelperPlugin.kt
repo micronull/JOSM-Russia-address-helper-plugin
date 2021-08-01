@@ -11,16 +11,16 @@ import org.openstreetmap.josm.tools.Logging
 
 class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
     init {
-        val menu = MainApplication.getMenu().dataMenu;
+        val menu = MainApplication.getMenu().dataMenu
         menu.isVisible = true
 
         if (menu.itemCount > 0) {
             menu.addSeparator()
         }
 
-        menu.add(RussiaAddressHelperPluginAction())
+        menu.add(NewRussiaAddressHelperPluginAction())
 
-        versionInfo = String.format("JOSM/%s JOSM-RussiaAddressHelper/%s", Version.getInstance().versionString, info.version);
+        versionInfo = String.format("JOSM/%s JOSM-RussiaAddressHelper/%s", Version.getInstance().versionString, info.version)
     }
 
     override fun getPreferenceSetting(): PreferenceSetting {
