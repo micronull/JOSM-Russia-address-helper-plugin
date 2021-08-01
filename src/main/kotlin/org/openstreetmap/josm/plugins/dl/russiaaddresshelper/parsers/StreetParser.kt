@@ -23,7 +23,7 @@ class StreetParser() : Parser {
     }
 
     private fun loadStreets() {
-        val primitives = OsmDataManager.getInstance().activeDataSet.allNonDeletedCompletePrimitives().filter { p -> p.hasKey("highway") && p.hasKey("name") }
+        val primitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives().filter { p -> p.hasKey("highway") && p.hasKey("name") }
 
         for (primitive in primitives) {
             primitive.visitKeys { _, key, value ->

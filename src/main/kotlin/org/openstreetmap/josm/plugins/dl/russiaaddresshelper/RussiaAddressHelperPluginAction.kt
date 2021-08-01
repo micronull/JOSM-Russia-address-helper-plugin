@@ -4,6 +4,7 @@ import kotlinx.coroutines.ObsoleteCoroutinesApi
 import kotlinx.coroutines.cancel
 import org.openstreetmap.josm.actions.JosmAction
 import org.openstreetmap.josm.data.osm.DataSet
+import org.openstreetmap.josm.data.osm.OsmDataManager
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Buildings
@@ -12,7 +13,7 @@ import javax.swing.JOptionPane
 
 class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACTION_NAME, RussiaAddressHelperPlugin.ICON_NAME, null, null, false) {
     @ObsoleteCoroutinesApi override fun actionPerformed(e: java.awt.event.ActionEvent) {
-        val dataSet: DataSet = MainApplication.getLayerManager().editDataSet ?: return
+        val dataSet: DataSet = OsmDataManager.getInstance().editDataSet ?: return
         val buildings = Buildings(dataSet.selected.toList())
 
         if (!buildings.isNotEmpty()) return

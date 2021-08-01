@@ -11,6 +11,7 @@ import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnQuery
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.handlers.Doubles
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.TagSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.HouseNumberParser
@@ -35,10 +36,10 @@ class Buildings(selected: List<OsmPrimitive>) {
         var onComplete: ((changeBuildings: Array<OsmPrimitive>) -> Unit)? = null
     }
 
-    private class Building(val osmPrimitive: OsmPrimitive) {
+    class Building(val osmPrimitive: OsmPrimitive) {
         var httpResponse: HttpClient.Response? = null
 
-        val coordinate: EastNorth?
+        private val coordinate: EastNorth?
             get() {
                 return when (osmPrimitive) {
                     is Way -> {
@@ -57,7 +58,7 @@ class Buildings(selected: List<OsmPrimitive>) {
         }
     }
 
-    private val items: MutableList<Building> = mutableListOf()
+    private var items: MutableList<Building> = mutableListOf()
 
     init {
         selected.forEach {
@@ -76,7 +77,7 @@ class Buildings(selected: List<OsmPrimitive>) {
 
             parseResponses(channel, loadListener).awaitAll()
 
-            items.removeAll { it.preparedTags.isEmpty() }
+            sanitize()
 
             val changeBuildings: MutableList<OsmPrimitive> = mutableListOf()
 
@@ -201,11 +202,17 @@ class Buildings(selected: List<OsmPrimitive>) {
         return defers
     }
 
+    private fun sanitize(){
+        items.removeAll { it.preparedTags.isEmpty() }
+
+        items = Doubles().clear(items)
+    }
+
     private fun filter() {
         items.removeAll {
             val el = it.osmPrimitive
 
-            el !is Way || !el.keys.containsKey("building") || el.keys.containsKey("fixme") || el.keys.containsKey("addr:housenumber")
+            el !is Way || !el.hasKey("building") || el.hasKey("fixme") || el.hasKey("addr:housenumber")
         }
     }
 }
