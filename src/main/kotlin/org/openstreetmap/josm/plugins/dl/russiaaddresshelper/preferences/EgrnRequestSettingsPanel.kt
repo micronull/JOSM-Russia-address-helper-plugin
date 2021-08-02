@@ -26,7 +26,7 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
         panel.add(JLabel(I18n.tr("Request limit (from 1 to 10):")), GBC.std())
         panel.add(egrnRequestLimit, GBC.eop().insets(5, 0, 0, 5))
 
-        panel.add(JLabel(I18n.tr("Request between requests in seconds:")), GBC.std())
+        panel.add(JLabel(I18n.tr("Delay between requests in seconds:")), GBC.std())
         panel.add(egrnRequestDelay, GBC.eop().insets(5, 0, 0, 5))
 
         panel.add(Box.createVerticalGlue(), GBC.eol().fill())

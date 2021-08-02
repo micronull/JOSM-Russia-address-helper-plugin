@@ -6,7 +6,7 @@ plugins {
 }
 
 group 'org.openstreetmap.josm.plugins.dl.russiaaddresshelper'
-version '0.4.2'
+version '0.4.3'
 
 repositories {
     mavenCentral()
@@ -28,6 +28,7 @@ test {
 }
 
 josm {
+    pluginName = "russia-address-helper"
     debugPort = 1729
     josmCompileVersion = 18004
     manifest {
