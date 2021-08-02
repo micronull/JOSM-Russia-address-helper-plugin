@@ -7,7 +7,7 @@ class StreetParser() : Parser {
     private val streets: MutableList<String> = mutableListOf()
     private val streetsShort: MutableList<String> = mutableListOf()
 
-    private lateinit var egrnStreet: String
+    private var egrnStreet: String = ""
 
     init {
         loadStreets()

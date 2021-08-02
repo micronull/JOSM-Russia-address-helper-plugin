@@ -41,7 +41,7 @@ class RussiaAddressHelperPluginAction : JosmAction(RussiaAddressHelperPlugin.ACT
         }
 
         listener.onNotFoundStreetParser = {
-            if (!notFoundStreet.contains(it)) notFoundStreet.add(it)
+            if (it.isNotEmpty() && !notFoundStreet.contains(it)) notFoundStreet.add(it)
         }
 
         listener.onComplete = { changeBuildings ->
