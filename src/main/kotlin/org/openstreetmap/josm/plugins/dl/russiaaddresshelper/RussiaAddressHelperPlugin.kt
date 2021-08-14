@@ -18,8 +18,8 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             menu.addSeparator()
         }
 
-        val subMenu = JMenu(I18n.tr("Russia address helper"))
-        subMenu.icon = ImageProvider("icon.svg").resource.getPaddedIcon(ImageProvider.ImageSizes.SMALLICON.imageDimension)
+        val subMenu = JMenu(ACTION_NAME)
+        subMenu.icon = ImageProvider(ICON_NAME).resource.getPaddedIcon(ImageProvider.ImageSizes.SMALLICON.imageDimension)
         subMenu.add(RussiaAddressHelperPluginSelectedAction())
         menu.add(subMenu)
 
@@ -34,7 +34,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         lateinit var versionInfo: String
             private set
 
-        val ACTION_NAME = I18n.tr("For selected objects")
-        val ICON_NAME = "select.svg"
+        val ACTION_NAME = I18n.tr("Russia address helper")
+        val ICON_NAME = "icon.svg"
     }
 }

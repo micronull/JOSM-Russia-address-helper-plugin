@@ -11,7 +11,12 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Buildings
 import org.openstreetmap.josm.tools.I18n
 import javax.swing.JOptionPane
 
-class RussiaAddressHelperPluginSelectedAction : JosmAction(RussiaAddressHelperPlugin.ACTION_NAME, RussiaAddressHelperPlugin.ICON_NAME, null, null, false) {
+class RussiaAddressHelperPluginSelectedAction : JosmAction(ACTION_NAME, ICON_NAME, null, null, false) {
+    companion object {
+        val ACTION_NAME = I18n.tr("For selected objects")
+        val ICON_NAME = "select.svg"
+    }
+
     @ObsoleteCoroutinesApi override fun actionPerformed(e: java.awt.event.ActionEvent) {
         val dataSet: DataSet = OsmDataManager.getInstance().editDataSet ?: return
         val buildings = Buildings(dataSet.selected.toList())
