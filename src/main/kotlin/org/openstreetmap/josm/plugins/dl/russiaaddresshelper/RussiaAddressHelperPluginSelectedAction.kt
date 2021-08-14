@@ -10,9 +10,15 @@ import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Buildings
 import org.openstreetmap.josm.tools.I18n
+import org.openstreetmap.josm.tools.Shortcut
+import java.awt.event.KeyEvent
 import javax.swing.JOptionPane
 
-class RussiaAddressHelperPluginSelectedAction : JosmAction(ACTION_NAME, ICON_NAME, null, null, false) {
+class RussiaAddressHelperPluginSelectedAction : JosmAction(
+    ACTION_NAME, ICON_NAME, null, Shortcut.registerShortcut(
+        "data:egrn_selected", I18n.tr("Data: {0}", I18n.tr(ACTION_NAME)), KeyEvent.KEY_LOCATION_UNKNOWN, Shortcut.NONE
+    ), false
+) {
     companion object {
         val ACTION_NAME = I18n.tr("For selected objects")
         val ICON_NAME = "select.svg"

@@ -3,7 +3,6 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper
 import org.apache.commons.text.StringEscapeUtils
 import org.openstreetmap.josm.actions.mapmode.MapMode
 import org.openstreetmap.josm.command.AddCommand
-import org.openstreetmap.josm.command.ChangePropertyCommand
 import org.openstreetmap.josm.command.Command
 import org.openstreetmap.josm.command.SequenceCommand
 import org.openstreetmap.josm.data.UndoRedoHandler
@@ -14,12 +13,16 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnQuery
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.ImageProvider
 import org.openstreetmap.josm.tools.Logging
+import org.openstreetmap.josm.tools.Shortcut
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
-import java.util.*
 import javax.swing.SwingUtilities
 
-class RussiaAddressHelperPluginClickAction : MapMode(ACTION_NAME, ICON_NAME, null, ImageProvider.getCursor("crosshair", "create_note")), KeyPressReleaseListener {
+class RussiaAddressHelperPluginClickAction : MapMode(
+    ACTION_NAME, ICON_NAME, null, Shortcut.registerShortcut(
+        "data:egrn_click", I18n.tr("Data: {0}", I18n.tr(ACTION_NAME)), KeyEvent.KEY_LOCATION_UNKNOWN, Shortcut.NONE
+    ), ImageProvider.getCursor("crosshair", "create_note")
+), KeyPressReleaseListener {
 
     companion object {
         val ACTION_NAME = I18n.tr("By click")
