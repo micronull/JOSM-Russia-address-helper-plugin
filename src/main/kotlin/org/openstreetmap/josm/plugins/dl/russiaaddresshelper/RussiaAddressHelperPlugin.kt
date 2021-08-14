@@ -20,7 +20,10 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
 
         val subMenu = JMenu(ACTION_NAME)
         subMenu.icon = ImageProvider(ICON_NAME).resource.getPaddedIcon(ImageProvider.ImageSizes.SMALLICON.imageDimension)
+
         subMenu.add(RussiaAddressHelperPluginSelectedAction())
+        subMenu.add(RussiaAddressHelperPluginClickAction())
+
         menu.add(subMenu)
 
         versionInfo = String.format("JOSM/%s JOSM-RussiaAddressHelper/%s", Version.getInstance().versionString, info.version)

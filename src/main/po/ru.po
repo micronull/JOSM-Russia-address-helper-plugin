@@ -46,3 +46,6 @@ msgstr "Включить удаление дублей."
 
 msgid "For selected objects"
 msgstr "Для выделенных объектов"
+
+msgid "By click"
+msgstr "На месте клика"
