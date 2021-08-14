@@ -1,15 +1,19 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper
 
+import org.apache.commons.text.StringEscapeUtils
 import org.openstreetmap.josm.actions.mapmode.MapMode
 import org.openstreetmap.josm.command.AddCommand
+import org.openstreetmap.josm.command.ChangePropertyCommand
 import org.openstreetmap.josm.command.Command
 import org.openstreetmap.josm.command.SequenceCommand
 import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.osm.Node
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.util.KeyPressReleaseListener
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnQuery
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.ImageProvider
+import org.openstreetmap.josm.tools.Logging
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
 import java.util.*
@@ -55,10 +59,27 @@ class RussiaAddressHelperPluginClickAction : MapMode(ACTION_NAME, ICON_NAME, nul
         val mouseEN = mapView.getEastNorth(e.x, e.y)
         val n = Node(mouseEN)
 
-        cmds.add(AddCommand(ds, n));
+        val httpResponse = EgrnQuery(mouseEN).httpClient.connect()
 
-        val c: Command = SequenceCommand(I18n.tr("Added node from RussiaAddressHelper"), cmds)
-        UndoRedoHandler.getInstance().add(c)
+        if (httpResponse.responseCode == 200) {
+            val match = Regex("""address":\s"(.+?)"""").find(StringEscapeUtils.unescapeJson(httpResponse.contentReader.readText()))
+            if (match == null) {
+                Logging.error("Parse EGRN response error.")
+            } else {
+                val address = match.groupValues[1]
+
+                n.put("addr:RU:egrn", address)
+                n.put("fixme", "yes")
+
+                cmds.add(AddCommand(ds, n))
+
+                val c: Command = SequenceCommand(I18n.tr("Added node from RussiaAddressHelper"), cmds)
+                UndoRedoHandler.getInstance().add(c)
+
+                ds.setSelected(n)
+            }
+
+        }
     }
 
     override fun doKeyPressed(e: KeyEvent) {
