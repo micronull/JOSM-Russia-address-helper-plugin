@@ -21,7 +21,7 @@ import org.openstreetmap.josm.tools.HttpClient
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
 
-class Buildings(selected: List<OsmPrimitive>) {
+class Buildings(objects: List<OsmPrimitive>) {
     @ObsoleteCoroutinesApi private val scope = CoroutineScope(newSingleThreadContext("EGRN requests"))
 
     val size: Int
@@ -61,10 +61,9 @@ class Buildings(selected: List<OsmPrimitive>) {
     private var items: MutableList<Building> = mutableListOf()
 
     init {
-        selected.forEach {
+        objects.forEach {
             items.add(Building(it))
         }
-        filter()
     }
 
     fun isNotEmpty(): Boolean {
@@ -207,14 +206,6 @@ class Buildings(selected: List<OsmPrimitive>) {
 
         if (TagSettingsReader.ENABLE_CLEAR_DOUBLE.get()) {
             items = Doubles().clear(items)
-        }
-    }
-
-    private fun filter() {
-        items.removeAll {
-            val el = it.osmPrimitive
-
-            el !is Way || !el.hasKey("building") || el.hasKey("fixme") || el.hasKey("addr:housenumber") || el.get("building") == "shed" || el.get("building") == "garage"
         }
     }
 }

@@ -5,6 +5,7 @@ import kotlinx.coroutines.cancel
 import org.openstreetmap.josm.actions.JosmAction
 import org.openstreetmap.josm.data.osm.DataSet
 import org.openstreetmap.josm.data.osm.OsmDataManager
+import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Buildings
@@ -19,7 +20,13 @@ class RussiaAddressHelperPluginSelectedAction : JosmAction(ACTION_NAME, ICON_NAM
 
     @ObsoleteCoroutinesApi override fun actionPerformed(e: java.awt.event.ActionEvent) {
         val dataSet: DataSet = OsmDataManager.getInstance().editDataSet ?: return
-        val buildings = Buildings(dataSet.selected.toList())
+        val selected = dataSet.selected.toMutableList()
+
+        selected.removeAll {
+            it !is Way || !it.hasKey("building") || it.hasKey("fixme") || it.hasKey("addr:housenumber") || it.get("building") == "shed" || it.get("building") == "garage"
+        }
+
+        val buildings = Buildings(selected)
 
         if (!buildings.isNotEmpty()) return
 
