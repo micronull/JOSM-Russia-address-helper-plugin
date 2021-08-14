@@ -6,6 +6,8 @@ import org.openstreetmap.josm.gui.preferences.PreferenceSetting
 import org.openstreetmap.josm.plugins.Plugin
 import org.openstreetmap.josm.plugins.PluginInformation
 import org.openstreetmap.josm.tools.I18n
+import org.openstreetmap.josm.tools.ImageProvider
+import javax.swing.JMenu
 
 class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
     init {
@@ -16,7 +18,10 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             menu.addSeparator()
         }
 
-        menu.add(RussiaAddressHelperPluginAction())
+        val subMenu = JMenu(I18n.tr("Russia address helper"))
+        subMenu.icon = ImageProvider("icon.svg").resource.getPaddedIcon(ImageProvider.ImageSizes.SMALLICON.imageDimension)
+        subMenu.add(RussiaAddressHelperPluginAction())
+        menu.add(subMenu)
 
         versionInfo = String.format("JOSM/%s JOSM-RussiaAddressHelper/%s", Version.getInstance().versionString, info.version)
     }
@@ -29,7 +34,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         lateinit var versionInfo: String
             private set
 
-        val ACTION_NAME = I18n.tr("Russia address helper")
-        val ICON_NAME = "icon.svg"
+        val ACTION_NAME = I18n.tr("For selected objects")
+        val ICON_NAME = "select.svg"
     }
 }

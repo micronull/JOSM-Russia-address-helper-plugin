@@ -43,3 +43,6 @@ msgstr "Записывать сырой адрес из ЕГРН в тег addr:
 
 msgid "Enable duplicate cleaning."
 msgstr "Включить удаление дублей."
+
+msgid "For selected objects"
+msgstr "Для выделенных объектов"
