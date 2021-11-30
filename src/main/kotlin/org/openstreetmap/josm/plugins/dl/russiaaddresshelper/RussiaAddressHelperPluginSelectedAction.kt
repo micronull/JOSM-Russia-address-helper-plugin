@@ -7,6 +7,7 @@ import org.openstreetmap.josm.data.osm.DataSet
 import org.openstreetmap.josm.data.osm.OsmDataManager
 import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.gui.MainApplication
+import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Buildings
 import org.openstreetmap.josm.tools.I18n
@@ -24,7 +25,7 @@ class RussiaAddressHelperPluginSelectedAction : JosmAction(
         val ICON_NAME = "select.svg"
     }
 
-    @ObsoleteCoroutinesApi override fun actionPerformed(e: java.awt.event.ActionEvent) {
+    @OptIn(ObsoleteCoroutinesApi::class) override fun actionPerformed(e: java.awt.event.ActionEvent) {
         val dataSet: DataSet = OsmDataManager.getInstance().editDataSet ?: return
         val selected = dataSet.selected.toMutableList()
 
@@ -34,7 +35,12 @@ class RussiaAddressHelperPluginSelectedAction : JosmAction(
 
         val buildings = Buildings(selected)
 
-        if (!buildings.isNotEmpty()) return
+        if (!buildings.isNotEmpty()) {
+            val msg = I18n.tr("Buildings must be selected!")
+            Notification(msg).setIcon(JOptionPane.WARNING_MESSAGE).show()
+
+            return
+        }
 
         val listener = Buildings.LoadListener()
         val progressDialog = PleaseWaitProgressMonitor()
