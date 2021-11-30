@@ -1,0 +1,3 @@
+# housenumber - номер дома
+patterns:
+  - ',\s*(?:д.*?)?\s+(?<housenumber>\d.*)'
