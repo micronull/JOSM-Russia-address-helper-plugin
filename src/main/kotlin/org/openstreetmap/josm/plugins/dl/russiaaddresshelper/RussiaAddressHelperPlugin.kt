@@ -11,7 +11,22 @@ import javax.swing.JMenu
 
 class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
     init {
-        val menu = MainApplication.getMenu().dataMenu
+        menuInit(MainApplication.getMenu().dataMenu)
+        versionInfo = String.format("JOSM/%s JOSM-RussiaAddressHelper/%s", Version.getInstance().versionString, info.version)
+    }
+
+    companion object {
+        val ACTION_NAME = I18n.tr("Russia address helper")!!
+        val ICON_NAME = "icon.svg"
+
+        @JvmStatic lateinit var versionInfo: String
+    }
+
+    override fun getPreferenceSetting(): PreferenceSetting {
+        return RussiaAddressHelperPluginSetting()
+    }
+
+    private fun menuInit(menu: JMenu) {
         menu.isVisible = true
 
         if (menu.itemCount > 0) {
@@ -25,19 +40,5 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         subMenu.add(RussiaAddressHelperPluginClickAction())
 
         menu.add(subMenu)
-
-        versionInfo = String.format("JOSM/%s JOSM-RussiaAddressHelper/%s", Version.getInstance().versionString, info.version)
-    }
-
-    override fun getPreferenceSetting(): PreferenceSetting {
-        return RussiaAddressHelperPluginSetting()
-    }
-
-    companion object {
-        lateinit var versionInfo: String
-            private set
-
-        val ACTION_NAME = I18n.tr("Russia address helper")
-        val ICON_NAME = "icon.svg"
     }
 }
