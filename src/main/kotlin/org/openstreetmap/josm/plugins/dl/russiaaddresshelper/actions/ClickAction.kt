@@ -9,7 +9,8 @@ import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.osm.Node
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.util.KeyPressReleaseListener
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnQuery
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnApi
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.ImageProvider
 import org.openstreetmap.josm.tools.Logging
@@ -62,7 +63,7 @@ class ClickAction : MapMode(
         val mouseEN = mapView.getEastNorth(e.x, e.y)
         val n = Node(mouseEN)
 
-        val httpResponse = EgrnQuery(mouseEN).httpClient.connect()
+        val httpResponse = RussiaAddressHelperPlugin.getEgrnClient().request(mouseEN)
 
         if (httpResponse.responseCode == 200) {
             val match = Regex("""address":\s"(.+?)"""").find(StringEscapeUtils.unescapeJson(httpResponse.contentReader.readText()))

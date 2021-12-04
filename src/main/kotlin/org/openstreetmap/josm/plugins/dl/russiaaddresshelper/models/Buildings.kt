@@ -10,8 +10,9 @@ import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.data.osm.Way
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnQuery
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.handlers.DeleteDoubles
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnApi
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.DeleteDoubles
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.TagSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.HouseNumberParser
@@ -54,7 +55,7 @@ class Buildings(objects: List<OsmPrimitive>) {
         val preparedTags: MutableMap<String, String> = mutableMapOf()
 
         fun request() {
-            httpResponse = EgrnQuery(coordinate!!).httpClient.connect()
+            httpResponse = RussiaAddressHelperPlugin.getEgrnClient().request(coordinate!!)
         }
     }
 

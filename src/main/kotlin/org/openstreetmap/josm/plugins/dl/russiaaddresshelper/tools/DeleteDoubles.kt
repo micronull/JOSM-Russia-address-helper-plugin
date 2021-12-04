@@ -1,4 +1,4 @@
-package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.handlers
+package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools
 
 import org.openstreetmap.josm.data.osm.OsmDataManager
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Buildings
@@ -17,7 +17,6 @@ class DeleteDoubles {
 
     /**
      * Очистка переданного списка от дублей.
-     * https://github.com/gazman-sdk/signals
      */
     fun clear(items: MutableList<Buildings.Building>): MutableList<Buildings.Building> {
         items.removeAll {

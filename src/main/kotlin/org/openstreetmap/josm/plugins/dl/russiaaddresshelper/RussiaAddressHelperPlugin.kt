@@ -7,6 +7,8 @@ import org.openstreetmap.josm.plugins.Plugin
 import org.openstreetmap.josm.plugins.PluginInformation
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions.ClickAction
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions.SelectAction
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnApi
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.PluginSetting
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.ImageProvider
@@ -15,14 +17,22 @@ import javax.swing.JMenu
 class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
     init {
         menuInit(MainApplication.getMenu().dataMenu)
-        versionInfo = String.format("JOSM/%s JOSM-RussiaAddressHelper/%s", Version.getInstance().versionString, info.version)
+
+        versionInfo = info.version
     }
 
     companion object {
         val ACTION_NAME = I18n.tr("Russia address helper")!!
         val ICON_NAME = "icon.svg"
 
-        @JvmStatic lateinit var versionInfo: String
+        lateinit var versionInfo: String
+
+        fun getEgrnClient(): EgrnApi {
+            val versions = String.format("JOSM/%s JOSM-RussiaAddressHelper/%s", Version.getInstance().versionString, versionInfo)
+            val userAgent = String.format("%s. Loading addresses for OpenStreetMaps.", versions)
+
+            return EgrnApi(EgrnSettingsReader.EGRN_URL_REQUEST.get(), userAgent)
+        }
     }
 
     override fun getPreferenceSetting(): PreferenceSetting {
