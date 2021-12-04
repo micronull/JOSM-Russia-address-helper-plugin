@@ -25,7 +25,7 @@ class RussiaAddressHelperPluginSelectedAction : JosmAction(
         val ICON_NAME = "select.svg"
     }
 
-    @OptIn(ObsoleteCoroutinesApi::class) override fun actionPerformed(e: java.awt.event.ActionEvent) {
+    override fun actionPerformed(e: java.awt.event.ActionEvent) {
         val dataSet: DataSet = OsmDataManager.getInstance().editDataSet ?: return
         val selected = dataSet.selected.toMutableList()
 

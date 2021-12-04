@@ -22,7 +22,7 @@ import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
 
 class Buildings(objects: List<OsmPrimitive>) {
-    @ObsoleteCoroutinesApi private val scope = CoroutineScope(newSingleThreadContext("EGRN requests"))
+    private val scope: CoroutineScope = CoroutineScope(CoroutineName("EGRN requests"))
 
     val size: Int
         get() {
@@ -70,7 +70,7 @@ class Buildings(objects: List<OsmPrimitive>) {
         return items.isNotEmpty()
     }
 
-    @ObsoleteCoroutinesApi fun load(loadListener: LoadListener? = null): CoroutineScope {
+    fun load(loadListener: LoadListener? = null): CoroutineScope {
         scope.launch {
             val channel = requests(loadListener)
 
@@ -104,7 +104,7 @@ class Buildings(objects: List<OsmPrimitive>) {
         return scope
     }
 
-    @ObsoleteCoroutinesApi private fun requests(loadListener: LoadListener? = null): Channel<Building> {
+    private fun requests(loadListener: LoadListener? = null): Channel<Building> {
         val limit = EgrnSettingsReader.REQUEST_LIMIT.get()
         val semaphore = kotlinx.coroutines.sync.Semaphore(limit)
         val channel = Channel<Building>()
@@ -117,18 +117,21 @@ class Buildings(objects: List<OsmPrimitive>) {
                     runCatching {
                         building.request()
                     }.onSuccess {
-                        if (building.httpResponse?.responseCode == 200) {
-                            channel.send(building)
+                        if (!channel.isClosedForSend) {
+                            if (building.httpResponse?.responseCode == 200) {
+                                channel.send(building)
+                            }
+
+                            loadListener?.onResponse?.invoke(building.httpResponse)
+
+                            if (items.size - 1 == index) {
+                                loadListener?.onResponseContinue?.invoke()
+                                channel.close()
+                            } else if (items.size - limit >= index) {
+                                delay((EgrnSettingsReader.REQUEST_DELAY.get() * 1000).toLong())
+                            }
                         }
 
-                        loadListener?.onResponse?.invoke(building.httpResponse)
-
-                        if (items.size - 1 == index) {
-                            loadListener?.onResponseContinue?.invoke()
-                            channel.close()
-                        } else if (items.size - limit >= index) {
-                            delay((EgrnSettingsReader.REQUEST_DELAY.get() * 1000).toLong())
-                        }
                     }.onFailure {
                         Logging.warn(it.message)
 
@@ -146,7 +149,7 @@ class Buildings(objects: List<OsmPrimitive>) {
         return channel
     }
 
-    @ObsoleteCoroutinesApi private suspend fun parseResponses(channel: Channel<Building>, loadListener: LoadListener? = null): MutableList<Deferred<Void?>> {
+    private suspend fun parseResponses(channel: Channel<Building>, loadListener: LoadListener? = null): MutableList<Deferred<Void?>> {
         val defers: MutableList<Deferred<Void?>> = mutableListOf()
         val streetParser = StreetParser()
         val houseNumberParser = HouseNumberParser()
