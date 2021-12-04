@@ -5,6 +5,9 @@ import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.preferences.PreferenceSetting
 import org.openstreetmap.josm.plugins.Plugin
 import org.openstreetmap.josm.plugins.PluginInformation
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions.ClickAction
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions.SelectAction
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.PluginSetting
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.ImageProvider
 import javax.swing.JMenu
@@ -23,7 +26,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
     }
 
     override fun getPreferenceSetting(): PreferenceSetting {
-        return RussiaAddressHelperPluginSetting()
+        return PluginSetting()
     }
 
     private fun menuInit(menu: JMenu) {
@@ -36,8 +39,8 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         val subMenu = JMenu(ACTION_NAME)
         subMenu.icon = ImageProvider(ICON_NAME).resource.getPaddedIcon(ImageProvider.ImageSizes.SMALLICON.imageDimension)
 
-        subMenu.add(RussiaAddressHelperPluginSelectedAction())
-        subMenu.add(RussiaAddressHelperPluginClickAction())
+        subMenu.add(SelectAction())
+        subMenu.add(ClickAction())
 
         menu.add(subMenu)
     }

@@ -11,7 +11,7 @@ import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnQuery
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.handlers.Doubles
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.handlers.DeleteDoubles
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.TagSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.HouseNumberParser
@@ -208,7 +208,7 @@ class Buildings(objects: List<OsmPrimitive>) {
         items.removeAll { it.preparedTags.isEmpty() }
 
         if (TagSettingsReader.ENABLE_CLEAR_DOUBLE.get()) {
-            items = Doubles().clear(items)
+            items = DeleteDoubles().clear(items)
         }
     }
 }

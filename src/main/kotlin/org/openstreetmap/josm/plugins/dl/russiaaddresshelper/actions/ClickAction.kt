@@ -1,4 +1,4 @@
-package org.openstreetmap.josm.plugins.dl.russiaaddresshelper
+package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions
 
 import org.apache.commons.text.StringEscapeUtils
 import org.openstreetmap.josm.actions.mapmode.MapMode
@@ -18,7 +18,7 @@ import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
 import javax.swing.SwingUtilities
 
-class RussiaAddressHelperPluginClickAction : MapMode(
+class ClickAction : MapMode(
     ACTION_NAME, ICON_NAME, null, Shortcut.registerShortcut(
         "data:egrn_click", I18n.tr("Data: {0}", I18n.tr(ACTION_NAME)), KeyEvent.KEY_LOCATION_UNKNOWN, Shortcut.NONE
     ), ImageProvider.getCursor("crosshair", "create_note")

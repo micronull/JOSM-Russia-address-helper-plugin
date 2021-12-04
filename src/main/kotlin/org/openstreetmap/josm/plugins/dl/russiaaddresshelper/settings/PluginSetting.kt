@@ -1,10 +1,8 @@
-package org.openstreetmap.josm.plugins.dl.russiaaddresshelper
+package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings
 
 import org.openstreetmap.josm.gui.preferences.DefaultTabPreferenceSetting
 import org.openstreetmap.josm.gui.preferences.PreferenceTabbedPane
 import org.openstreetmap.josm.gui.widgets.VerticallyScrollablePanel
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.preferences.EgrnRequestSettingsPanel
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.preferences.TagSettingsPanel
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagConstraints
@@ -13,7 +11,7 @@ import javax.swing.Box
 import javax.swing.JLabel
 import javax.swing.JSeparator
 
-class RussiaAddressHelperPluginSetting : DefaultTabPreferenceSetting("icon.svg", I18n.tr("Russia address helper settings"), "", false) {
+class PluginSetting : DefaultTabPreferenceSetting("icon.svg", I18n.tr("Russia address helper settings"), "", false) {
     companion object {
         val egrnSettingsPanel = EgrnRequestSettingsPanel()
         val tagSettingsPanel = TagSettingsPanel()

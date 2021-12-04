@@ -1,6 +1,5 @@
-package org.openstreetmap.josm.plugins.dl.russiaaddresshelper
+package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions
 
-import kotlinx.coroutines.ObsoleteCoroutinesApi
 import kotlinx.coroutines.cancel
 import org.openstreetmap.josm.actions.JosmAction
 import org.openstreetmap.josm.data.osm.DataSet
@@ -15,7 +14,7 @@ import org.openstreetmap.josm.tools.Shortcut
 import java.awt.event.KeyEvent
 import javax.swing.JOptionPane
 
-class RussiaAddressHelperPluginSelectedAction : JosmAction(
+class SelectAction : JosmAction(
     ACTION_NAME, ICON_NAME, null, Shortcut.registerShortcut(
         "data:egrn_selected", I18n.tr("Data: {0}", I18n.tr(ACTION_NAME)), KeyEvent.KEY_LOCATION_UNKNOWN, Shortcut.NONE
     ), false

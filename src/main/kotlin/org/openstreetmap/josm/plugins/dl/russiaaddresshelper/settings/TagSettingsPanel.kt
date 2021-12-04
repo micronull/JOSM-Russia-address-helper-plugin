@@ -1,4 +1,4 @@
-package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.preferences
+package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings
 
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.TagSettingsReader
 import org.openstreetmap.josm.tools.GBC

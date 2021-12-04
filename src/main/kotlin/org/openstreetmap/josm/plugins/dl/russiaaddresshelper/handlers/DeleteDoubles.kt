@@ -4,13 +4,21 @@ import org.openstreetmap.josm.data.osm.OsmDataManager
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Buildings
 import org.openstreetmap.josm.tools.Geometry
 
-class Doubles {
+/**
+ * Обработчик для удаления дублей.
+ * Фильтрует переданный список по имеющимся адресам и оставляет здания с наибольшей площадью.
+ */
+class DeleteDoubles {
     private val osmAddressMap: MutableMap<String, MutableList<String>> = mutableMapOf()
 
     init {
         loadOsmAddress()
     }
 
+    /**
+     * Очистка переданного списка от дублей.
+     * https://github.com/gazman-sdk/signals
+     */
     fun clear(items: MutableList<Buildings.Building>): MutableList<Buildings.Building> {
         items.removeAll {
             val street = it.preparedTags["addr:street"]!!
@@ -50,6 +58,9 @@ class Doubles {
         return newItems
     }
 
+    /**
+     * Загружаем список адресов из OSM в osmAddressMap.
+     */
     private fun loadOsmAddress() {
         val primitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives()
         val buildings = primitives.filter { p -> p.hasKey("building") && p.hasKey("addr:street") && p.hasKey("addr:housenumber") }
