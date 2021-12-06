@@ -17,21 +17,37 @@ dependencies {
     implementation 'org.apache.commons:commons-text:1.9'
     implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.6.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2-native-mt'
+
     packIntoJar 'org.apache.commons:commons-text:1.9'
     packIntoJar 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2-native-mt'
     packIntoJar 'org.jetbrains.kotlin:kotlin-stdlib:1.6.0'
-    testImplementation 'org.jetbrains.kotlin:kotlin-test:1.6.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+
+    testImplementation 'org.junit.vintage:junit-vintage-engine:5.8.2'
+    testImplementation 'org.mockito.kotlin:mockito-kotlin:4.0.0'
+    testImplementation("org.openstreetmap.josm:josm-unittest:") { changing = true }
+    testImplementation 'com.github.tomakehurst:wiremock-jre8:2.31.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.8.2'
+    testImplementation 'org.skyscreamer:jsonassert:1.5.0'
+
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
 }
 
 test {
     useJUnitPlatform()
 }
 
+sourceSets {
+    test {
+        resources {
+            srcDirs = ["src/test/data"]
+        }
+    }
+}
+
 josm {
     pluginName = "russia-address-helper"
     debugPort = 1729
-    josmCompileVersion = 18004
+    josmCompileVersion = 18303
     manifest {
         description = "Плагин JOSM для загрузки адресов из ЕГРН "
         mainClass = "org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin"

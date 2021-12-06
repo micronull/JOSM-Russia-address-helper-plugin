@@ -1,7 +1,7 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers
 
-import kotlin.test.assertEquals
-import org.junit.jupiter.api.Test
+import org.junit.Test
+import org.junit.jupiter.api.Assertions.*
 
 internal class HouseNumberParserTest {
     private val testSample: HouseNumberParser = HouseNumberParser()
