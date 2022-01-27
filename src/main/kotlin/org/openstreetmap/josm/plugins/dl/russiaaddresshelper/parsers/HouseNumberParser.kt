@@ -1,13 +1,13 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers
 
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.patterns.HousePatterns
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Patterns
 
-class HouseNumberParser : Parser {
-    private val patterns = HousePatterns.makeList()
+class HouseNumberParser : IParser<String> {
+    private val patterns = Patterns.byYml("/references/house_patterns.yml").asRegExpList()
 
-    override fun parse(egrnAddress: String): String {
+    override fun parse(address: String): String {
         for (pattern in patterns) {
-            val match = pattern.find(egrnAddress)
+            val match = pattern.find(address)
 
             if (match != null) {
                 return match.groups["housenumber"]!!.value.trim().uppercase()

@@ -28,8 +28,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         lateinit var versionInfo: String
 
         fun getEgrnClient(): EgrnApi {
-            val versions = String.format("JOSM/%s JOSM-RussiaAddressHelper/%s", Version.getInstance().versionString, versionInfo)
-            val userAgent = String.format("%s. Loading addresses for OpenStreetMaps.", versions)
+            val userAgent = String.format("JOSM/%s JOSM-RussiaAddressHelper/%s", Version.getInstance().versionString, versionInfo)
 
             return EgrnApi(EgrnSettingsReader.EGRN_URL_REQUEST.get(), userAgent)
         }

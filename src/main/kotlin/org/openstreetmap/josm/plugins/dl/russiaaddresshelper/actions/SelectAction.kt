@@ -1,5 +1,6 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions
 
+import com.github.kittinunf.fuel.core.isSuccessful
 import kotlinx.coroutines.cancel
 import org.openstreetmap.josm.actions.JosmAction
 import org.openstreetmap.josm.data.osm.DataSet
@@ -50,7 +51,7 @@ class SelectAction : JosmAction(
         progressDialog.showForegroundDialog()
 
         listener.onResponse = { response ->
-            if (response == null || response.responseCode != 200) {
+            if (!response.isSuccessful) {
                 ticksCount--
                 progressDialog.ticksCount = ticksCount
             } else {
