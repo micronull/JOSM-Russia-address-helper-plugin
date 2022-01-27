@@ -1,5 +1,7 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api
 
+import com.github.kittinunf.result.failure
+import com.github.kittinunf.result.success
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension
@@ -36,11 +38,17 @@ internal class EgrnApiTest {
         val mercator = Projections.getProjectionByCode("EPSG:3857")
         val en = mercator.latlon2eastNorth(LatLon(56.83787347564765, 60.58020958387835))
         val url = wmRule.baseUrl() + "/?coordinates={lat} {lon}&foo=1"
-        val response = EgrnApi(url, "foo-user-agent").request(en)
+        val (_, response, result) = EgrnApi(url, "foo-user-agent").request(en).responseString()
 
-        Assertions.assertEquals(HttpURLConnection.HTTP_OK, response.responseCode)
+        Assertions.assertEquals(HttpURLConnection.HTTP_OK, response.statusCode)
 
-        val body = StringEscapeUtils.unescapeJson(response.contentReader.readText())
-        JSONAssert.assertEquals("{results:[{attrs:{address:\"обл. Свердловская, г. Екатеринбург, ул. Ленина, дом 1\"}}]}", body, JSONCompareMode.LENIENT);
+        result.success {
+            val body = StringEscapeUtils.unescapeJson(it)
+            JSONAssert.assertEquals("{results:[{attrs:{address:\"обл. Свердловская, г. Екатеринбург, ул. Ленина, дом 1\"}}]}", body, JSONCompareMode.LENIENT);
+        }
+
+        result.failure {
+            Assertions.fail()
+        }
     }
 }

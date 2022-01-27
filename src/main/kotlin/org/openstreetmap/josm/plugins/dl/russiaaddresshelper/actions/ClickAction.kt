@@ -1,5 +1,6 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions
 
+import com.github.kittinunf.result.success
 import org.apache.commons.text.StringEscapeUtils
 import org.openstreetmap.josm.actions.mapmode.MapMode
 import org.openstreetmap.josm.command.AddCommand
@@ -63,26 +64,27 @@ class ClickAction : MapMode(
         val mouseEN = mapView.getEastNorth(e.x, e.y)
         val n = Node(mouseEN)
 
-        val httpResponse = RussiaAddressHelperPlugin.getEgrnClient().request(mouseEN)
+        RussiaAddressHelperPlugin.getEgrnClient().request(mouseEN).responseString { _, response, result ->
+            if (response.statusCode == 200) {
+                result.success {
+                    val match = Regex("""address":\s"(.+?)"""").find(StringEscapeUtils.unescapeJson(it))
+                    if (match == null) {
+                        Logging.error("Parse EGRN response error.")
+                    } else {
+                        val address = match.groupValues[1]
 
-        if (httpResponse.responseCode == 200) {
-            val match = Regex("""address":\s"(.+?)"""").find(StringEscapeUtils.unescapeJson(httpResponse.contentReader.readText()))
-            if (match == null) {
-                Logging.error("Parse EGRN response error.")
-            } else {
-                val address = match.groupValues[1]
+                        n.put("addr:RU:egrn", address)
+                        n.put("fixme", "yes")
 
-                n.put("addr:RU:egrn", address)
-                n.put("fixme", "yes")
+                        cmds.add(AddCommand(ds, n))
 
-                cmds.add(AddCommand(ds, n))
+                        val c: Command = SequenceCommand(I18n.tr("Added node from RussiaAddressHelper"), cmds)
+                        UndoRedoHandler.getInstance().add(c)
 
-                val c: Command = SequenceCommand(I18n.tr("Added node from RussiaAddressHelper"), cmds)
-                UndoRedoHandler.getInstance().add(c)
-
-                ds.setSelected(n)
+                        ds.setSelected(n)
+                    }
+                }
             }
-
         }
     }
 
