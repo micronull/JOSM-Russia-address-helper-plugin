@@ -12,6 +12,7 @@ class DeleteDoubles {
     private val osmAddressMap: MutableMap<String, MutableList<String>> = mutableMapOf()
 
     init {
+        // Предварительно загружаем список адресов из OSM, чтоб по нему удалить загруженные из ЕГРН дубли.
         loadOsmAddress()
     }
 
@@ -58,7 +59,7 @@ class DeleteDoubles {
     }
 
     /**
-     * Загружаем список адресов из OSM в osmAddressMap.
+     * Загружаем список адресов из OSM в отдельный массив osmAddressMap.
      */
     private fun loadOsmAddress() {
         val primitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives()

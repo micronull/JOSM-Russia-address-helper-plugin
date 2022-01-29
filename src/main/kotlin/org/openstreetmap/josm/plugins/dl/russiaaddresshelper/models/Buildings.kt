@@ -184,15 +184,10 @@ class Buildings(objects: List<OsmPrimitive>) {
 
                     if (streetParse.name != "") {
                         if (houseNumberParse != "") {
+                            d.building.preparedTags["addr:housenumber"] = houseNumberParse
+                            d.building.preparedTags["addr:street"] = streetParse.name
+
                             if (!osmPrimitive.hasTag("addr:housenumber")) {
-                                d.building.preparedTags["addr:housenumber"] = houseNumberParse
-                            }
-
-                            if (!osmPrimitive.hasTag("addr:street")) {
-                                d.building.preparedTags["addr:street"] = streetParse.name
-                            }
-
-                            if ("addr:housenumber" in d.building.preparedTags || "addr:street" in d.building.preparedTags) {
                                 d.building.preparedTags["source:addr"] = "ЕГРН"
                             }
                         }
