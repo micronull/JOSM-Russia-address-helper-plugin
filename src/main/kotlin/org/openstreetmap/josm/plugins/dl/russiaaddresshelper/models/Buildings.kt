@@ -193,7 +193,6 @@ class Buildings(objects: List<OsmPrimitive>) {
                             }
 
                             if ("addr:housenumber" in d.building.preparedTags || "addr:street" in d.building.preparedTags) {
-                                d.building.preparedTags["fixme"] = "Адрес загружен из ЕГРН, требуется проверка правильности заполнения тегов."
                                 d.building.preparedTags["source:addr"] = "ЕГРН"
                             }
                         }
