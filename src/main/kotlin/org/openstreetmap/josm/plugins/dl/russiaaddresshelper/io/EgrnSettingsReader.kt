@@ -24,6 +24,6 @@ class EgrnSettingsReader {
          * Property for delay between requests in seconds.
          * @since 0.1.3
          */
-        val REQUEST_DELAY = IntegerProperty("dl.russiaaddresshelper.ppk.request.delay", 1)
+        val REQUEST_DELAY = IntegerProperty("dl.russiaaddresshelper.ppk.request.delay", 3)
     }
 }
