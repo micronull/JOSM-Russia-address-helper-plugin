@@ -21,7 +21,7 @@ class DeleteDoubles {
      */
     fun clear(items: MutableList<Buildings.Building>): MutableList<Buildings.Building> {
         items.removeAll {
-            val street = it.preparedTags["addr:street"]!!
+            val street = it.preparedTags["addr:street"]!! //падает в этом месте если для здания был получен но нераспознан адрес.
             val house = it.preparedTags["addr:housenumber"]!!
             osmAddressMap.containsKey(street) && osmAddressMap[street]!!.contains(house)
         }

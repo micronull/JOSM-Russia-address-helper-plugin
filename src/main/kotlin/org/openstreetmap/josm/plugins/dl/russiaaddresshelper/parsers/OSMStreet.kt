@@ -33,8 +33,9 @@ class OSMStreet(val name: String, val extracted: String) {
             val primitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives().filter { p ->
                 p.hasKey("highway") && p.hasKey("name") && p.type.equals(OsmPrimitiveType.WAY)
             }
-            // вариант - искать searchWays(Bbox) в некоей окрестности от домика
-            //улицы, собранные отношениями, в которых на вэях нет тэгов??
+
+            // вариант - искать searchWays(Bbox) в некоей окрестности от домика/домиков
+            // улицы, собранные отношениями, в которых на вэях нет тэгов??
 
             val JWSsimilarity = JaroWinklerSimilarity()
 

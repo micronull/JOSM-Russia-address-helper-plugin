@@ -185,7 +185,7 @@ class Buildings(objects: List<OsmPrimitive>) {
                     val address = match.groupValues[1]
                     val osmPrimitive = d.building.osmPrimitive
 
-                    if (TagSettingsReader.EGRN_ADDR_RECORD.get() && !osmPrimitive.hasTag("addr:RU:egrn")) {
+                    if (TagSettingsReader.EGRN_ADDR_RECORD.get()) {
                         d.building.preparedTags["addr:RU:egrn"] = address
                     }
 
@@ -202,7 +202,7 @@ class Buildings(objects: List<OsmPrimitive>) {
                             }
                         }
                     } else {
-                        Logging.error("Cannot extract street and housenumber from: $address");
+                        Logging.error("Cannot extract street and housenumber from: $address")
                         if (streetParse.extracted != "") {
                             loadListener?.onNotFoundStreetParser?.invoke(streetParse.extracted)
                         }
@@ -219,7 +219,7 @@ class Buildings(objects: List<OsmPrimitive>) {
     private fun sanitize() {
         items.removeAll { it.preparedTags.isEmpty() }
 
-        if (TagSettingsReader.ENABLE_CLEAR_DOUBLE.get()) {
+        if (TagSettingsReader.ENABLE_CLEAR_DOUBLE.get() && items.isNotEmpty()) {
             items = DeleteDoubles().clear(items)
         }
     }

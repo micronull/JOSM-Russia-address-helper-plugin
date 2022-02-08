@@ -31,6 +31,7 @@ class PluginSetting : DefaultTabPreferenceSetting("icon.svg", I18n.tr("Russia ad
 
         panel.add(JSeparator(), GBC.eop().fill(GBC.HORIZONTAL))
         panel.add(layerShiftSettingsPanel, GBC.eop().fill(GridBagConstraints.HORIZONTAL))
+        layerShiftSettingsPanel.fillComboWithLayers()
 
         panel.add(Box.createVerticalGlue(), GBC.eol().fill(GBC.VERTICAL))
 
