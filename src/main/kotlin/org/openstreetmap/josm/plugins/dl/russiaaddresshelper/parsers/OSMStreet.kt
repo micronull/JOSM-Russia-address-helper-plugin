@@ -1,9 +1,11 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers
 
-import org.apache.commons.text.similarity.HammingDistance
+import org.apache.commons.text.similarity.JaroWinklerSimilarity
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.StreetType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.StreetTypes
 import org.openstreetmap.josm.data.osm.OsmDataManager
+import org.openstreetmap.josm.data.osm.OsmPrimitiveType
+import org.openstreetmap.josm.tools.Logging
 
 class OSMStreet(val name: String, val extracted: String) {
     companion object {
@@ -23,35 +25,53 @@ class OSMStreet(val name: String, val extracted: String) {
             }
 
             if (egrnStreetName == "") {
+                Logging.info("Cannot extract street name from EGRN address $address")
                 return OSMStreet("", "")
             }
 
             // Оставляем дороги у которых есть название
             val primitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives().filter { p ->
-                p.hasKey("highway") && p.hasKey("name")
+                p.hasKey("highway") && p.hasKey("name") && p.type.equals(OsmPrimitiveType.WAY)
             }
+            // вариант - искать searchWays(Bbox) в некоей окрестности от домика
+            //улицы, собранные отношениями, в которых на вэях нет тэгов??
 
-            val distance = HammingDistance()
+            val JWSsimilarity = JaroWinklerSimilarity()
 
             val lowerCaseEGRNStreetName = egrnStreetName.lowercase()
 
+            var maxSimilarity = 0.0
+            var mostSimilar = ""
             // Ищем соответствующий адресу примитив
             for (primitive in primitives) {
-                if (!primitive.hasKey("name")) {
-                    continue
-                }
 
                 val street = primitive.get("name")
 
-                val osmStreetName = extractStreetName(streetType!!.osm.asRegExpList(), street).lowercase()
-
-                if (osmStreetName == "") {
+                //пропускаем осм имена которые заведомо не содержат определенного нами типа
+                if (!street.contains(streetType!!.name, true)) {
                     continue
                 }
 
-                if (lowerCaseEGRNStreetName == osmStreetName || egrnStreetName.length == osmStreetName.length && distance.apply(egrnStreetName, osmStreetName) < 3) {
-                    return OSMStreet(street, egrnStreetName)
+                val lowercaseOsmStreetName = extractStreetName(streetType.osm.asRegExpList(), street).lowercase()
+
+                if (lowercaseOsmStreetName == "") {
+                    Logging.info("Cannot get openStreetMap name for $street, type ${streetType.name}")
+                    continue
                 }
+
+                if (lowerCaseEGRNStreetName == lowercaseOsmStreetName) {
+                    return OSMStreet(street, egrnStreetName)
+                } else {
+                    val similarity = JWSsimilarity.apply(lowerCaseEGRNStreetName, lowercaseOsmStreetName)
+                    if (similarity > maxSimilarity) {
+                        maxSimilarity = similarity
+                        mostSimilar = street
+                    }
+                }
+            }
+            if (mostSimilar.isNotBlank() && maxSimilarity > 0.9) {
+                Logging.warn("Exact street match not found, use most similar: " + mostSimilar + " with distance " + maxSimilarity)
+                return OSMStreet(mostSimilar, egrnStreetName)
             }
 
             return OSMStreet("", egrnStreetName)

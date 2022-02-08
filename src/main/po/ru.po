@@ -50,5 +50,5 @@ msgstr "Для выделенных объектов"
 msgid "By click"
 msgstr "На месте клика"
 
-msgid "Buildings must be selected!"
-msgstr "Необходимо выделить здания!"
+msgid "Buildings without number must be selected!"
+msgstr "Необходимо выделить здания без номера!"

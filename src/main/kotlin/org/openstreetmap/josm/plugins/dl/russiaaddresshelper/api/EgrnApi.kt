@@ -41,7 +41,7 @@ class EgrnApi(private val url: String, private val userAgent: String) {
         )
     }
 
-    private fun getUrlWithLanLon(coordinate: EastNorth): String {
+    private fun getUrlWithLatLon(coordinate: EastNorth): String {
         val mercator = Projections.getProjectionByCode("EPSG:3857")
         val projected = mercator.eastNorth2latlonClamped(coordinate)
 
@@ -54,7 +54,7 @@ class EgrnApi(private val url: String, private val userAgent: String) {
 
     private fun makeUrl(coordinate: EastNorth): URL {
         return try {
-            URL(getUrlWithLanLon(coordinate).replace(" ", "%20"))
+            URL(getUrlWithLatLon(coordinate).replace(" ", "%20"))
         } catch (e: MalformedURLException) {
             throw OsmTransferException(e)
         }
