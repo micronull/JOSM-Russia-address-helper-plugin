@@ -3,6 +3,7 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools
 import org.openstreetmap.josm.data.osm.OsmDataManager
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Buildings
 import org.openstreetmap.josm.tools.Geometry
+import java.util.function.Predicate
 
 /**
  * Обработчик для удаления дублей.
@@ -21,7 +22,11 @@ class DeleteDoubles {
      */
     fun clear(items: MutableList<Buildings.Building>): MutableList<Buildings.Building> {
         items.removeAll {
-            val street = it.preparedTags["addr:street"]!! //падает в этом месте если для здания был получен но нераспознан адрес.
+            it.preparedTags["addr:street"] == null || it.preparedTags["addr:housenumber"] == null
+        }
+
+        items.removeAll {
+            val street = it.preparedTags["addr:street"]!!
             val house = it.preparedTags["addr:housenumber"]!!
             osmAddressMap.containsKey(street) && osmAddressMap[street]!!.contains(house)
         }
