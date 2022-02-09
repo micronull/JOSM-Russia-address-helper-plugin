@@ -7,7 +7,7 @@ import org.openstreetmap.josm.data.osm.OsmDataManager
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType
 import org.openstreetmap.josm.tools.Logging
 
-class OSMStreet(val name: String, val extracted: String) {
+class OSMStreet(val name: String, val extractedName: String, val extractedType: String) {
     companion object {
         fun identify(address: String, streetTypes: StreetTypes): OSMStreet {
             var streetType: StreetType? = null
@@ -26,7 +26,7 @@ class OSMStreet(val name: String, val extracted: String) {
 
             if (egrnStreetName == "") {
                 Logging.info("Cannot extract street name from EGRN address $address")
-                return OSMStreet("", "")
+                return OSMStreet("", "", "")
             }
 
             // Оставляем дороги у которых есть название
@@ -39,7 +39,7 @@ class OSMStreet(val name: String, val extracted: String) {
 
             val JWSsimilarity = JaroWinklerSimilarity()
 
-            val lowerCaseEGRNStreetName = egrnStreetName.lowercase()
+            val lowerCaseEGRNStreetName = egrnStreetName.lowercase().replace('ё','е')
 
             var maxSimilarity = 0.0
             var mostSimilar = ""
@@ -54,6 +54,7 @@ class OSMStreet(val name: String, val extracted: String) {
                 }
 
                 val lowercaseOsmStreetName = extractStreetName(streetType.osm.asRegExpList(), street).lowercase()
+                    .replace('ё','е')
 
                 if (lowercaseOsmStreetName == "") {
                     Logging.info("Cannot get openStreetMap name for $street, type ${streetType.name}")
@@ -61,7 +62,7 @@ class OSMStreet(val name: String, val extracted: String) {
                 }
 
                 if (lowerCaseEGRNStreetName == lowercaseOsmStreetName) {
-                    return OSMStreet(street, egrnStreetName)
+                    return OSMStreet(street, egrnStreetName, streetType.name)
                 } else {
                     val similarity = JWSsimilarity.apply(lowerCaseEGRNStreetName, lowercaseOsmStreetName)
                     if (similarity > maxSimilarity) {
@@ -71,11 +72,11 @@ class OSMStreet(val name: String, val extracted: String) {
                 }
             }
             if (mostSimilar.isNotBlank() && maxSimilarity > 0.9) {
-                Logging.warn("Exact street match not found, use most similar: " + mostSimilar + " with distance " + maxSimilarity)
-                return OSMStreet(mostSimilar, egrnStreetName)
+                Logging.warn("Exact street match not found, use most similar: $mostSimilar with distance $maxSimilarity")
+                return OSMStreet(mostSimilar, egrnStreetName, streetType!!.name)
             }
 
-            return OSMStreet("", egrnStreetName)
+            return OSMStreet("", egrnStreetName, streetType!!.name)
         }
 
         private fun extractStreetName(regExList: Collection<Regex>, address: String): String {

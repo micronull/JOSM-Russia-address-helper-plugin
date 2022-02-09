@@ -36,7 +36,7 @@ class Buildings(objects: List<OsmPrimitive>) {
     class LoadListener {
         var onResponse: ((res: Response) -> Unit)? = null
         var onResponseContinue: (() -> Unit)? = null
-        var onNotFoundStreetParser: ((street: String) -> Unit)? = null
+        var onNotFoundStreetParser: ((street:String, type: String) -> Unit)? = null
         var onComplete: ((changeBuildings: Array<OsmPrimitive>) -> Unit)? = null
     }
 
@@ -45,6 +45,9 @@ class Buildings(objects: List<OsmPrimitive>) {
             get() {
                 return when (osmPrimitive) {
                     is Way -> {
+                        //редкая, но реальная проблема - для сложных зданий центроид находится вне здания и вне участка
+                        //пример - addr:RU:egrn=Красноярский край, г. Минусинск, ул. Гоголя, 28 (53.7135362, 91.6851041)
+                        //можно проверять, находится ли центроид внутри полигона здания, если нет - брать ближайшую к нему точку
                         Geometry.getCentroid(osmPrimitive.nodes)
                     }
                     else -> {
@@ -203,8 +206,8 @@ class Buildings(objects: List<OsmPrimitive>) {
                         }
                     } else {
                         Logging.error("Cannot extract street and housenumber from: $address")
-                        if (streetParse.extracted != "") {
-                            loadListener?.onNotFoundStreetParser?.invoke(streetParse.extracted)
+                        if (streetParse.extractedName != "") {
+                            loadListener?.onNotFoundStreetParser?.invoke(streetParse.extractedName, streetParse.extractedType)
                         }
                     }
                 }

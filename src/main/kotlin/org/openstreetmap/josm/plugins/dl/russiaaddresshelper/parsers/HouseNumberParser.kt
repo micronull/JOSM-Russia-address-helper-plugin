@@ -11,7 +11,13 @@ class HouseNumberParser : IParser<String> {
             val match = pattern.find(address)
 
             if (match != null) {
-                return match.groups["housenumber"]!!.value.filterNot { it =='"' || it ==' ' }.trim().uppercase()
+                var houseNumber = match.groups["housenumber"]!!.value.filterNot { it =='"' || it ==' ' }.trim().uppercase()
+                val buildingNumber = match.groups["building"]?.value?.filterNot { it =='"' || it ==' ' }?.trim()?.uppercase()
+                if (buildingNumber != null) {
+                    //наверное темплейт выхлопа тоже нужно вынести в конфигурацию
+                    houseNumber = "$houseNumber С$buildingNumber"
+                }
+                return houseNumber
             }
             Logging.info("Cant parse housenumber from address: $address")
         }

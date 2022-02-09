@@ -64,8 +64,8 @@ class SelectAction : JosmAction(
             progressDialog.indeterminateSubTask(I18n.tr("Data processing"))
         }
 
-        listener.onNotFoundStreetParser = {
-            if (it.isNotEmpty() && !notFoundStreet.contains(it)) notFoundStreet.add(it)
+        listener.onNotFoundStreetParser = { street, type ->
+            if (street.isNotEmpty() && !notFoundStreet.contains("\"$street\" тип: \"$type\"")) notFoundStreet.add("\"$street\" тип: \"$type\"")
         }
 
         listener.onComplete = { changeBuildings ->
