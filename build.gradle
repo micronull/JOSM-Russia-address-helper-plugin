@@ -8,7 +8,7 @@ plugins {
 }
 
 group 'org.openstreetmap.josm.plugins.dl.russiaaddresshelper'
-version '0.6.0.2'
+version '0.7.0'
 
 repositories {
     mavenCentral()
@@ -59,7 +59,7 @@ josm {
         description = "Плагин JOSM для загрузки адресов из ЕГРН "
         mainClass = "org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin"
         minJosmVersion = 17919
-        author = "Stepan I."
+        author = "Stepan I. and TakutoRU"
         canLoadAtRuntime = false
         iconPath = "images/icon.svg"
     }
