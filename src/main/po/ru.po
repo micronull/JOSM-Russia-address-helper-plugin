@@ -50,5 +50,8 @@ msgstr "Для выделенных объектов"
 msgid "By click"
 msgstr "На месте клика"
 
-msgid "Buildings must be selected!"
-msgstr "Необходимо выделить здания!"
+msgid "Buildings without number must be selected!"
+msgstr "Необходимо выделить здания без номера!"
+
+msgid "Enable requested coordinates shift according to the layer:"
+msgstr "Сдвигать координаты запроса согласно сдвигу выбранного слоя:"

@@ -160,22 +160,32 @@ class Buildings(objects: List<OsmPrimitive>) {
         return channel
     }
 
-    private suspend fun parseResponses(channel: Channel<ChannelData>, loadListener: LoadListener? = null): MutableList<Deferred<Void?>> {
+    private suspend fun parseResponses(
+        channel: Channel<ChannelData>,
+        loadListener: LoadListener? = null
+    ): MutableList<Deferred<Void?>> {
         val defers: MutableList<Deferred<Void?>> = mutableListOf()
         val streetParser = StreetParser()
         val houseNumberParser = HouseNumberParser()
 
         for (d in channel) {
             defers += scope.async {
-                val match = Regex("""address":\s"(.+?)"""").find(StringEscapeUtils.unescapeJson(d.responseBody))
+                Logging.info("Got data from EGRN: " + StringEscapeUtils.unescapeJson(d.responseBody))
+                // old regexp broken on quotes
+                // any addresses with quotes will be cut
+                //TO DO implement Jackson deserealization + more than 1 feature
+                val match = Regex("""address":\s"(.+?)",\s"cn"""").find(StringEscapeUtils.unescapeJson(d.responseBody))
 
                 if (match == null) {
+
                     Logging.error("Parse EGRN response error.")
+                    Logging.error("Recieved:" + d.responseBody)
+
                 } else {
                     val address = match.groupValues[1]
                     val osmPrimitive = d.building.osmPrimitive
 
-                    if (TagSettingsReader.EGRN_ADDR_RECORD.get() && !osmPrimitive.hasTag("addr:RU:egrn")) {
+                    if (TagSettingsReader.EGRN_ADDR_RECORD.get()) {
                         d.building.preparedTags["addr:RU:egrn"] = address
                     }
 
@@ -191,8 +201,11 @@ class Buildings(objects: List<OsmPrimitive>) {
                                 d.building.preparedTags["source:addr"] = "ЕГРН"
                             }
                         }
-                    } else if (streetParse.extracted != "") {
-                        loadListener?.onNotFoundStreetParser?.invoke(streetParse.extracted)
+                    } else {
+                        Logging.error("Cannot extract street and housenumber from: $address")
+                        if (streetParse.extracted != "") {
+                            loadListener?.onNotFoundStreetParser?.invoke(streetParse.extracted)
+                        }
                     }
                 }
 
@@ -206,7 +219,7 @@ class Buildings(objects: List<OsmPrimitive>) {
     private fun sanitize() {
         items.removeAll { it.preparedTags.isEmpty() }
 
-        if (TagSettingsReader.ENABLE_CLEAR_DOUBLE.get()) {
+        if (TagSettingsReader.ENABLE_CLEAR_DOUBLE.get() && items.isNotEmpty()) {
             items = DeleteDoubles().clear(items)
         }
     }

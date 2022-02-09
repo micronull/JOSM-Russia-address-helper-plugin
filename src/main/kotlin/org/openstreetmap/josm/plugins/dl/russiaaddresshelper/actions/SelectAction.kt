@@ -36,7 +36,7 @@ class SelectAction : JosmAction(
         val buildings = Buildings(selected)
 
         if (!buildings.isNotEmpty()) {
-            val msg = I18n.tr("Buildings must be selected!")
+            val msg = I18n.tr("Buildings without number must be selected!")
             Notification(msg).setIcon(JOptionPane.WARNING_MESSAGE).show()
 
             return
@@ -77,7 +77,7 @@ class SelectAction : JosmAction(
 
                 notFoundStreet.forEach { messageNotFountStreets += "<li>$it</li>" }
 
-                messageNotFountStreets += "</ul>Для перечисленных улиц адреса не загружены из ЕРГН.<br/>Необходимо отметить улицы на карте OSM.</html>"
+                messageNotFountStreets += "</ul>Для перечисленных улиц адреса не загружены из ЕГРН.<br/>Необходимо отметить улицы на карте OSM.</html>"
 
                 JOptionPane.showMessageDialog(
                     MainApplication.getMainFrame(), messageNotFountStreets, I18n.tr("Warning"), JOptionPane.WARNING_MESSAGE
