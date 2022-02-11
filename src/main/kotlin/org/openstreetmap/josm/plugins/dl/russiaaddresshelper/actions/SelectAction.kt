@@ -11,6 +11,7 @@ import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Buildings
 import org.openstreetmap.josm.tools.I18n
+import org.openstreetmap.josm.tools.Logging
 import org.openstreetmap.josm.tools.Shortcut
 import java.awt.event.KeyEvent
 import javax.swing.JOptionPane
@@ -40,6 +41,8 @@ class SelectAction : JosmAction(
             Notification(msg).setIcon(JOptionPane.WARNING_MESSAGE).show()
 
             return
+        } else {
+            Logging.info("EGRN-PLUGIN After filtering buildings to process: ${buildings.size}" )
         }
 
         val listener = Buildings.LoadListener()

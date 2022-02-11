@@ -173,7 +173,7 @@ class Buildings(objects: List<OsmPrimitive>) {
 
         for (d in channel) {
             defers += scope.async {
-                Logging.info("Got data from EGRN: " + StringEscapeUtils.unescapeJson(d.responseBody))
+                Logging.info("EGRN-PLUGIN Got data from EGRN: " + StringEscapeUtils.unescapeJson(d.responseBody))
                 // old regexp broken on quotes
                 // any addresses with quotes will be cut
                 //TO DO implement Jackson deserealization + more than 1 feature
@@ -181,8 +181,8 @@ class Buildings(objects: List<OsmPrimitive>) {
 
                 if (match == null) {
 
-                    Logging.error("Parse EGRN response error.")
-                    Logging.error("Recieved:" + d.responseBody)
+                    Logging.error("EGRN-PLUGIN Parse response error.")
+                    Logging.error("EGRN-PLUGIN recieved:" + d.responseBody)
 
                 } else {
                     val address = match.groupValues[1]
@@ -205,8 +205,8 @@ class Buildings(objects: List<OsmPrimitive>) {
                             }
                         }
                     } else {
-                        Logging.error("Cannot extract street and housenumber from: $address")
                         if (streetParse.extractedName != "") {
+                            Logging.error("EGRN-PLUGIN Cannot match street with OSM : ${streetParse.extractedName}, ${streetParse.extractedType}")
                             loadListener?.onNotFoundStreetParser?.invoke(streetParse.extractedName, streetParse.extractedType)
                         }
                     }

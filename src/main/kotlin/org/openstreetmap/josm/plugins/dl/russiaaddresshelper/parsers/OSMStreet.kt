@@ -25,7 +25,7 @@ class OSMStreet(val name: String, val extractedName: String, val extractedType: 
             }
 
             if (egrnStreetName == "") {
-                Logging.info("Cannot extract street name from EGRN address $address")
+                Logging.info("EGRN-PLUGIN Cannot extract street name from EGRN address $address")
                 return OSMStreet("", "", "")
             }
 
@@ -57,7 +57,7 @@ class OSMStreet(val name: String, val extractedName: String, val extractedType: 
                     .replace('ё','е')
 
                 if (lowercaseOsmStreetName == "") {
-                    Logging.info("Cannot get openStreetMap name for $street, type ${streetType.name}")
+                    Logging.info("EGRN-PLUGIN Cannot get openStreetMap name for $street, type ${streetType.name}")
                     continue
                 }
 
@@ -72,7 +72,7 @@ class OSMStreet(val name: String, val extractedName: String, val extractedType: 
                 }
             }
             if (mostSimilar.isNotBlank() && maxSimilarity > 0.9) {
-                Logging.warn("Exact street match not found, use most similar: $mostSimilar with distance $maxSimilarity")
+                Logging.warn("EGRN-PLUGIN Exact street match not found, use most similar: $mostSimilar with distance $maxSimilarity")
                 return OSMStreet(mostSimilar, egrnStreetName, streetType!!.name)
             }
 

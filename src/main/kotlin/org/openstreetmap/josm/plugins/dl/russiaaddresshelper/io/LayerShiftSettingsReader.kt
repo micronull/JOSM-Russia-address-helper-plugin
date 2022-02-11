@@ -8,6 +8,6 @@ class LayerShiftSettingsReader {
          * @since 0.2
          */
 
-        val SHIFT_SOURCE_LAYER = StringProperty("dl.russiaaddresshelper.tag.shift_source_layer", "none")
+        val SHIFT_SOURCE_LAYER = StringProperty("dl.russiaaddresshelper.tag.shift_source_layer", "")
     }
 }
