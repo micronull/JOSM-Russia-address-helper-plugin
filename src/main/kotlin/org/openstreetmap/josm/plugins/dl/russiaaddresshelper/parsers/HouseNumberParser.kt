@@ -29,7 +29,7 @@ class HouseNumberParser : IParser<String> {
 
                 return houseNumber
             }
-            Logging.info("EGRN-PLUGIN Cant parse housenumber from address: $address")
+            Logging.error("EGRN-PLUGIN Cant parse housenumber from address: $address")
         }
 
         return ""

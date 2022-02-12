@@ -15,6 +15,7 @@ import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNFeatureType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.DeleteDoubles
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.TagSettingsReader
@@ -58,8 +59,8 @@ class Buildings(objects: List<OsmPrimitive>) {
 
         val preparedTags: MutableMap<String, String> = mutableMapOf()
 
-        fun request(): Request {
-            return RussiaAddressHelperPlugin.getEgrnClient().request(coordinate!!)
+        fun requestParcel(): Request {
+            return RussiaAddressHelperPlugin.getEgrnClient().request(coordinate!!, EGRNFeatureType.PARCEL)
         }
     }
 
@@ -122,7 +123,7 @@ class Buildings(objects: List<OsmPrimitive>) {
                     semaphore.acquire()
 
                     try {
-                        val (_, response, result) = building.request().responseString()
+                        val (_, response, result) = building.requestParcel().responseString()
 
                         when (result) {
                             is Result.Success -> {
@@ -206,7 +207,7 @@ class Buildings(objects: List<OsmPrimitive>) {
                         }
                     } else {
                         if (streetParse.extractedName != "") {
-                            Logging.error("EGRN-PLUGIN Cannot match street with OSM : ${streetParse.extractedName}, ${streetParse.extractedType}")
+                            Logging.warn("EGRN-PLUGIN Cannot match street with OSM : ${streetParse.extractedName}, ${streetParse.extractedType}")
                             loadListener?.onNotFoundStreetParser?.invoke(streetParse.extractedName, streetParse.extractedType)
                         }
                     }

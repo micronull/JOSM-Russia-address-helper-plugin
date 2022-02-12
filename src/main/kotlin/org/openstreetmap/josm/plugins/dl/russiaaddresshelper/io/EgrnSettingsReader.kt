@@ -11,7 +11,7 @@ class EgrnSettingsReader {
          */
         val EGRN_URL_REQUEST = StringProperty(
             "dl.russiaaddresshelper.ppk.url",
-            "https://pkk.rosreestr.ru/api/features/?text={lat}%20{lon}&tolerance=1&types=[1]"
+            "https://pkk.rosreestr.ru/api/features/?text={lat}%20{lon}&tolerance=1&types=[{type}]"
         )
 
         /**

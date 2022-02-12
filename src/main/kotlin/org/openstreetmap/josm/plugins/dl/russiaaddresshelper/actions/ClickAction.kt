@@ -9,15 +9,19 @@ import org.openstreetmap.josm.command.SequenceCommand
 import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.osm.Node
 import org.openstreetmap.josm.gui.MainApplication
+import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.util.KeyPressReleaseListener
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnApi
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNFeatureType
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.HouseNumberParser
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.StreetParser
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.ImageProvider
 import org.openstreetmap.josm.tools.Logging
 import org.openstreetmap.josm.tools.Shortcut
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
+import javax.swing.JOptionPane
 import javax.swing.SwingUtilities
 
 class ClickAction : MapMode(
@@ -64,28 +68,49 @@ class ClickAction : MapMode(
         val mouseEN = mapView.getEastNorth(e.x, e.y)
         val n = Node(mouseEN)
 
-        RussiaAddressHelperPlugin.getEgrnClient().request(mouseEN).responseString { _, response, result ->
-            if (response.statusCode == 200) {
-                result.success {
-                    val match = Regex("""address":\s"(.+?)"""").find(StringEscapeUtils.unescapeJson(it))
-                    if (match == null) {
-                        Logging.error("Parse EGRN response error.")
-                    } else {
-                        val address = match.groupValues[1]
+        RussiaAddressHelperPlugin.getEgrnClient().request(mouseEN, EGRNFeatureType.BUILDING)
+            .responseString { _, response, result ->
+                if (response.statusCode == 200) {
+                    result.success {
+                        val match = Regex("""address":\s"(.+?)",\s"cn"""").find(StringEscapeUtils.unescapeJson(it))
+                        if (match == null) {
+                            Logging.error("Parse EGRN response error.")
+                            Logging.error("EGRN response was: ${StringEscapeUtils.unescapeJson(it)}")
+                        } else {
+                            val address = match.groupValues[1]
 
-                        n.put("addr:RU:egrn", address)
-                        n.put("fixme", "yes")
+                            n.put("addr:RU:egrn", address)
+                            n.put("fixme", "yes")
 
-                        cmds.add(AddCommand(ds, n))
+                            val streetParser = StreetParser()
+                            val houseNumberParser = HouseNumberParser()
+                            val streetParse = streetParser.parse(address)
+                            val houseNumberParse = houseNumberParser.parse(address)
+                            if (streetParse.name != "") {
+                                if (houseNumberParse != "") {
+                                    n.put("addr:housenumber", houseNumberParse)
+                                    n.put("addr:street", streetParse.name)
+                                    n.put("source:addr", "ЕГРН")
+                                }
+                            } else {
+                                if (streetParse.extractedName != "") {
+                                    Notification("EGRN-PLUGIN Cannot match street with OSM : ${streetParse.extractedName}, ${streetParse.extractedType}").setIcon(
+                                        JOptionPane.WARNING_MESSAGE
+                                    ).show()
+                                    Logging.warn("EGRN-PLUGIN Cannot match street with OSM : ${streetParse.extractedName}, ${streetParse.extractedType}")
+                                }
+                            }
 
-                        val c: Command = SequenceCommand(I18n.tr("Added node from RussiaAddressHelper"), cmds)
-                        UndoRedoHandler.getInstance().add(c)
+                            cmds.add(AddCommand(ds, n))
 
-                        ds.setSelected(n)
+                            val c: Command = SequenceCommand(I18n.tr("Added node from RussiaAddressHelper"), cmds)
+                            UndoRedoHandler.getInstance().add(c)
+
+                            ds.setSelected(n)
+                        }
                     }
                 }
             }
-        }
     }
 
     override fun doKeyPressed(e: KeyEvent) {

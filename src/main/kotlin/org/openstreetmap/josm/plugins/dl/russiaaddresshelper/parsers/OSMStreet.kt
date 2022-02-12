@@ -5,7 +5,10 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.StreetType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.StreetTypes
 import org.openstreetmap.josm.data.osm.OsmDataManager
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType
+import org.openstreetmap.josm.gui.Notification
+import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
+import javax.swing.JOptionPane
 
 class OSMStreet(val name: String, val extractedName: String, val extractedType: String) {
     companion object {
@@ -25,7 +28,7 @@ class OSMStreet(val name: String, val extractedName: String, val extractedType: 
             }
 
             if (egrnStreetName == "") {
-                Logging.info("EGRN-PLUGIN Cannot extract street name from EGRN address $address")
+                Logging.error("EGRN-PLUGIN Cannot extract street name from EGRN address $address")
                 return OSMStreet("", "", "")
             }
 
@@ -72,7 +75,9 @@ class OSMStreet(val name: String, val extractedName: String, val extractedType: 
                 }
             }
             if (mostSimilar.isNotBlank() && maxSimilarity > 0.9) {
-                Logging.warn("EGRN-PLUGIN Exact street match not found, use most similar: $mostSimilar with distance $maxSimilarity")
+                Logging.warn("EGRN-PLUGIN Exact street match for $egrnStreetName not found, use most similar: $mostSimilar with distance $maxSimilarity")
+                val msg = I18n.tr("Exact street match not found, most similar will be used!")
+                Notification("$msg $egrnStreetName -> $mostSimilar").setIcon(JOptionPane.WARNING_MESSAGE).show()
                 return OSMStreet(mostSimilar, egrnStreetName, streetType!!.name)
             }
 

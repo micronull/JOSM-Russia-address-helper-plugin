@@ -8,9 +8,11 @@ import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.coor.conversion.DecimalDegreesCoordinateFormat
 import org.openstreetmap.josm.data.projection.Projections
 import org.openstreetmap.josm.gui.MainApplication
+import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.layer.WMSLayer
 import org.openstreetmap.josm.io.OsmTransferException
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.LayerShiftSettingsReader
+import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
 import java.net.MalformedURLException
 import java.net.URL
@@ -19,9 +21,10 @@ import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
+import javax.swing.JOptionPane
 
 class EgrnApi(private val url: String, private val userAgent: String) {
-    fun request(coordinate: EastNorth): Request {
+    fun request(coordinate: EastNorth, featureType: EGRNFeatureType): Request {
         // Глушим проверку SSL, пока у ППК и/или у JOSM проблемы с сертификатом.
         // https://stackoverflow.com/questions/47460211/kotlin-library-that-can-do-https-connection-without-certificate-verification-li
         val manager: FuelManager = FuelManager().apply {
@@ -38,14 +41,14 @@ class EgrnApi(private val url: String, private val userAgent: String) {
             hostnameVerifier = HostnameVerifier { _, _ -> true }
         }
 
-        return manager.request(Method.GET, makeUrl(coordinate).toString()).header(
+        return manager.request(Method.GET, makeUrl(coordinate, featureType).toString()).header(
             mapOf(
                 Headers.ACCEPT to "application/json", Headers.CONTENT_TYPE to "application/json", Headers.USER_AGENT to userAgent
             )
         )
     }
 
-    private fun getUrlWithLatLon(coordinate: EastNorth): String {
+    private fun getUrlWithLatLon(coordinate: EastNorth, featureType: Int): String {
         val mercator = Projections.getProjectionByCode("EPSG:3857")
         val projected = mercator.eastNorth2latlonClamped(coordinate)
 
@@ -53,12 +56,12 @@ class EgrnApi(private val url: String, private val userAgent: String) {
         val lat = formatter.latToString(projected)
         val lon = formatter.lonToString(projected)
 
-        return url.replace("{lat}", lat).replace("{lon}", lon)
+        return url.replace("{lat}", lat).replace("{lon}", lon).replace("{type}", featureType.toString())
     }
 
-    private fun makeUrl(coordinate: EastNorth): URL {
+    private fun makeUrl(coordinate: EastNorth, featureType: EGRNFeatureType): URL {
         return try {
-            URL(getUrlWithLatLon(getLayerShift(coordinate)).replace(" ", "%20"))
+            URL(getUrlWithLatLon(getLayerShift(coordinate), featureType.type).replace(" ", "%20"))
         } catch (e: MalformedURLException) {
             throw OsmTransferException(e)
         }
@@ -73,8 +76,11 @@ class EgrnApi(private val url: String, private val userAgent: String) {
         val shiftLayer = layers.find { it.name == shiftLayerName }
 
         if (shiftLayer == null) {
-            Logging.warn("Shift layer $shiftLayerName found in settings, but not in current layers, correction not applied")
             LayerShiftSettingsReader.SHIFT_SOURCE_LAYER.put("")
+            val msg = "Shift layer found in settings, but is absent in current layers, correction not applied. Name:"
+            Logging.warn("$msg $shiftLayerName")
+            val msgLoc = I18n.tr(msg)
+            Notification("$msgLoc $shiftLayerName").setIcon(JOptionPane.WARNING_MESSAGE).show()
             return coordinate
         }
         return coordinate.subtract(shiftLayer.displaySettings.displacement)
