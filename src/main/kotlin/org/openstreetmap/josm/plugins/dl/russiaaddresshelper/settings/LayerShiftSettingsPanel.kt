@@ -12,8 +12,10 @@ import java.awt.GridBagLayout
 import javax.swing.*
 
 class LayerShiftSettingsPanel : JPanel(GridBagLayout()) {
-    private val parcelsCoordinatesShiftLabel = JLabel(I18n.tr("Enable requested coordinates shift for parcels request according to the layer:"))
-    private val buildingsCoordinatesShiftLabel = JLabel(I18n.tr("Enable requested coordinates shift for buildings request according to the layer:"))
+    private val parcelsCoordinatesShiftLabel =
+        JLabel(I18n.tr("Enable requested coordinates shift for parcels request according to the layer:"))
+    private val buildingsCoordinatesShiftLabel =
+        JLabel(I18n.tr("Enable requested coordinates shift for buildings request according to the layer:"))
     private val parcelsLayerCombo: JosmComboBox<String> = JosmComboBox()
     private val buildingsLayerCombo: JosmComboBox<String> = JosmComboBox()
     private val useBuildingsLayerCheckbox = JCheckBox(I18n.tr("Use EGRN buildings layer as address source"))
@@ -45,9 +47,11 @@ class LayerShiftSettingsPanel : JPanel(GridBagLayout()) {
     fun saveToPreferences() {
         LayerShiftSettingsReader.PARCELS_LAYER_SHIFT_SOURCE.put(parcelsLayerCombo.selectedItem?.toString() ?: "")
         LayerShiftSettingsReader.BUILDINGS_LAYER_SHIFT_SOURCE.put(buildingsLayerCombo.selectedItem?.toString() ?: "")
-        if (LayerShiftSettingsReader.checkIfBuildingLayerCanBeUsed()) {
+        if (useBuildingsLayerCheckbox.isSelected && LayerShiftSettingsReader.checkIfBuildingLayerCanBeUsed()) {
             LayerShiftSettingsReader.USE_BUILDINGS_LAYER_AS_SOURCE.put(true)
-        }
+        } else (
+                LayerShiftSettingsReader.USE_BUILDINGS_LAYER_AS_SOURCE.put(false)
+                )
     }
 
     fun fillComboWithLayers() {

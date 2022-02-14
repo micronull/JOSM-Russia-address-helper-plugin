@@ -68,7 +68,12 @@ class ClickAction : MapMode(
         val mouseEN = mapView.getEastNorth(e.x, e.y)
         val n = Node(mouseEN)
 
-        RussiaAddressHelperPlugin.getEgrnClient().request(mouseEN, EGRNFeatureType.BUILDING)
+        var requestedFeatureType = EGRNFeatureType.PARCEL
+        if (e.isControlDown) {
+            requestedFeatureType = EGRNFeatureType.BUILDING
+        }
+
+        RussiaAddressHelperPlugin.getEgrnClient().request(mouseEN, requestedFeatureType)
             .responseString { _, response, result ->
                 if (response.statusCode == 200) {
                     result.success {

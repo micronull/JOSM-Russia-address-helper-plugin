@@ -42,32 +42,37 @@ class OSMStreet(val name: String, val extractedName: String, val extractedType: 
 
             val JWSsimilarity = JaroWinklerSimilarity()
 
-            val lowerCaseEGRNStreetName = egrnStreetName.lowercase().replace('ё','е')
+            val filteredEGRNStreetName = egrnStreetName.replace('ё', 'е')
 
             var maxSimilarity = 0.0
             var mostSimilar = ""
             // Ищем соответствующий адресу примитив
-            for (primitive in primitives) {
 
-                val street = primitive.get("name")
+            val primitiveNames :List<String> = primitives.map {it.name}.distinct()
+
+            for (street in primitiveNames) {
 
                 //пропускаем осм имена которые заведомо не содержат определенного нами типа
                 if (!street.contains(streetType!!.name, true)) {
                     continue
                 }
 
-                val lowercaseOsmStreetName = extractStreetName(streetType.osm.asRegExpList(), street).lowercase()
-                    .replace('ё','е')
+                val filteredOsmStreetName = extractStreetName(streetType.osm.asRegExpList(), street)
+                    .replace('ё', 'е')
 
-                if (lowercaseOsmStreetName == "") {
+                if (filteredOsmStreetName == "") {
                     Logging.info("EGRN-PLUGIN Cannot get openStreetMap name for $street, type ${streetType.name}")
                     continue
                 }
 
-                if (lowerCaseEGRNStreetName == lowercaseOsmStreetName) {
+                if (filteredEGRNStreetName.lowercase() == filteredOsmStreetName.lowercase()) {
                     return OSMStreet(street, egrnStreetName, streetType.name)
                 } else {
-                    val similarity = JWSsimilarity.apply(lowerCaseEGRNStreetName, lowercaseOsmStreetName)
+                    if (matchedWithoutInitials(filteredEGRNStreetName, filteredOsmStreetName)) {
+                        Logging.info("EGRN-PLUGIN Matched OSM street name without initials $egrnStreetName -> $street")
+                        return OSMStreet(street, egrnStreetName, streetType.name)
+                    }
+                    val similarity = JWSsimilarity.apply(filteredEGRNStreetName, filteredOsmStreetName)
                     if (similarity > maxSimilarity) {
                         maxSimilarity = similarity
                         mostSimilar = street
@@ -82,6 +87,27 @@ class OSMStreet(val name: String, val extractedName: String, val extractedType: 
             }
 
             return OSMStreet("", egrnStreetName, streetType!!.name)
+        }
+
+        //пытаемся поматчить улицы убирая из них инициалы и имена
+        private fun matchedWithoutInitials(EGRNStreetName: String, osmStreetName: String): Boolean {
+            val initialRegexp = Regex("""[А-Я](\.\s?|\s)""")
+            val divider = Regex("""\s+""")
+            if (initialRegexp.find(EGRNStreetName) != null || initialRegexp.find(osmStreetName) != null) {
+                val EGRNStreetWithoutInitials = EGRNStreetName.replace(initialRegexp, "")
+                if (EGRNStreetWithoutInitials == osmStreetName) return true
+                if (osmStreetName.split(divider).size > 1) {
+                    val filteredOsmNameSurnameOnly = osmStreetName.split(divider).last()
+                    if (EGRNStreetWithoutInitials == filteredOsmNameSurnameOnly) return true
+                }
+                val OSMStreetNameWithoutInitials = osmStreetName.replace(initialRegexp, "")
+                if (EGRNStreetWithoutInitials == OSMStreetNameWithoutInitials || EGRNStreetName == OSMStreetNameWithoutInitials) return true
+                if (EGRNStreetName.split(divider).size > 1) {
+                    val filteredEGRNNameSurnameOnly = EGRNStreetName.split(divider).last()
+                    if (filteredEGRNNameSurnameOnly == OSMStreetNameWithoutInitials) return true
+                }
+            }
+            return false
         }
 
         private fun extractStreetName(regExList: Collection<Regex>, address: String): String {

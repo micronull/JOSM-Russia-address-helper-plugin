@@ -9,6 +9,7 @@ import org.openstreetmap.josm.data.coor.conversion.DecimalDegreesCoordinateForma
 import org.openstreetmap.josm.data.projection.Projections
 import org.openstreetmap.josm.io.OsmTransferException
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.LayerShiftSettingsReader
+import org.openstreetmap.josm.tools.Logging
 import java.net.MalformedURLException
 import java.net.URL
 import java.security.cert.X509Certificate
@@ -37,7 +38,9 @@ class EgrnApi(private val url: String, private val userAgent: String) {
 
         return manager.request(Method.GET, makeUrl(coordinate, featureType).toString()).header(
             mapOf(
-                Headers.ACCEPT to "application/json", Headers.CONTENT_TYPE to "application/json", Headers.USER_AGENT to userAgent
+                Headers.ACCEPT to "application/json",
+                Headers.CONTENT_TYPE to "application/json",
+                Headers.USER_AGENT to userAgent
             )
         )
     }
@@ -50,7 +53,9 @@ class EgrnApi(private val url: String, private val userAgent: String) {
         val lat = formatter.latToString(projected)
         val lon = formatter.lonToString(projected)
 
-        return url.replace("{lat}", lat).replace("{lon}", lon).replace("{type}", featureType.toString())
+        val url = url.replace("{lat}", lat).replace("{lon}", lon).replace("{type}", featureType.toString())
+        Logging.info("RequestURL $url")
+        return url
     }
 
     private fun makeUrl(coordinate: EastNorth, featureType: EGRNFeatureType): URL {
@@ -61,7 +66,7 @@ class EgrnApi(private val url: String, private val userAgent: String) {
         }
     }
 
-    private fun getLayerShift(coordinate: EastNorth, type: EGRNFeatureType) :EastNorth {
+    private fun getLayerShift(coordinate: EastNorth, type: EGRNFeatureType): EastNorth {
         var shiftLayerSetting = LayerShiftSettingsReader.PARCELS_LAYER_SHIFT_SOURCE
         if (type == EGRNFeatureType.BUILDING) {
             shiftLayerSetting = LayerShiftSettingsReader.BUILDINGS_LAYER_SHIFT_SOURCE
