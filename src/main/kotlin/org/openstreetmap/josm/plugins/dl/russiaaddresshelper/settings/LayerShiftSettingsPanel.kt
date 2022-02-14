@@ -12,19 +12,29 @@ import java.awt.GridBagLayout
 import javax.swing.*
 
 class LayerShiftSettingsPanel : JPanel(GridBagLayout()) {
-    private val coordinatesShiftLabel = JLabel(I18n.tr("Enable requested coordinates shift according to the layer:"))
+    private val parcelsCoordinatesShiftLabel = JLabel(I18n.tr("Enable requested coordinates shift for parcels request according to the layer:"))
+    private val buildingsCoordinatesShiftLabel = JLabel(I18n.tr("Enable requested coordinates shift for buildings request according to the layer:"))
+    private val parcelsLayerCombo: JosmComboBox<String> = JosmComboBox()
+    private val buildingsLayerCombo: JosmComboBox<String> = JosmComboBox()
+    private val useBuildingsLayerCheckbox = JCheckBox(I18n.tr("Use EGRN buildings layer as address source"))
 
-    private val shiftSourceLayerCombo: JosmComboBox<String> = JosmComboBox()
 
     init {
         val panel: JPanel = this
         panel.border = BorderFactory.createEmptyBorder(5, 5, 5, 5)
 
-        panel.add(coordinatesShiftLabel)
+        panel.add(parcelsCoordinatesShiftLabel)
+
+        panel.add(parcelsLayerCombo, GBC.eol().insets(10, 0, 0, 0))
+
+        panel.add(buildingsCoordinatesShiftLabel)
+
+        panel.add(buildingsLayerCombo, GBC.eol().insets(10, 0, 0, 0))
 
         fillComboWithLayers()
 
-        panel.add(shiftSourceLayerCombo, GBC.eol().insets(10, 0, 0, 0))
+        useBuildingsLayerCheckbox.isSelected = LayerShiftSettingsReader.USE_BUILDINGS_LAYER_AS_SOURCE.get()
+        panel.add(useBuildingsLayerCheckbox, GBC.eol().insets(0, 0, 0, 0))
 
         panel.add(Box.createVerticalGlue(), GBC.eol().fill())
     }
@@ -33,20 +43,31 @@ class LayerShiftSettingsPanel : JPanel(GridBagLayout()) {
      * Saves the current values to the preferences
      */
     fun saveToPreferences() {
-        LayerShiftSettingsReader.SHIFT_SOURCE_LAYER.put(shiftSourceLayerCombo.selectedItem?.toString() ?: "")
+        LayerShiftSettingsReader.PARCELS_LAYER_SHIFT_SOURCE.put(parcelsLayerCombo.selectedItem?.toString() ?: "")
+        LayerShiftSettingsReader.BUILDINGS_LAYER_SHIFT_SOURCE.put(buildingsLayerCombo.selectedItem?.toString() ?: "")
+        if (LayerShiftSettingsReader.checkIfBuildingLayerCanBeUsed()) {
+            LayerShiftSettingsReader.USE_BUILDINGS_LAYER_AS_SOURCE.put(true)
+        }
     }
 
     fun fillComboWithLayers() {
         val currentWMSLayers: List<WMSLayer> = MainApplication.getLayerManager().getLayersOfType(WMSLayer::class.java)
-        shiftSourceLayerCombo.removeAllItems()
+        parcelsLayerCombo.removeAllItems()
+        buildingsLayerCombo.removeAllItems()
         if (currentWMSLayers.isEmpty()) {
-            shiftSourceLayerCombo.addItem(LayerShiftSettingsReader.SHIFT_SOURCE_LAYER.get())
-            shiftSourceLayerCombo.selectedIndex = 0
+            parcelsLayerCombo.addItem(LayerShiftSettingsReader.PARCELS_LAYER_SHIFT_SOURCE.get())
+            parcelsLayerCombo.selectedIndex = 0
+            buildingsLayerCombo.addItem(LayerShiftSettingsReader.BUILDINGS_LAYER_SHIFT_SOURCE.get())
+            buildingsLayerCombo.selectedIndex = 0
         } else {
             currentWMSLayers.forEach {
-                shiftSourceLayerCombo.addItem(it.name)
-                if (it.name == LayerShiftSettingsReader.SHIFT_SOURCE_LAYER.get()) {
-                    shiftSourceLayerCombo.selectedItem = it.name
+                parcelsLayerCombo.addItem(it.name)
+                if (it.name == LayerShiftSettingsReader.PARCELS_LAYER_SHIFT_SOURCE.get()) {
+                    parcelsLayerCombo.selectedItem = it.name
+                }
+                buildingsLayerCombo.addItem(it.name)
+                if (it.name == LayerShiftSettingsReader.BUILDINGS_LAYER_SHIFT_SOURCE.get()) {
+                    buildingsLayerCombo.selectedItem = it.name
                 }
             }
         }

@@ -14,10 +14,12 @@ import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.data.osm.Way
+import org.openstreetmap.josm.gui.layer.WMSLayer
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNFeatureType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.DeleteDoubles
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.LayerShiftSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.TagSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.HouseNumberParser
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.StreetParser
@@ -37,7 +39,7 @@ class Buildings(objects: List<OsmPrimitive>) {
     class LoadListener {
         var onResponse: ((res: Response) -> Unit)? = null
         var onResponseContinue: (() -> Unit)? = null
-        var onNotFoundStreetParser: ((street:String, type: String) -> Unit)? = null
+        var onNotFoundStreetParser: ((street: String, type: String) -> Unit)? = null
         var onComplete: ((changeBuildings: Array<OsmPrimitive>) -> Unit)? = null
     }
 
@@ -59,8 +61,23 @@ class Buildings(objects: List<OsmPrimitive>) {
 
         val preparedTags: MutableMap<String, String> = mutableMapOf()
 
-        fun requestParcel(): Request {
+        fun request(): Request {
+            // если настройка запроса зданий включена
+            // И слой зданий валидный
+            // И в слое зданий по координатам есть красный цвет (или любой непрозрачный)
+            // то запрашиваем адрес здания, иначе адрес участка
+            if (LayerShiftSettingsReader.USE_BUILDINGS_LAYER_AS_SOURCE.get()) {
+                val buildingsEGRNLayer =
+                    LayerShiftSettingsReader.getValidShiftLayer(LayerShiftSettingsReader.BUILDINGS_LAYER_SHIFT_SOURCE)
+                if (buildingsEGRNLayer != null && hasBuildingData(buildingsEGRNLayer, coordinate)) {
+                 return RussiaAddressHelperPlugin.getEgrnClient().request(coordinate!!, EGRNFeatureType.BUILDING)
+                }
+            }
             return RussiaAddressHelperPlugin.getEgrnClient().request(coordinate!!, EGRNFeatureType.PARCEL)
+        }
+
+        private fun hasBuildingData(buildingsEGRNLayer: WMSLayer, coordinate: EastNorth?): Boolean {
+            return true
         }
     }
 
@@ -123,7 +140,7 @@ class Buildings(objects: List<OsmPrimitive>) {
                     semaphore.acquire()
 
                     try {
-                        val (_, response, result) = building.requestParcel().responseString()
+                        val (_, response, result) = building.request().responseString()
 
                         when (result) {
                             is Result.Success -> {
@@ -208,7 +225,10 @@ class Buildings(objects: List<OsmPrimitive>) {
                     } else {
                         if (streetParse.extractedName != "") {
                             Logging.warn("EGRN-PLUGIN Cannot match street with OSM : ${streetParse.extractedName}, ${streetParse.extractedType}")
-                            loadListener?.onNotFoundStreetParser?.invoke(streetParse.extractedName, streetParse.extractedType)
+                            loadListener?.onNotFoundStreetParser?.invoke(
+                                streetParse.extractedName,
+                                streetParse.extractedType
+                            )
                         }
                     }
                 }
