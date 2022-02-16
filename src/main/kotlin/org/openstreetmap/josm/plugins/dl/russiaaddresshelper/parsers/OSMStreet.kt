@@ -12,7 +12,10 @@ import javax.swing.JOptionPane
 
 class OSMStreet(val name: String, val extractedName: String, val extractedType: String) {
     companion object {
-        fun identify(address: String, streetTypes: StreetTypes): OSMStreet {
+        fun identify(sourceaddress: String, streetTypes: StreetTypes): OSMStreet {
+            //убираем одинарные кавычки и Россия из конца адреса
+            val address = sourceaddress.replace("''","\"").replace(Regex(""",\s*Россия\s*\.?$"""),"")
+
             var streetType: StreetType? = null
             var egrnStreetName = ""
 
@@ -69,7 +72,7 @@ class OSMStreet(val name: String, val extractedName: String, val extractedType: 
                     return OSMStreet(street, egrnStreetName, streetType.name)
                 } else {
                     if (matchedWithoutInitials(filteredEGRNStreetName, filteredOsmStreetName)) {
-                        Logging.info("EGRN-PLUGIN Matched OSM street name without initials $egrnStreetName -> $street")
+                        Logging.warn("EGRN-PLUGIN Matched OSM street name without initials $egrnStreetName -> $street")
                         return OSMStreet(street, egrnStreetName, streetType.name)
                     }
                     val similarity = JWSsimilarity.apply(filteredEGRNStreetName, filteredOsmStreetName)
@@ -89,18 +92,19 @@ class OSMStreet(val name: String, val extractedName: String, val extractedType: 
             return OSMStreet("", egrnStreetName, streetType!!.name)
         }
 
-        //пытаемся поматчить улицы убирая из них инициалы и имена
+        //пытаемся поматчить улицы убирая из них инициалы, префикс "им" и имена
         private fun matchedWithoutInitials(EGRNStreetName: String, osmStreetName: String): Boolean {
             val initialRegexp = Regex("""[А-Я](\.\s?|\s)""")
+            val namedByRegex = Regex("""им(\.|\s+)|имени\s+""")
             val divider = Regex("""\s+""")
             if (initialRegexp.find(EGRNStreetName) != null || initialRegexp.find(osmStreetName) != null) {
-                val EGRNStreetWithoutInitials = EGRNStreetName.replace(initialRegexp, "")
+                val EGRNStreetWithoutInitials = EGRNStreetName.replace(namedByRegex,"").replace(initialRegexp, "")
                 if (EGRNStreetWithoutInitials == osmStreetName) return true
                 if (osmStreetName.split(divider).size > 1) {
                     val filteredOsmNameSurnameOnly = osmStreetName.split(divider).last()
                     if (EGRNStreetWithoutInitials == filteredOsmNameSurnameOnly) return true
                 }
-                val OSMStreetNameWithoutInitials = osmStreetName.replace(initialRegexp, "")
+                val OSMStreetNameWithoutInitials = osmStreetName.replace(namedByRegex,"").replace(initialRegexp, "")
                 if (EGRNStreetWithoutInitials == OSMStreetNameWithoutInitials || EGRNStreetName == OSMStreetNameWithoutInitials) return true
                 if (EGRNStreetName.split(divider).size > 1) {
                     val filteredEGRNNameSurnameOnly = EGRNStreetName.split(divider).last()

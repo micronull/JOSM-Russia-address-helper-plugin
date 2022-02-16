@@ -19,7 +19,7 @@ import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
 
 class EgrnApi(private val url: String, private val userAgent: String) {
-    fun request(coordinate: EastNorth, featureType: EGRNFeatureType): Request {
+    fun request(coordinate: EastNorth, featureTypes: List<EGRNFeatureType>): Request {
         // Глушим проверку SSL, пока у ППК и/или у JOSM проблемы с сертификатом.
         // https://stackoverflow.com/questions/47460211/kotlin-library-that-can-do-https-connection-without-certificate-verification-li
         val manager: FuelManager = FuelManager().apply {
@@ -36,7 +36,7 @@ class EgrnApi(private val url: String, private val userAgent: String) {
             hostnameVerifier = HostnameVerifier { _, _ -> true }
         }
 
-        return manager.request(Method.GET, makeUrl(coordinate, featureType).toString()).header(
+        return manager.request(Method.GET, makeUrl(coordinate, featureTypes).toString()).header(
             mapOf(
                 Headers.ACCEPT to "application/json",
                 Headers.CONTENT_TYPE to "application/json",
@@ -45,22 +45,26 @@ class EgrnApi(private val url: String, private val userAgent: String) {
         )
     }
 
-    private fun getUrlWithLatLon(coordinate: EastNorth, featureType: Int): String {
+    private fun getUrlWithLatLon(coordinate: EastNorth, featureTypes: List<Int>): String {
         val mercator = Projections.getProjectionByCode("EPSG:3857")
         val projected = mercator.eastNorth2latlonClamped(coordinate)
 
         val formatter = DecimalDegreesCoordinateFormat.INSTANCE
         val lat = formatter.latToString(projected)
         val lon = formatter.lonToString(projected)
-
-        val url = url.replace("{lat}", lat).replace("{lon}", lon).replace("{type}", featureType.toString())
+        val typesString = featureTypes.joinToString(separator = ",")
+        val url = url.replace("{lat}", lat).replace("{lon}", lon).replace("{type}", typesString)
         Logging.info("RequestURL $url")
         return url
     }
 
-    private fun makeUrl(coordinate: EastNorth, featureType: EGRNFeatureType): URL {
+    private fun makeUrl(coordinate: EastNorth, featureTypes: List<EGRNFeatureType>): URL {
         return try {
-            URL(getUrlWithLatLon(getLayerShift(coordinate, featureType), featureType.type).replace(" ", "%20"))
+            URL(
+                getUrlWithLatLon(
+                    getLayerShift(coordinate, EGRNFeatureType.PARCEL),
+                    featureTypes.map { it.type }).replace(" ", "%20")
+            )
         } catch (e: MalformedURLException) {
             throw OsmTransferException(e)
         }
@@ -68,6 +72,7 @@ class EgrnApi(private val url: String, private val userAgent: String) {
 
     private fun getLayerShift(coordinate: EastNorth, type: EGRNFeatureType): EastNorth {
         var shiftLayerSetting = LayerShiftSettingsReader.PARCELS_LAYER_SHIFT_SOURCE
+
         if (type == EGRNFeatureType.BUILDING) {
             shiftLayerSetting = LayerShiftSettingsReader.BUILDINGS_LAYER_SHIFT_SOURCE
         }

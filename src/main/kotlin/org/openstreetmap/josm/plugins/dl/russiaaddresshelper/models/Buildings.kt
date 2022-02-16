@@ -14,7 +14,6 @@ import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.data.osm.Way
-import org.openstreetmap.josm.gui.layer.WMSLayer
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNFeatureType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.DeleteDoubles
@@ -62,22 +61,14 @@ class Buildings(objects: List<OsmPrimitive>) {
         val preparedTags: MutableMap<String, String> = mutableMapOf()
 
         fun request(): Request {
-            // если настройка запроса зданий включена
-            // И слой зданий валидный
-            // И в слое зданий по координатам есть красный цвет (или любой непрозрачный)
-            // то запрашиваем адрес здания, иначе адрес участка
             if (LayerShiftSettingsReader.USE_BUILDINGS_LAYER_AS_SOURCE.get()) {
                 val buildingsEGRNLayer =
                     LayerShiftSettingsReader.getValidShiftLayer(LayerShiftSettingsReader.BUILDINGS_LAYER_SHIFT_SOURCE)
-                if (buildingsEGRNLayer != null && hasBuildingData(buildingsEGRNLayer, coordinate)) {
-                 return RussiaAddressHelperPlugin.getEgrnClient().request(coordinate!!, EGRNFeatureType.BUILDING)
+                if (buildingsEGRNLayer != null ) {
+                 return RussiaAddressHelperPlugin.getEgrnClient().request(coordinate!!, listOf(EGRNFeatureType.PARCEL,EGRNFeatureType.BUILDING))
                 }
             }
-            return RussiaAddressHelperPlugin.getEgrnClient().request(coordinate!!, EGRNFeatureType.PARCEL)
-        }
-
-        private fun hasBuildingData(buildingsEGRNLayer: WMSLayer, coordinate: EastNorth?): Boolean {
-            return true
+            return RussiaAddressHelperPlugin.getEgrnClient().request(coordinate!!, listOf(EGRNFeatureType.PARCEL))
         }
     }
 

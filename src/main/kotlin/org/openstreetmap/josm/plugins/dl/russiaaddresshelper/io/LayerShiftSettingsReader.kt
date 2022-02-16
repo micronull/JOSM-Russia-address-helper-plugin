@@ -20,7 +20,7 @@ class LayerShiftSettingsReader {
         val BUILDINGS_LAYER_SHIFT_SOURCE = StringProperty("dl.russiaaddresshelper.tag.buildings_layer_shift_source", "")
 
         val USE_BUILDINGS_LAYER_AS_SOURCE =
-            BooleanProperty("dl.russiaaddresshelper.tag.use_buildings_layer_as_source", false)
+            BooleanProperty("dl.russiaaddresshelper.tag.use_buildings_layer_as_source", true)
 
         fun getValidShiftLayer(setting: StringProperty): WMSLayer? {
             val shiftLayerName = setting.get()

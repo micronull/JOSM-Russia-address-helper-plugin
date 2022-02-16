@@ -38,7 +38,7 @@ internal class EgrnApiTest {
         val mercator = Projections.getProjectionByCode("EPSG:3857")
         val en = mercator.latlon2eastNorth(LatLon(56.83787347564765, 60.58020958387835))
         val url = wmRule.baseUrl() + "/?coordinates={lat} {lon}&foo=1"
-        val (_, response, result) = EgrnApi(url, "foo-user-agent").request(en, EGRNFeatureType.PARCEL).responseString()
+        val (_, response, result) = EgrnApi(url, "foo-user-agent").request(en, listOf(EGRNFeatureType.PARCEL)).responseString()
 
         Assertions.assertEquals(HttpURLConnection.HTTP_OK, response.statusCode)
 
