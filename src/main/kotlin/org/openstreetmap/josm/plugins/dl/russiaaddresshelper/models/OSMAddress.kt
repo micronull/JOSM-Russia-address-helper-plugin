@@ -11,6 +11,9 @@ data class OSMAddress(val street: String, val housenumber: String, val flatnumbe
     }
 
     fun getInlineAddress(): String {
-        return "$street $housenumber $flatnumber"
+        if (StringUtils.isNotBlank(street) && StringUtils.isNotBlank(housenumber)) {
+            return "$street $housenumber $flatnumber"
+        }
+        return ""
     }
 }

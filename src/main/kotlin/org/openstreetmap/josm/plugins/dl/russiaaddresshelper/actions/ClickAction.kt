@@ -10,21 +10,17 @@ import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.Node
 import org.openstreetmap.josm.gui.MainApplication
-import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.util.KeyPressReleaseListener
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNFeatureType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNResponse
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.OSMAddress
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.HouseNumberParser
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.StreetParser
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.ImageProvider
 import org.openstreetmap.josm.tools.Logging
 import org.openstreetmap.josm.tools.Shortcut
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
-import javax.swing.JOptionPane
 import javax.swing.SwingUtilities
 
 class ClickAction : MapMode(
@@ -84,45 +80,16 @@ class ClickAction : MapMode(
                             Logging.info("$egrnResponse")
                         } else {
 
-                            val streetParser = StreetParser()
-                            val houseNumberParser = HouseNumberParser()
+                            val addresses: Map<String, Triple<Int, OSMAddress, String>> = egrnResponse.parseAddresses().addresses
 
-                            var addresses: Map<String, Triple<Int, OSMAddress, String>> = mutableMapOf()
-                            egrnResponse.results.forEach { res ->
-                                val egrnAddress = res.attrs.address
-                                val streetParse = streetParser.parse(egrnAddress)
-                                val houseNumberParse = houseNumberParser.parse(egrnAddress)
-                                //не забыть добавить flats & rooms
-                                val flat = ""
-                                if (streetParse.name != "") {
-                                    if (houseNumberParse != "") {
-                                        val parsedOsmAddress = OSMAddress(streetParse.name, houseNumberParse, flat)
-                                        if (!addresses.containsKey(parsedOsmAddress.getInlineAddress())) {
-                                            addresses = addresses.plus(
-                                                Pair(
-                                                    parsedOsmAddress.getInlineAddress(),
-                                                    Triple(res.type, parsedOsmAddress, egrnAddress)
-                                                )
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    if (streetParse.extractedName != "") {
-                                        Notification("EGRN-PLUGIN Cannot match street with OSM : ${streetParse.extractedName}, ${streetParse.extractedType}").setIcon(
-                                            JOptionPane.WARNING_MESSAGE
-                                        ).show()
-                                        Logging.warn("EGRN-PLUGIN Cannot match street with OSM : ${streetParse.extractedName}, ${streetParse.extractedType}")
-                                    }
-                                }
-                            }
                             var nodes: List<Node> = listOf()
                             //генерим "облако" точек вокруг места клика с адресами
                             addresses.values.forEachIndexed { index, addr ->
                                 val n = Node(getNodePlacement(mouseEN, index))
                                 addr.second.getTags().forEach { (tagKey, tagValue) -> n.put(tagKey, tagValue) }
                                 defaultTagsForNode.forEach { (tagKey, tagValue) -> n.put(tagKey, tagValue) }
-                                n.put("addr:egrn:full", addr.third)
-                                n.put("addr:egrn:type", EGRNFeatureType.fromInt(addr.first).name)
+                                n.put("addr:RU:egrn", addr.third)
+                                n.put("addr:RU:egrn_type", EGRNFeatureType.fromInt(addr.first).name)
                                 nodes = nodes.plus(n)
                                 cmds.add(AddCommand(ds, n))
                             }

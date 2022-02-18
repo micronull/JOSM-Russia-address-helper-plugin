@@ -62,6 +62,7 @@ class EgrnApi(private val url: String, private val userAgent: String) {
         return try {
             URL(
                 getUrlWithLatLon(
+                    //TO DO: переделать логику как формировать сдвиг слоя
                     getLayerShift(coordinate, EGRNFeatureType.PARCEL),
                     featureTypes.map { it.type }).replace(" ", "%20")
             )
