@@ -8,7 +8,7 @@ import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.coor.conversion.DecimalDegreesCoordinateFormat
 import org.openstreetmap.josm.data.projection.Projections
 import org.openstreetmap.josm.io.OsmTransferException
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.LayerShiftSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.LayerShiftSettingsReader
 import org.openstreetmap.josm.tools.Logging
 import java.net.MalformedURLException
 import java.net.URL

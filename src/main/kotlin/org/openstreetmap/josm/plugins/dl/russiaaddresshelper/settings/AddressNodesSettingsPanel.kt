@@ -1,7 +1,7 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings
 
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.AddressNodesSettingsReader.Companion.GENERATE_ADDRESS_NODES_FOR_ADDITIONAL_ADDRESSES
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.AddressNodesSettingsReader.Companion.GENERATE_ADDRESS_NODES_FOR_BAD_ADDRESSES
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.AddressNodesSettingsReader.Companion.GENERATE_ADDRESS_NODES_FOR_ADDITIONAL_ADDRESSES
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.AddressNodesSettingsReader.Companion.GENERATE_ADDRESS_NODES_FOR_BAD_ADDRESSES
 
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n

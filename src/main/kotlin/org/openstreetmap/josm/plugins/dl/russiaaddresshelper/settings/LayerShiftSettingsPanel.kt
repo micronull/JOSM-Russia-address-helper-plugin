@@ -4,7 +4,7 @@ import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.layer.WMSLayer
 import org.openstreetmap.josm.gui.widgets.JosmComboBox
 
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.LayerShiftSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.LayerShiftSettingsReader
 
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n

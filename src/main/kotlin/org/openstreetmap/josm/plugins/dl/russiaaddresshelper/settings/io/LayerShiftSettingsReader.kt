@@ -1,4 +1,4 @@
-package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io
+package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io
 
 import org.openstreetmap.josm.data.preferences.StringProperty
 import org.openstreetmap.josm.gui.MainApplication

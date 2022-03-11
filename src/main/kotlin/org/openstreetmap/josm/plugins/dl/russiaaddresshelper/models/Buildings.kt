@@ -20,10 +20,10 @@ import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNFeatureType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNResponse
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.AddressNodesSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.AddressNodesSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.DeleteDoubles
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnSettingsReader
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.TagSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedStreet
 import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.I18n
