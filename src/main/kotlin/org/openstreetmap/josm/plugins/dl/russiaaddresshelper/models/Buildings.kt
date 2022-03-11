@@ -7,6 +7,7 @@ import com.github.kittinunf.fuel.jackson.jacksonDeserializerOf
 import com.github.kittinunf.result.Result
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import org.openstreetmap.josm.command.AddCommand
 import org.openstreetmap.josm.command.ChangePropertyCommand
 import org.openstreetmap.josm.command.Command
 import org.openstreetmap.josm.command.SequenceCommand
@@ -15,13 +16,15 @@ import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.Node
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.data.osm.Way
+import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNFeatureType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNResponse
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.AddressNodesSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.DeleteDoubles
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnSettingsReader
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.LayerShiftSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.TagSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedStreet
 import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
@@ -43,13 +46,14 @@ class Buildings(objects: List<OsmPrimitive>) {
     }
 
     class Building(val osmPrimitive: OsmPrimitive) {
-        private val coordinate: EastNorth?
+        val coordinate: EastNorth?
             get() {
                 return when (osmPrimitive) {
                     is Way -> {
                         //редкая, но реальная проблема - для сложных зданий центроид находится вне здания и вне участка
                         //пример - addr:RU:egrn=Красноярский край, г. Минусинск, ул. Гоголя, 28 (53.7135362, 91.6851041)
-                        //реализован алгоритм - полигон бьется на треугольники, находим их центроид, если он внутри полигона здания, возвращаем его
+                        //реализован алгоритм - полигон бьется на треугольники, находим их центроид,
+                        // если он внутри полигона здания, возвращаем его
                         val centroid = Geometry.getCentroid(osmPrimitive.nodes)
                         return if (Geometry.nodeInsidePolygon(Node(centroid), osmPrimitive.nodes)) {
                             centroid
@@ -81,17 +85,11 @@ class Buildings(objects: List<OsmPrimitive>) {
 
         val preparedTags: MutableMap<String, String> = mutableMapOf()
 
+        val addressNodes: MutableList<Node> = mutableListOf()
+
         fun request(): Request {
-            if (LayerShiftSettingsReader.USE_BUILDINGS_LAYER_AS_SOURCE.get()) {
-                //TO DO разобраться с источниками сдвига для зданий
-                val buildingsEGRNLayer =
-                    LayerShiftSettingsReader.getValidShiftLayer(LayerShiftSettingsReader.BUILDINGS_LAYER_SHIFT_SOURCE)
-                if (buildingsEGRNLayer != null) {
-                    return RussiaAddressHelperPlugin.getEgrnClient()
-                        .request(coordinate!!, listOf(EGRNFeatureType.PARCEL, EGRNFeatureType.BUILDING))
-                }
-            }
-            return RussiaAddressHelperPlugin.getEgrnClient().request(coordinate!!, listOf(EGRNFeatureType.PARCEL))
+            return RussiaAddressHelperPlugin.getEgrnClient()
+                .request(coordinate!!, listOf(EGRNFeatureType.PARCEL, EGRNFeatureType.BUILDING))
         }
     }
 
@@ -113,27 +111,33 @@ class Buildings(objects: List<OsmPrimitive>) {
 
             parseResponses(channel, loadListener).awaitAll()
 
+            val map = MainApplication.getMap()
+            val ds = map.mapView.layerManager.editDataSet
+            val cmds: MutableList<Command> = mutableListOf()
+            for(building in items) {
+                building.addressNodes.forEach{node ->
+                cmds.add(AddCommand(ds, node))}
+            }
+
             sanitize()
 
             val changeBuildings: MutableList<OsmPrimitive> = mutableListOf()
 
             if (items.size > 0) {
-                val cmds: MutableList<Command> = mutableListOf()
-
                 for (building in items) {
                     building.preparedTags.forEach { (key, value) ->
                         cmds.add(ChangePropertyCommand(building.osmPrimitive, key, value))
-
                         if (!changeBuildings.contains(building.osmPrimitive)) {
                             changeBuildings.add(building.osmPrimitive)
                         }
                     }
                 }
+            }
 
-                if (cmds.size > 0) {
-                    val c: Command = SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper "), cmds)
-                    UndoRedoHandler.getInstance().add(c)
-                }
+            if (cmds.size > 0) {
+                val c: Command = SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper "), cmds)
+                UndoRedoHandler.getInstance().add(c)
+
             }
 
             loadListener?.onComplete?.invoke(changeBuildings.toTypedArray())
@@ -209,41 +213,70 @@ class Buildings(objects: List<OsmPrimitive>) {
                 if (egrnResponse.total == 0) {
                     Logging.info("EGRN PLUGIN empty response")
                     Logging.info("$egrnResponse")
-                } else if (egrnResponse.results.all { it.attrs.address.isBlank() }) {
+                } else if (egrnResponse.results.all { it.attrs?.address?.isBlank() != false }) {
                     Logging.info("EGRN PLUGIN no addresses found for for request $egrnResponse")
                 } else {
                     val parsedAddresses = egrnResponse.parseAddresses()
 
                     val addresses = parsedAddresses.addresses
+                    var additionalNodeNumber = 1
+                    val buildingCoordinate = d.building.coordinate
                     if (addresses.isNotEmpty()) {
                         val osmPrimitive = d.building.osmPrimitive
 
                         //берем адрес здания если он есть, или первый попавшийся, если нет адреса здания
                         val preferredOsmAddress =
-                            addresses.values.find { (type, address, egrnAddress) -> type == EGRNFeatureType.BUILDING.type }
-                                ?: addresses.values.first()
+                            addresses.find { (type, _, _) -> type == EGRNFeatureType.BUILDING.type }
+                                ?: addresses.first()
 
 
                         if (TagSettingsReader.EGRN_ADDR_RECORD.get()) {
                             d.building.preparedTags["addr:RU:egrn"] = preferredOsmAddress.third
                         }
 
-                        d.building.preparedTags.plusAssign(preferredOsmAddress.second.getTags())
+                        //спорное решение - добавляем зданию адрес БЕЗ номеров квартир
+                        d.building.preparedTags.plusAssign(preferredOsmAddress.second.getBaseAddressTags())
                         if (!osmPrimitive.hasTag("addr:housenumber")) {
                             d.building.preparedTags["source:addr"] = "ЕГРН"
                         }
+                        if (buildingCoordinate != null) {
+                            if (AddressNodesSettingsReader.GENERATE_ADDRESS_NODES_FOR_ADDITIONAL_ADDRESSES.get()) {
+                                addresses.filter { (_, osmAddress, _) -> preferredOsmAddress.second.flatnumber != "" || preferredOsmAddress.second != osmAddress }
+                                    .forEach {
+                                        d.building.addressNodes.add(
+                                            generateAddressNode(
+                                                additionalNodeNumber,
+                                                buildingCoordinate,
+                                                it
+                                            )
+                                        )
+                                        Logging.info("Added address node $additionalNodeNumber")
+                                        additionalNodeNumber++
+                                    }
+                            }
 
-                        /*
-                    if (AddressSettingsReader.CREATE_SECONDARY_ADDRESS_POINTS.get()) {
-                        //тут создаем вторичные адресные точки для всех адресов которые не prefferedAddress
-                        видимо их надо класть куда-то внутрь Building, потом добавлять во внешнем обработчике
-                    }
-                    */
+                        }
                     }
                     if (parsedAddresses.badAddresses.isNotEmpty()) {
+                        if (AddressNodesSettingsReader.GENERATE_ADDRESS_NODES_FOR_BAD_ADDRESSES.get() && buildingCoordinate != null) {
+                            parsedAddresses.badAddresses
+                                .forEach {
+                                    d.building.addressNodes.add(
+                                        generateBadAddressNode(
+                                            additionalNodeNumber,
+                                            buildingCoordinate,
+                                            it
+                                        )
+                                    )
+
+                                    additionalNodeNumber++
+                                }
+                            Logging.info("Added bad address nodes, total: $additionalNodeNumber")
+                        }
+
                         loadListener?.onNotFoundStreetParser?.invoke(
-                            parsedAddresses.badAddresses.filter { (_, street, ergnAddress) -> street.extractedName != "" }
-                                .map { (_, street, egrnAddress) -> Pair(street.extractedName, street.extractedType) }
+                            parsedAddresses.badAddresses.filter { (_, street, ) -> street.first.extractedName != "" && street.second.street =="" }
+                                .map { (_, street, _) -> Pair(street.first.extractedName, street.first.extractedType) }
                         )
                     }
                 }
@@ -251,6 +284,47 @@ class Buildings(objects: List<OsmPrimitive>) {
             }
         }
         return defers
+    }
+
+    private fun generateAddressNode(
+        index: Int,
+        startCoordinate: EastNorth,
+        addressInfo: Triple<Int, OSMAddress, String>
+    ): Node {
+        val defaultTagsForNode: Map<String, String> = mapOf("source:addr" to "ЕГРН", "fixme" to "yes")
+        val node = Node(getNodePlacement(startCoordinate, index))
+        addressInfo.second.getTags().forEach { (tagKey, tagValue) -> node.put(tagKey, tagValue) }
+        defaultTagsForNode.forEach { (tagKey, tagValue) -> node.put(tagKey, tagValue) }
+        node.put("addr:RU:egrn", addressInfo.third)
+        node.put("addr:RU:egrn_type", EGRNFeatureType.fromInt(addressInfo.first).name)
+        return node
+    }
+
+    private fun generateBadAddressNode(
+        index: Int,
+        startCoordinate: EastNorth,
+        badAddressInfo: Triple<Int, Pair<ParsedStreet, OSMAddress>, String>
+    ): Node {
+        val node = Node(getNodePlacement(startCoordinate, index))
+        val defaultTagsForBadNode: Map<String, String> = mapOf("source:addr" to "ЕГРН", "fixme" to "REMOVE ME!")
+
+        node.put("addr:RU:extracted_name", badAddressInfo.second.first.extractedName)
+        node.put("addr:RU:extracted_type", badAddressInfo.second.first.extractedType)
+        node.put("addr:RU:parsed_housenumber", badAddressInfo.second.second.housenumber)
+        node.put("addr:RU:parsed_flats", badAddressInfo.second.second.flatnumber)
+        defaultTagsForBadNode.forEach { (tagKey, tagValue) -> node.put(tagKey, tagValue) }
+        node.put("addr:RU:egrn", badAddressInfo.third)
+        node.put("addr:RU:egrn_type", EGRNFeatureType.fromInt(badAddressInfo.first).name)
+        return node
+    }
+
+    private fun getNodePlacement(center: EastNorth, index: Int): EastNorth {
+        //радиус разброса точек относительно центра в метрах
+        val radius = 5
+        val angle = 55.0
+        if (index == 0) return center
+        val startPoint = EastNorth(center.east() - radius, center.north())
+        return startPoint.rotate(center, angle * index)
     }
 
     private fun sanitize() {

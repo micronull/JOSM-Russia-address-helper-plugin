@@ -10,10 +10,10 @@ import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
 import javax.swing.JOptionPane
 
-class OSMStreet(val name: String, val extractedName: String, val extractedType: String) {
+class ParsedStreet(val name: String, val extractedName: String, val extractedType: String) {
     companion object {
-        fun identify(sourceaddress: String, streetTypes: StreetTypes): OSMStreet {
-            //убираем одинарные кавычки и Россия из конца адреса
+        fun identify(sourceaddress: String, streetTypes: StreetTypes): ParsedStreet {
+            //убираем одинарные кавычки и Россия из конца адреса (такое тоже есть!)
             val address = sourceaddress.replace("''","\"").replace(Regex(""",\s*Россия\s*\.?$"""),"")
 
             var streetType: StreetType? = null
@@ -32,7 +32,7 @@ class OSMStreet(val name: String, val extractedName: String, val extractedType: 
 
             if (egrnStreetName == "") {
                 Logging.error("EGRN-PLUGIN Cannot extract street name from EGRN address $address")
-                return OSMStreet("", "", "")
+                return ParsedStreet("", "", "")
             }
 
             // Оставляем дороги у которых есть название
@@ -69,11 +69,11 @@ class OSMStreet(val name: String, val extractedName: String, val extractedType: 
                 }
 
                 if (filteredEGRNStreetName.lowercase() == filteredOsmStreetName.lowercase()) {
-                    return OSMStreet(street, egrnStreetName, streetType.name)
+                    return ParsedStreet(street, egrnStreetName, streetType.name)
                 } else {
                     if (matchedWithoutInitials(filteredEGRNStreetName, filteredOsmStreetName)) {
                         Logging.warn("EGRN-PLUGIN Matched OSM street name without initials $egrnStreetName -> $street")
-                        return OSMStreet(street, egrnStreetName, streetType.name)
+                        return ParsedStreet(street, egrnStreetName, streetType.name)
                     }
                     val similarity = JWSsimilarity.apply(filteredEGRNStreetName, filteredOsmStreetName)
                     if (similarity > maxSimilarity) {
@@ -86,10 +86,10 @@ class OSMStreet(val name: String, val extractedName: String, val extractedType: 
                 Logging.warn("EGRN-PLUGIN Exact street match for $egrnStreetName not found, use most similar: $mostSimilar with distance $maxSimilarity")
                 val msg = I18n.tr("Exact street match not found, most similar will be used!")
                 Notification("$msg $egrnStreetName -> $mostSimilar").setIcon(JOptionPane.WARNING_MESSAGE).show()
-                return OSMStreet(mostSimilar, egrnStreetName, streetType!!.name)
+                return ParsedStreet(mostSimilar, egrnStreetName, streetType!!.name)
             }
 
-            return OSMStreet("", egrnStreetName, streetType!!.name)
+            return ParsedStreet("", egrnStreetName, streetType!!.name)
         }
 
         //пытаемся поматчить улицы убирая из них инициалы, префикс "им" и имена

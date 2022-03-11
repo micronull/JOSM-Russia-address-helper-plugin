@@ -1,6 +1,5 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io
 
-import org.openstreetmap.josm.data.preferences.BooleanProperty
 import org.openstreetmap.josm.data.preferences.StringProperty
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.Notification
@@ -12,15 +11,10 @@ import javax.swing.JOptionPane
 class LayerShiftSettingsReader {
     companion object {
         /**
-         * @since 0.2
+         * @since 0.7
          */
 
-        val PARCELS_LAYER_SHIFT_SOURCE = StringProperty("dl.russiaaddresshelper.tag.parcels_layer_shift_source", "")
-
-        val BUILDINGS_LAYER_SHIFT_SOURCE = StringProperty("dl.russiaaddresshelper.tag.buildings_layer_shift_source", "")
-
-        val USE_BUILDINGS_LAYER_AS_SOURCE =
-            BooleanProperty("dl.russiaaddresshelper.tag.use_buildings_layer_as_source", true)
+        val LAYER_SHIFT_SOURCE = StringProperty("dl.russiaaddresshelper.tag.layer_shift_source", "")
 
         fun getValidShiftLayer(setting: StringProperty): WMSLayer? {
             val shiftLayerName = setting.get()
@@ -40,15 +34,6 @@ class LayerShiftSettingsReader {
                 return null
             }
             return shiftLayer
-        }
-
-        fun checkIfBuildingLayerCanBeUsed(): Boolean {
-            val buildingsLayer = getValidShiftLayer(BUILDINGS_LAYER_SHIFT_SOURCE)
-            if (buildingsLayer == null) {
-                USE_BUILDINGS_LAYER_AS_SOURCE.put(false)
-                return false
-            }
-            return true
         }
     }
 }

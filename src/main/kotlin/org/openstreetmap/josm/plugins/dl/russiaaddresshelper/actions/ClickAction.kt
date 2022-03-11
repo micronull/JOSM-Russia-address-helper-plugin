@@ -14,7 +14,6 @@ import org.openstreetmap.josm.gui.util.KeyPressReleaseListener
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNFeatureType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNResponse
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.OSMAddress
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.ImageProvider
 import org.openstreetmap.josm.tools.Logging
@@ -65,8 +64,6 @@ class ClickAction : MapMode(
         val ds = layerManager.editDataSet
         val cmds: MutableList<Command> = mutableListOf()
         val mouseEN = mapView.getEastNorth(e.x, e.y)
-        //  val mapper = ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-        //     .configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true)
         RussiaAddressHelperPlugin.getEgrnClient()
             .request(mouseEN, listOf(EGRNFeatureType.PARCEL, EGRNFeatureType.BUILDING))
             .responseObject<EGRNResponse>(jacksonDeserializerOf()) { request, response, result ->
@@ -75,16 +72,16 @@ class ClickAction : MapMode(
                         if (egrnResponse.total == 0) {
                             Logging.info("EGRN PLUGIN empty response for request ${request.url}")
                             Logging.info("$egrnResponse")
-                        } else if (egrnResponse.results.all { it.attrs.address.isBlank() }) {
+                        } else if (egrnResponse.results.all { it.attrs?.address?.isBlank() != false }) {
                             Logging.info("EGRN PLUGIN no addresses found for for request ${request.url}")
                             Logging.info("$egrnResponse")
                         } else {
 
-                            val addresses: Map<String, Triple<Int, OSMAddress, String>> = egrnResponse.parseAddresses().addresses
+                            val addresses = egrnResponse.parseAddresses().addresses
 
                             var nodes: List<Node> = listOf()
                             //генерим "облако" точек вокруг места клика с адресами
-                            addresses.values.forEachIndexed { index, addr ->
+                            addresses.forEachIndexed { index, addr ->
                                 val n = Node(getNodePlacement(mouseEN, index))
                                 addr.second.getTags().forEach { (tagKey, tagValue) -> n.put(tagKey, tagValue) }
                                 defaultTagsForNode.forEach { (tagKey, tagValue) -> n.put(tagKey, tagValue) }

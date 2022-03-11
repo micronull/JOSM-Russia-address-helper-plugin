@@ -53,8 +53,11 @@ msgstr "На месте клика"
 msgid "Buildings without number must be selected!"
 msgstr "Необходимо выделить здания без номера!"
 
-msgid "Enable requested coordinates shift for parcels request according to the layer:"
-msgstr "Сдвигать координаты запроса адресов участков согласно сдвигу выбранного слоя:"
+msgid "Enable requested coordinates shift for requests according to the layer:"
+msgstr "Сдвигать координаты запросов cогласно сдвигу выбранного слоя:"
 
-msgid "Enable requested coordinates shift for buildings request according to the layer:"
-msgstr "Сдвигать координаты запроса адресов зданий согласно сдвигу выбранного слоя:"
+msgid "Create address nodes for other found addresses"
+msgstr "Создавать адресные точки для всех найденных адресов"
+
+msgid "Create address nodes for unparsed addresses (for debug)"
+msgstr "Создавать адресные точки для нераспознанных адресов (для отладки)"

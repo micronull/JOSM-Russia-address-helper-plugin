@@ -10,10 +10,16 @@ data class OSMAddress(val street: String, val housenumber: String, val flatnumbe
         return tags.filter { StringUtils.isNotBlank(it.value) }
     }
 
-    fun getInlineAddress(): String {
+    fun getBaseAddressTags(): Map<String, String> {
+        val tags: Map<String, String> =
+            mapOf("addr:street" to street, "addr:housenumber" to housenumber)
+        return tags.filter { StringUtils.isNotBlank(it.value) }
+    }
+
+    fun getInlineAddress(): String? {
         if (StringUtils.isNotBlank(street) && StringUtils.isNotBlank(housenumber)) {
             return "$street $housenumber $flatnumber"
         }
-        return ""
+        return null
     }
 }

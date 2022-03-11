@@ -62,8 +62,7 @@ class EgrnApi(private val url: String, private val userAgent: String) {
         return try {
             URL(
                 getUrlWithLatLon(
-                    //TO DO: переделать логику как формировать сдвиг слоя
-                    getLayerShift(coordinate, EGRNFeatureType.PARCEL),
+                    getLayerShift(coordinate),
                     featureTypes.map { it.type }).replace(" ", "%20")
             )
         } catch (e: MalformedURLException) {
@@ -71,12 +70,8 @@ class EgrnApi(private val url: String, private val userAgent: String) {
         }
     }
 
-    private fun getLayerShift(coordinate: EastNorth, type: EGRNFeatureType): EastNorth {
-        var shiftLayerSetting = LayerShiftSettingsReader.PARCELS_LAYER_SHIFT_SOURCE
-
-        if (type == EGRNFeatureType.BUILDING) {
-            shiftLayerSetting = LayerShiftSettingsReader.BUILDINGS_LAYER_SHIFT_SOURCE
-        }
+    private fun getLayerShift(coordinate: EastNorth): EastNorth {
+        val shiftLayerSetting = LayerShiftSettingsReader.LAYER_SHIFT_SOURCE
 
         val shiftLayer = LayerShiftSettingsReader.getValidShiftLayer(shiftLayerSetting) ?: return coordinate
 

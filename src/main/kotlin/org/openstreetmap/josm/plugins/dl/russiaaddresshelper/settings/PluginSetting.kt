@@ -16,6 +16,7 @@ class PluginSetting : DefaultTabPreferenceSetting("icon.svg", I18n.tr("Russia ad
         val egrnSettingsPanel = EgrnRequestSettingsPanel()
         val tagSettingsPanel = TagSettingsPanel()
         val layerShiftSettingsPanel = LayerShiftSettingsPanel()
+        val addressNodesSettingsPanel = AddressNodesSettingsPanel()
     }
 
     override fun addGui(gui: PreferenceTabbedPane) {
@@ -30,10 +31,16 @@ class PluginSetting : DefaultTabPreferenceSetting("icon.svg", I18n.tr("Russia ad
         panel.add(tagSettingsPanel, GBC.eop().fill(GridBagConstraints.HORIZONTAL))
 
         panel.add(JSeparator(), GBC.eop().fill(GBC.HORIZONTAL))
+
+        panel.add(addressNodesSettingsPanel, GBC.eop().fill(GridBagConstraints.HORIZONTAL))
+
+        panel.add(JSeparator(), GBC.eop().fill(GBC.HORIZONTAL))
         panel.add(layerShiftSettingsPanel, GBC.eop().fill(GridBagConstraints.HORIZONTAL))
         layerShiftSettingsPanel.fillComboWithLayers()
 
         panel.add(Box.createVerticalGlue(), GBC.eol().fill(GBC.VERTICAL))
+
+
 
         createPreferenceTabWithScrollPane(gui, panel)
     }
@@ -42,6 +49,7 @@ class PluginSetting : DefaultTabPreferenceSetting("icon.svg", I18n.tr("Russia ad
         egrnSettingsPanel.saveToPreferences()
         tagSettingsPanel.saveToPreferences()
         layerShiftSettingsPanel.saveToPreferences()
+        addressNodesSettingsPanel.saveToPreferences()
         return false
     }
 }
