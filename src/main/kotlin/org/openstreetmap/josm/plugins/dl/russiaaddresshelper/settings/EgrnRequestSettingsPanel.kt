@@ -1,7 +1,7 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings
 
 import org.openstreetmap.josm.gui.widgets.JosmTextField
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
@@ -12,9 +12,9 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 
 class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
-    private val egrnUrl = JosmTextField();
-    private val egrnRequestLimit = JosmTextField(3);
-    private val egrnRequestDelay = JosmTextField(3);
+    private val egrnUrl = JosmTextField()
+    private val egrnRequestLimit = JosmTextField(3)
+    private val egrnRequestDelay = JosmTextField(3)
 
     init {
         val panel: JPanel = this
@@ -55,7 +55,7 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
             }
 
             if (limit > 10) {
-                limit = 10;
+                limit = 10
             }
 
             EgrnSettingsReader.REQUEST_LIMIT.put(limit)

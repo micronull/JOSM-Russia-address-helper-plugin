@@ -8,7 +8,7 @@ import org.openstreetmap.josm.plugins.PluginInformation
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions.ClickAction
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions.SelectAction
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnApi
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io.EgrnSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.PluginSetting
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.ImageProvider

@@ -1,17 +1,19 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions
 
+import com.github.kittinunf.fuel.jackson.jacksonDeserializerOf
 import com.github.kittinunf.result.success
-import org.apache.commons.text.StringEscapeUtils
 import org.openstreetmap.josm.actions.mapmode.MapMode
 import org.openstreetmap.josm.command.AddCommand
 import org.openstreetmap.josm.command.Command
 import org.openstreetmap.josm.command.SequenceCommand
 import org.openstreetmap.josm.data.UndoRedoHandler
+import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.Node
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.util.KeyPressReleaseListener
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnApi
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNFeatureType
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNResponse
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.ImageProvider
 import org.openstreetmap.josm.tools.Logging
@@ -58,34 +60,54 @@ class ClickAction : MapMode(
         if (!mapView.isActiveLayerDrawable) {
             return
         }
-
+        val defaultTagsForNode: Map<String, String> = mapOf("source:addr" to "ЕГРН", "fixme" to "yes")
         val ds = layerManager.editDataSet
         val cmds: MutableList<Command> = mutableListOf()
         val mouseEN = mapView.getEastNorth(e.x, e.y)
-        val n = Node(mouseEN)
+        RussiaAddressHelperPlugin.getEgrnClient()
+            .request(mouseEN, listOf(EGRNFeatureType.PARCEL, EGRNFeatureType.BUILDING))
+            .responseObject<EGRNResponse>(jacksonDeserializerOf()) { request, response, result ->
+                if (response.statusCode == 200) {
+                    result.success { egrnResponse ->
+                        if (egrnResponse.total == 0) {
+                            Logging.info("EGRN PLUGIN empty response for request ${request.url}")
+                            Logging.info("$egrnResponse")
+                        } else if (egrnResponse.results.all { it.attrs?.address?.isBlank() != false }) {
+                            Logging.info("EGRN PLUGIN no addresses found for for request ${request.url}")
+                            Logging.info("$egrnResponse")
+                        } else {
 
-        RussiaAddressHelperPlugin.getEgrnClient().request(mouseEN).responseString { _, response, result ->
-            if (response.statusCode == 200) {
-                result.success {
-                    val match = Regex("""address":\s"(.+?)"""").find(StringEscapeUtils.unescapeJson(it))
-                    if (match == null) {
-                        Logging.error("Parse EGRN response error.")
-                    } else {
-                        val address = match.groupValues[1]
+                            val addresses = egrnResponse.parseAddresses().addresses
 
-                        n.put("addr:RU:egrn", address)
-                        n.put("fixme", "yes")
+                            var nodes: List<Node> = listOf()
+                            //генерим "облако" точек вокруг места клика с адресами
+                            addresses.forEachIndexed { index, addr ->
+                                val n = Node(getNodePlacement(mouseEN, index))
+                                addr.second.getTags().forEach { (tagKey, tagValue) -> n.put(tagKey, tagValue) }
+                                defaultTagsForNode.forEach { (tagKey, tagValue) -> n.put(tagKey, tagValue) }
+                                n.put("addr:RU:egrn", addr.third)
+                                n.put("addr:RU:egrn_type", EGRNFeatureType.fromInt(addr.first).name)
+                                nodes = nodes.plus(n)
+                                cmds.add(AddCommand(ds, n))
+                            }
 
-                        cmds.add(AddCommand(ds, n))
+                            val c: Command = SequenceCommand(I18n.tr("Added node from RussiaAddressHelper"), cmds)
+                            UndoRedoHandler.getInstance().add(c)
 
-                        val c: Command = SequenceCommand(I18n.tr("Added node from RussiaAddressHelper"), cmds)
-                        UndoRedoHandler.getInstance().add(c)
-
-                        ds.setSelected(n)
+                            ds.setSelected(nodes)
+                        }
                     }
                 }
             }
-        }
+    }
+
+    private fun getNodePlacement(center: EastNorth, index: Int): EastNorth {
+        //радиус разброса точек относительно центра в метрах
+        val radius = 5
+        val angle = 55.0
+        if (index == 0) return center
+        val startPoint = EastNorth(center.east() - radius, center.north())
+        return startPoint.rotate(center, angle * index)
     }
 
     override fun doKeyPressed(e: KeyEvent) {

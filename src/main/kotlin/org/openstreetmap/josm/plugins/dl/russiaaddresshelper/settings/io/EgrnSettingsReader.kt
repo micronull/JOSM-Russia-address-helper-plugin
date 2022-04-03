@@ -1,4 +1,4 @@
-package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.io
+package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io
 
 import org.openstreetmap.josm.data.preferences.IntegerProperty
 import org.openstreetmap.josm.data.preferences.StringProperty
@@ -11,7 +11,7 @@ class EgrnSettingsReader {
          */
         val EGRN_URL_REQUEST = StringProperty(
             "dl.russiaaddresshelper.ppk.url",
-            "https://pkk.rosreestr.ru/api/features/?text={lat}%20{lon}&tolerance=1&types=[1]"
+            "https://pkk.rosreestr.ru/api/features/?text={lat}%20{lon}&tolerance=1&types=[{type}]"
         )
 
         /**
