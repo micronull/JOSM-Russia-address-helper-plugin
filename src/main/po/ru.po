@@ -61,3 +61,12 @@ msgstr "Создавать адресные точки для всех найд�
 
 msgid "Create address nodes for unparsed addresses (for debug)"
 msgstr "Создавать адресные точки для нераспознанных адресов (для отладки)"
+
+msgid "Removed existing in OSM address double"
+msgstr "Удален существующий в ОСМ дубль адреса"
+
+msgid "Removed found in EGRN address doubles, leaving biggest area building"
+msgstr "Удалены найденные в ЕГРН дубли, оставлено здание наибольшей площади"
+
+msgid "Duplicates search distance in meters"
+msgstr "Расстояние поиска дубликатов адресов, метров:"

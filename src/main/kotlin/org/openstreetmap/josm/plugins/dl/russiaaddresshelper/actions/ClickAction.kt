@@ -14,6 +14,7 @@ import org.openstreetmap.josm.gui.util.KeyPressReleaseListener
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNFeatureType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNResponse
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.AddressNodesSettingsReader
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.ImageProvider
 import org.openstreetmap.josm.tools.Logging
@@ -77,11 +78,12 @@ class ClickAction : MapMode(
                             Logging.info("$egrnResponse")
                         } else {
 
-                            val addresses = egrnResponse.parseAddresses().addresses
+                            val allAddresses = egrnResponse.parseAddresses()
+                            val parsedAddresses = allAddresses.addresses
 
                             var nodes: List<Node> = listOf()
                             //генерим "облако" точек вокруг места клика с адресами
-                            addresses.forEachIndexed { index, addr ->
+                            parsedAddresses.forEachIndexed { index, addr ->
                                 val n = Node(getNodePlacement(mouseEN, index))
                                 addr.second.getTags().forEach { (tagKey, tagValue) -> n.put(tagKey, tagValue) }
                                 defaultTagsForNode.forEach { (tagKey, tagValue) -> n.put(tagKey, tagValue) }
@@ -89,6 +91,25 @@ class ClickAction : MapMode(
                                 n.put("addr:RU:egrn_type", EGRNFeatureType.fromInt(addr.first).name)
                                 nodes = nodes.plus(n)
                                 cmds.add(AddCommand(ds, n))
+                            }
+
+                            if (AddressNodesSettingsReader.GENERATE_ADDRESS_NODES_FOR_BAD_ADDRESSES.get()) {
+                                val badAddresses = allAddresses.badAddresses
+                                badAddresses.forEachIndexed{index, addr ->
+                                    val node = Node(getNodePlacement(mouseEN, index + parsedAddresses.size))
+
+                                    val defaultTagsForBadNode: Map<String, String> = mapOf("source:addr" to "ЕГРН", "fixme" to "REMOVE ME!")
+
+                                    node.put("addr:RU:extracted_name", addr.second.first.extractedName)
+                                    node.put("addr:RU:extracted_type", addr.second.first.extractedType)
+                                    node.put("addr:RU:parsed_housenumber", addr.second.second.housenumber)
+                                    node.put("addr:RU:parsed_flats", addr.second.second.flatnumber)
+                                    defaultTagsForBadNode.forEach { (tagKey, tagValue) -> node.put(tagKey, tagValue) }
+                                    node.put("addr:RU:egrn", addr.third)
+                                    node.put("addr:RU:egrn_type", EGRNFeatureType.fromInt(addr.first).name)
+                                    nodes = nodes.plus(node)
+                                    cmds.add(AddCommand(ds, node))
+                                }
                             }
 
                             val c: Command = SequenceCommand(I18n.tr("Added node from RussiaAddressHelper"), cmds)

@@ -13,14 +13,23 @@ class HouseNumberParser : IParser<ParsedHouseNumber> {
 
             if (match != null) {
                 var houseNumber =
-                    match.groups["housenumber"]!!.value.filterNot { it == '"' || it == ' ' }.trim().uppercase()
+                    match.groups["housenumber"]!!.value.filterNot { it == '"' || it == ' ' || it == '-' || it == '«' || it == '»' }
+                        .trim().uppercase()
                 val buildingNumber =
                     match.groups["building"]?.value?.filterNot { it == '"' || it == ' ' }?.trim()?.uppercase()
+                val corpusNumber =
+                    match.groups["corpus"]?.value?.filterNot { it == '"' || it == ' ' }?.trim()?.uppercase()
+
                 if (buildingNumber != null) {
                     //наверное темплейт выхлопа тоже нужно вынести в конфигурацию
                     houseNumber = "$houseNumber с$buildingNumber"
                 }
-                val flatNumbers1 = match.groups["flat1"]?.value?.filterNot { it == '-' }
+
+                if (corpusNumber != null) {
+                    houseNumber = "$houseNumber к$corpusNumber"
+                }
+
+                val flatNumbers1 = match.groups["flat1"]?.value?.filterNot { it == '-' || it == ' ' }
                 val flatNumbers2 = match.groups["flat2"]?.value
                 val roomNumbers = match.groups["room"]?.value
                 val parsedFlats = flatNumbers1 ?: flatNumbers2 ?: ""
@@ -33,6 +42,6 @@ class HouseNumberParser : IParser<ParsedHouseNumber> {
             Logging.error("EGRN-PLUGIN Cant parse housenumber from address: $address")
         }
 
-        return ParsedHouseNumber("","")
+        return ParsedHouseNumber("", "")
     }
 }
