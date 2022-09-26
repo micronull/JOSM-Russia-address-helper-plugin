@@ -16,9 +16,14 @@ data class EGRNResponse(val total: Int, val results: List<EGRNFeature>) {
         this.results.forEach { res ->
             val egrnAddress = res.attrs?.address ?: return@forEach
             //предварительная фильтрация - убираем одинарные кавычки, кавычки елочки, и "Россия" из конца адреса (такое тоже есть!)
-            var filteredEgrnAddress =  egrnAddress.replace("''","\"").replace("«","\"").replace("»", "\"").replace(Regex(""",\s*Россия\s*\.?$"""),"")
+            var filteredEgrnAddress =  egrnAddress.replace("''","\"")
+                .replace("«","\"")
+                .replace("»", "\"")
+                .replace(" ", " ")
+                .replace(Regex(""",\s*Россия\s*\.?$"""),"")
             //убираем все в круглых скобках - неединичные случаи дублирования номера дома прописью
             //Калужская область, Боровский район, деревня Кабицыно, улица А. Кабаевой, дом 25 (Двадцать пять)
+
             filteredEgrnAddress = filteredEgrnAddress.replace(Regex("""\(([А-Яа-я ])+\)"""),"")
 
             val streetParse = streetParser.parse(filteredEgrnAddress)

@@ -22,5 +22,11 @@ internal class HouseNumberIParserTest {
         assertEquals("60Б", testSample.parse("Красноярский край, Минусинский район, с. Большая Иня, ул. Мира, 60-б").housenumber)
         assertEquals("88А", testSample.parse("Калужская область, р-н Боровский, г Ермолино, ул 1 Мая, д 88 «А»").housenumber)
         assertEquals("47А", testSample.parse("Калужская обл., р-н Сухиничский, г. Сухиничи, ул. Добролюбова, дом 47-\"а\"").housenumber)
+        assertEquals("24", testSample.parse("Республика Башкортостан, Калтасинский район, с. Краснохолмский ул. Лесная д. 24").housenumber)
+
+        assertEquals("31 с2", testSample.parse("Российская Федерация, Калужская область, Боровский муниципальный район, городское поселение город Боровск, г Боровск, микрорайон Роща, ул Каманина, д 31, строен 2").housenumber)
+        assertEquals("56", testSample.parse("Калужская область, г. Калуга, ул. Николая Островского, д. 56, часть 1").housenumber)
+
+
     }
 }

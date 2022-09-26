@@ -3,8 +3,6 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers
 import org.apache.commons.text.similarity.JaroWinklerSimilarity
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.StreetType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.StreetTypes
-import org.openstreetmap.josm.data.osm.OsmDataManager
-import org.openstreetmap.josm.data.osm.OsmPrimitiveType
 import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
@@ -12,7 +10,7 @@ import javax.swing.JOptionPane
 
 class ParsedStreet(val name: String, val extractedName: String, val extractedType: String) {
     companion object {
-        fun identify(sourceaddress: String, streetTypes: StreetTypes): ParsedStreet {
+        fun identify(sourceaddress: String, streetTypes: StreetTypes, osmObjectNames: Map<String, String>): ParsedStreet {
 
             var streetType: StreetType? = null
             var egrnStreetName = ""
@@ -33,14 +31,6 @@ class ParsedStreet(val name: String, val extractedName: String, val extractedTyp
                 return ParsedStreet("", "", "")
             }
 
-            // Оставляем дороги у которых есть название
-            val primitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives().filter { p ->
-                p.hasKey("highway") && p.hasKey("name") && p.type.equals(OsmPrimitiveType.WAY)
-            }
-
-            // вариант - искать searchWays(Bbox) в некоей окрестности от домика/домиков
-            // улицы, собранные отношениями, в которых на вэях нет тэгов??
-
             val JWSsimilarity = JaroWinklerSimilarity()
 
             val filteredEGRNStreetName = egrnStreetName.replace('ё', 'е')
@@ -49,9 +39,7 @@ class ParsedStreet(val name: String, val extractedName: String, val extractedTyp
             var mostSimilar = ""
             // Ищем соответствующий адресу примитив
 
-            val primitiveNames :List<String> = primitives.map {it.name}.distinct()
-
-            for (street in primitiveNames) {
+            for (street in osmObjectNames.keys) {
 
                 //пропускаем осм имена которые заведомо не содержат определенного нами типа
                 if (!street.contains(streetType!!.name, true)) {
@@ -67,11 +55,16 @@ class ParsedStreet(val name: String, val extractedName: String, val extractedTyp
                 }
 
                 if (filteredEGRNStreetName.lowercase() == filteredOsmStreetName.lowercase()) {
-                    return ParsedStreet(street, egrnStreetName, streetType.name)
+                    return ParsedStreet(osmObjectNames[street]!!, egrnStreetName, streetType.name)
                 } else {
+                    if (matchedNumberedStreet(filteredEGRNStreetName, filteredOsmStreetName, streetType.name)) {
+                        Logging.info("EGRN-PLUGIN Matched OSM street name by numerics parsing $egrnStreetName -> $street")
+                        return ParsedStreet(osmObjectNames[street]!!, egrnStreetName, streetType.name)
+                    }
+
                     if (matchedWithoutInitials(filteredEGRNStreetName, filteredOsmStreetName)) {
                         Logging.warn("EGRN-PLUGIN Matched OSM street name without initials $egrnStreetName -> $street")
-                        return ParsedStreet(street, egrnStreetName, streetType.name)
+                        return ParsedStreet(osmObjectNames[street]!!, egrnStreetName, streetType.name)
                     }
                     val similarity = JWSsimilarity.apply(filteredEGRNStreetName, filteredOsmStreetName)
                     if (similarity > maxSimilarity) {
@@ -84,7 +77,7 @@ class ParsedStreet(val name: String, val extractedName: String, val extractedTyp
                 Logging.warn("EGRN-PLUGIN Exact street match for $egrnStreetName not found, use most similar: $mostSimilar with distance $maxSimilarity")
                 val msg = I18n.tr("Exact street match not found, most similar will be used!")
                 Notification("$msg $egrnStreetName -> $mostSimilar").setIcon(JOptionPane.WARNING_MESSAGE).show()
-                return ParsedStreet(mostSimilar, egrnStreetName, streetType!!.name)
+                return ParsedStreet(osmObjectNames[mostSimilar]!!, egrnStreetName, streetType!!.name)
             }
 
             return ParsedStreet("", egrnStreetName, streetType!!.name)
@@ -97,7 +90,7 @@ class ParsedStreet(val name: String, val extractedName: String, val extractedTyp
             val namedByRegex = Regex("""им(\.|\s+)|имени\s+""")
 
             val divider = Regex("""\s+""")
-            if (initialsRegexp.find(EGRNStreetName) != null || initialsRegexp.find(osmStreetName) != null) {
+            if (initialsRegexp.find(EGRNStreetName) != null || initialsRegexp.find(osmStreetName) != null || namedByRegex.find(EGRNStreetName)!= null || namedByRegex.find(osmStreetName)!= null) {
                 val EGRNStreetWithoutInitials = EGRNStreetName.replace(namedByRegex,"").replace(initialsRegexp, "")
                 if (EGRNStreetWithoutInitials == osmStreetName) return true
                 if (osmStreetName.split(divider).size > 1) {
@@ -114,6 +107,26 @@ class ParsedStreet(val name: String, val extractedName: String, val extractedTyp
             return false
         }
 
+        private fun matchedNumberedStreet(EGRNStreetName: String, osmStreetName: String, streetTypePrefix: String): Boolean {
+            val numericsRegexp = Regex("""(?<streetNumber>\d{1,2})(\s|-)(й|ий|ый|ой|я|ая|ья|е|ое|ье)""")
+            val numericsMatch = numericsRegexp.find(EGRNStreetName) ?: return false
+            val egrnStreetNumber = numericsMatch.groups["streetNumber"]?:return false
+            val osmNumericsMatch = numericsRegexp.find(osmStreetName) ?: return false
+            val osmStreetNumber = osmNumericsMatch.groups["streetNumber"]?:return false
+
+            if (egrnStreetNumber.value != osmStreetNumber.value) {
+                return false
+            }
+
+            val filteredEgrnName = EGRNStreetName.replace(numericsRegexp,"").replace(streetTypePrefix,"").trim().lowercase()
+            val filteredOsmName = osmStreetName.replace(numericsRegexp,"").replace(streetTypePrefix,"").trim().lowercase()
+
+            if (filteredEgrnName == filteredOsmName) {
+                return true
+            }
+            return false
+        }
+
         private fun extractStreetName(regExList: Collection<Regex>, address: String): String {
             if (address == "") {
                 return ""
@@ -123,7 +136,19 @@ class ParsedStreet(val name: String, val extractedName: String, val extractedTyp
                 val match = pattern.find(address)
 
                 if (match != null) {
-                    return match.groups["street"]!!.value
+                    val streetName = match.groups["street"]!!.value
+                    //костыли, потому что эта функция обрабатывает и ОСМ имена и ЕГРН.
+                    //возможно стоит добавить в ОСМ паттерн тоже номер улицы и убрать это условие?
+                    if (pattern.toString().contains("streetNumber")) {
+                        val numericPrefixMatch = match.groups["streetNumber"]
+                        if (numericPrefixMatch != null) {
+                            val numericPrefix = numericPrefixMatch.value
+                            var filteredStreetName = streetName.replace(numericPrefix, "").trim()
+                            filteredStreetName = "$numericPrefix$filteredStreetName"
+                            return filteredStreetName
+                        }
+                    }
+                    return streetName
                 }
             }
 
