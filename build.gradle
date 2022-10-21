@@ -8,6 +8,7 @@ plugins {
 }
 
 group 'org.openstreetmap.josm.plugins.dl.russiaaddresshelper'
+
 version '0.8.5'
 
 repositories {
