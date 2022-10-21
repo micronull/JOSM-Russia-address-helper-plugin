@@ -18,13 +18,13 @@ class EgrnSettingsReader {
          * Property for limiting concurrent requests.
          * @since 0.0.1
          */
-        val REQUEST_LIMIT = IntegerProperty("dl.russiaaddresshelper.ppk.request.limit", 1)
+        val REQUEST_LIMIT = IntegerProperty("dl.russiaaddresshelper.ppk.request.limit", 2)
 
         /**
          * Property for delay between requests in seconds.
          * @since 0.1.3
          */
-        val REQUEST_DELAY = IntegerProperty("dl.russiaaddresshelper.ppk.request.delay", 3)
+        val REQUEST_DELAY = IntegerProperty("dl.russiaaddresshelper.ppk.request.delay", 1)
 
         val EGRN_REQUEST_USER_AGENT = StringProperty(
             "dl.russiaaddresshelper.ppk.useragent",
