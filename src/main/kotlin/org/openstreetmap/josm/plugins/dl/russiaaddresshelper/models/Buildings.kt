@@ -28,6 +28,8 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedStree
 import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 
 // FIXME: такой молодой, а уже легаси...
 class Buildings(objects: List<OsmPrimitive>) {
@@ -114,9 +116,10 @@ class Buildings(objects: List<OsmPrimitive>) {
             val map = MainApplication.getMap()
             val ds = map.mapView.layerManager.editDataSet
             val cmds: MutableList<Command> = mutableListOf()
-            for(building in items) {
-                building.addressNodes.forEach{node ->
-                cmds.add(AddCommand(ds, node))}
+            for (building in items) {
+                building.addressNodes.forEach { node ->
+                    cmds.add(AddCommand(ds, node))
+                }
             }
 
             sanitize()
@@ -147,57 +150,118 @@ class Buildings(objects: List<OsmPrimitive>) {
 
     data class ChannelData(val building: Building, val responseBody: EGRNResponse)
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun requests(loadListener: LoadListener? = null): Channel<ChannelData> {
         val limit = EgrnSettingsReader.REQUEST_LIMIT.get()
         val semaphore = kotlinx.coroutines.sync.Semaphore(limit)
         val channel = Channel<ChannelData>()
-
+        val startTime = LocalDateTime.now()
+        var requestsTotal = 0L
+        var retriesTotal = 0L
+        var failuresTotal = 0L
+        var noRetriesLeft = 0L
+        var processedItems = 0
         items.mapIndexed { index, building ->
             scope.launch {
                 try {
                     semaphore.acquire()
+                    var retries = 5
+                    var needToRepeat = true
+                    while (needToRepeat) {
+                        try {
+                            val (_, response, result) = building.request()
+                                .responseObject<EGRNResponse>(jacksonDeserializerOf())
+                            requestsTotal++
+                            retriesTotal++
+                            needToRepeat = false
+                            when (result) {
+                                is Result.Success -> {
+                                    if (!channel.isClosedForSend) {
+                                        if (response.isSuccessful) {
+                                            channel.send(ChannelData(building, result.value))
+                                        }
 
-                    try {
-                        val (_, response, result) = building.request()
-                            .responseObject<EGRNResponse>(jacksonDeserializerOf())
-
-                        when (result) {
-                            is Result.Success -> {
-                                if (!channel.isClosedForSend) {
-                                    if (response.isSuccessful) {
-                                        channel.send(ChannelData(building, result.value))
+                                        loadListener?.onResponse?.invoke(response)
+                                        processedItems++
+                                        if (processedItems == items.size) {
+                                            val finishTime = LocalDateTime.now()
+                                            printReport(
+                                                requestsTotal,
+                                                failuresTotal,
+                                                retriesTotal,
+                                                noRetriesLeft,
+                                                startTime,
+                                                finishTime
+                                            )
+                                            loadListener?.onResponseContinue?.invoke()
+                                            channel.close()
+                                        } else /*if (items.size - limit >= index)*/ {
+                                            delay((EgrnSettingsReader.REQUEST_DELAY.get() * 100).toLong())
+                                        }
                                     }
-
-                                    loadListener?.onResponse?.invoke(response)
-
-                                    if (items.size - 1 == index) {
+                                }
+                                is Result.Failure -> {
+                                    failuresTotal++
+                                    if (retries>0) {
+                                        needToRepeat = true
+                                        retriesTotal++
+                                    } else {
+                                        noRetriesLeft++
+                                        processedItems++
+                                    }
+                                    Logging.info("EGRN-PLUGIN Request failure, retries $retries")
+                                    Logging.warn(result.getException().message)
+                                    retries--
+                                    if (processedItems == items.size) {
+                                        val finishTime = LocalDateTime.now()
+                                        printReport(
+                                            requestsTotal,
+                                            failuresTotal,
+                                            retriesTotal,
+                                            noRetriesLeft,
+                                            startTime,
+                                            finishTime
+                                        )
                                         loadListener?.onResponseContinue?.invoke()
                                         channel.close()
-                                    } else if (items.size - limit >= index) {
-                                        delay((EgrnSettingsReader.REQUEST_DELAY.get() * 1000).toLong())
                                     }
                                 }
                             }
-                            is Result.Failure -> {
-                                Logging.warn(result.getException())
-
-                                if (items.size - 1 == index) {
-                                    loadListener?.onResponseContinue?.invoke()
-                                    channel.close()
-                                }
-                            }
+                        } catch (e: Exception) {
+                            Logging.warn(e.message)
                         }
-                    } catch (e: Exception) {
-                        Logging.warn(e.message)
                     }
-
                 } finally {
                     if (scope.isActive) semaphore.release()
                 }
             }
         }
 
+
         return channel
+    }
+
+    private fun printReport(
+        requestsTotal: Long,
+        failuresTotal: Long,
+        retriesTotal: Long,
+        noRetriesLeft: Long,
+        startTime: LocalDateTime?,
+        finishTime: LocalDateTime?
+    ) {
+        Logging.info("EGRN-PLUGIN report:")
+        Logging.info("EGRN-PLUGIN total requests: $requestsTotal")
+        Logging.info("EGRN-PLUGIN total failures: $failuresTotal")
+        Logging.info("EGRN-PLUGIN total retries: $retriesTotal, average ${retriesTotal / requestsTotal.toFloat()}")
+        Logging.info("EGRN-PLUGIN no retries left failures: $noRetriesLeft")
+        Logging.info(
+            "EGRN-PLUGIN time elapsed: ${
+                ChronoUnit.MINUTES.between(
+                    startTime,
+                    finishTime
+                )
+            } min ${ChronoUnit.SECONDS.between(startTime, finishTime)} sec"
+        )
     }
 
     private suspend fun parseResponses(
@@ -228,7 +292,6 @@ class Buildings(objects: List<OsmPrimitive>) {
                         val preferredOsmAddress =
                             addresses.find { (type, _, _) -> type == EGRNFeatureType.BUILDING.type }
                                 ?: addresses.first()
-
 
                         if (TagSettingsReader.EGRN_ADDR_RECORD.get()) {
                             d.building.preparedTags["addr:RU:egrn"] = preferredOsmAddress.third
@@ -275,7 +338,7 @@ class Buildings(objects: List<OsmPrimitive>) {
                         }
 
                         loadListener?.onNotFoundStreetParser?.invoke(
-                            parsedAddresses.badAddresses.filter { (_, street, ) -> street.first.extractedName != "" && street.second.street =="" }
+                            parsedAddresses.badAddresses.filter { (_, street) -> street.first.extractedName != "" && street.second.street == "" }
                                 .map { (_, street, _) -> Pair(street.first.extractedName, street.first.extractedType) }
                         )
                     }

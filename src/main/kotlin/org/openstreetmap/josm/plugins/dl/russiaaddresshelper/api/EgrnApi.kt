@@ -42,7 +42,9 @@ class EgrnApi(private val url: String, private val userAgent: String) {
                 Headers.CONTENT_TYPE to "application/json",
                 Headers.USER_AGENT to userAgent
             )
-        )
+        ).timeout(3000)
+
+
     }
 
     private fun getUrlWithLatLon(coordinate: EastNorth, featureTypes: List<Int>): String {

@@ -10,16 +10,20 @@ import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.Node
 import org.openstreetmap.josm.gui.MainApplication
+import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.util.KeyPressReleaseListener
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNFeatureType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNResponse
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.AddressNodesSettingsReader
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.ImageProvider
 import org.openstreetmap.josm.tools.Logging
 import org.openstreetmap.josm.tools.Shortcut
+import java.awt.Cursor
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
+import javax.swing.JOptionPane
 import javax.swing.SwingUtilities
 
 class ClickAction : MapMode(
@@ -56,50 +60,100 @@ class ClickAction : MapMode(
         map.selectMapMode(map.mapModeSelect)
 
         val mapView = map.mapView
-
         if (!mapView.isActiveLayerDrawable) {
             return
         }
+        mapView.setNewCursor(Cursor(Cursor.WAIT_CURSOR), this)
         val defaultTagsForNode: Map<String, String> = mapOf("source:addr" to "ЕГРН", "fixme" to "yes")
         val ds = layerManager.editDataSet
         val cmds: MutableList<Command> = mutableListOf()
         val mouseEN = mapView.getEastNorth(e.x, e.y)
-        RussiaAddressHelperPlugin.getEgrnClient()
-            .request(mouseEN, listOf(EGRNFeatureType.PARCEL, EGRNFeatureType.BUILDING))
-            .responseObject<EGRNResponse>(jacksonDeserializerOf()) { request, response, result ->
-                if (response.statusCode == 200) {
-                    result.success { egrnResponse ->
-                        if (egrnResponse.total == 0) {
-                            Logging.info("EGRN PLUGIN empty response for request ${request.url}")
-                            Logging.info("$egrnResponse")
-                        } else if (egrnResponse.results.all { it.attrs?.address?.isBlank() != false }) {
-                            Logging.info("EGRN PLUGIN no addresses found for for request ${request.url}")
-                            Logging.info("$egrnResponse")
-                        } else {
+        var needToRepeat = true
+        val clickRetries = 5
+        val clickDelay = 1000L
+        var retries = clickRetries
+        while (needToRepeat) {
+            val (request, response, result) = RussiaAddressHelperPlugin.getEgrnClient()
+                .request(mouseEN, listOf(EGRNFeatureType.PARCEL, EGRNFeatureType.BUILDING))
+                .responseObject<EGRNResponse>(jacksonDeserializerOf())
 
-                            val addresses = egrnResponse.parseAddresses().addresses
+            if (response.statusCode == 200) {
+                needToRepeat = false
+                result.success { egrnResponse ->
+                    if (egrnResponse.total == 0) {
+                        Logging.info("EGRN PLUGIN empty response for request ${request.url}")
+                        Logging.info("$egrnResponse")
+                    } else if (egrnResponse.results.all { it.attrs?.address?.isBlank() != false }) {
+                        Logging.info("EGRN PLUGIN no addresses found for for request ${request.url}")
+                        Logging.info("$egrnResponse")
+                    } else {
 
-                            var nodes: List<Node> = listOf()
-                            //генерим "облако" точек вокруг места клика с адресами
-                            addresses.forEachIndexed { index, addr ->
-                                val n = Node(getNodePlacement(mouseEN, index))
-                                addr.second.getTags().forEach { (tagKey, tagValue) -> n.put(tagKey, tagValue) }
-                                defaultTagsForNode.forEach { (tagKey, tagValue) -> n.put(tagKey, tagValue) }
-                                n.put("addr:RU:egrn", addr.third)
-                                n.put("addr:RU:egrn_type", EGRNFeatureType.fromInt(addr.first).name)
-                                nodes = nodes.plus(n)
-                                cmds.add(AddCommand(ds, n))
-                            }
+                        val allAddresses = egrnResponse.parseAddresses()
+                        val parsedAddresses = allAddresses.addresses
 
-                            val c: Command = SequenceCommand(I18n.tr("Added node from RussiaAddressHelper"), cmds)
-                            UndoRedoHandler.getInstance().add(c)
-
-                            ds.setSelected(nodes)
+                        var nodes: List<Node> = listOf()
+                        //генерим "облако" точек вокруг места клика с адресами
+                        parsedAddresses.forEachIndexed { index, addr ->
+                            val n = Node(getNodePlacement(mouseEN, index))
+                            addr.second.getTags().forEach { (tagKey, tagValue) -> n.put(tagKey, tagValue) }
+                            defaultTagsForNode.forEach { (tagKey, tagValue) -> n.put(tagKey, tagValue) }
+                            n.put("addr:RU:egrn", addr.third)
+                            n.put("addr:RU:egrn_type", EGRNFeatureType.fromInt(addr.first).name)
+                            nodes = nodes.plus(n)
+                            cmds.add(AddCommand(ds, n))
                         }
+
+                        if (AddressNodesSettingsReader.GENERATE_ADDRESS_NODES_FOR_BAD_ADDRESSES.get()) {
+                            val badAddresses = allAddresses.badAddresses
+                            badAddresses.forEachIndexed { index, addr ->
+                                val node = Node(getNodePlacement(mouseEN, index + parsedAddresses.size))
+
+                                val defaultTagsForBadNode: Map<String, String> =
+                                    mapOf("source:addr" to "ЕГРН", "fixme" to "REMOVE ME!")
+
+                                node.put("addr:RU:extracted_name", addr.second.first.extractedName)
+                                node.put("addr:RU:extracted_type", addr.second.first.extractedType)
+                                node.put("addr:RU:parsed_housenumber", addr.second.second.housenumber)
+                                node.put("addr:RU:parsed_flats", addr.second.second.flatnumber)
+                                defaultTagsForBadNode.forEach { (tagKey, tagValue) ->
+                                    node.put(
+                                        tagKey,
+                                        tagValue
+                                    )
+                                }
+                                node.put("addr:RU:egrn", addr.third)
+                                node.put("addr:RU:egrn_type", EGRNFeatureType.fromInt(addr.first).name)
+                                nodes = nodes.plus(node)
+                                cmds.add(AddCommand(ds, node))
+                            }
+                        }
+
+                        val c: Command =
+                            SequenceCommand(I18n.tr("Added node from RussiaAddressHelper"), cmds)
+                        UndoRedoHandler.getInstance().add(c)
+
+                        ds.setSelected(nodes)
                     }
                 }
+            } else {
+                if (retries > 0) {
+                    needToRepeat = true
+                } else {
+                    val msg = I18n.tr("Data downloading failed, reason:")
+                    Notification("$msg ${response.statusCode} ${response.data}").setIcon(JOptionPane.WARNING_MESSAGE)
+                        .show()
+                }
+                if (response.statusCode == -1) {
+                    Logging.warn("EGRN-Plugin Error connection refused, retries $retries")
+                } else {
+                    Logging.warn("EGRN-Plugin Error on request: ${response.statusCode}")
+                }
+                retries--
+                Thread.sleep(clickDelay)
             }
+        }
     }
+
 
     private fun getNodePlacement(center: EastNorth, index: Int): EastNorth {
         //радиус разброса точек относительно центра в метрах
