@@ -70,3 +70,6 @@ msgstr "Удалены найденные в ЕГРН дубли, оставле
 
 msgid "Duplicates search distance in meters"
 msgstr "Расстояние поиска дубликатов адресов, метров:"
+
+msgid "EGRN request user agent string:"
+msgstr "UserAgent запроса ЕГРН:"
