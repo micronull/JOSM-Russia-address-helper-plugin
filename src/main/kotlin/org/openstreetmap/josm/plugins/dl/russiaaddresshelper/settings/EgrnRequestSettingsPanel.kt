@@ -13,6 +13,7 @@ import javax.swing.JPanel
 
 class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
     private val egrnUrl = JosmTextField()
+    private val userAgent = JosmTextField()
     private val egrnRequestLimit = JosmTextField(3)
     private val egrnRequestDelay = JosmTextField(3)
 
@@ -22,6 +23,9 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
 
         panel.add(JLabel(I18n.tr("EGRN request url:")), GBC.std())
         panel.add(egrnUrl, GBC.eop().fill(GBC.HORIZONTAL).insets(5, 0, 0, 5))
+
+        panel.add(JLabel(I18n.tr("EGRN request user agent string:")), GBC.std())
+        panel.add(userAgent, GBC.eop().fill(GBC.HORIZONTAL).insets(5, 0, 0, 5))
 
         panel.add(JLabel(I18n.tr("Request limit (from 1 to 10):")), GBC.std())
         panel.add(egrnRequestLimit, GBC.eop().insets(5, 0, 0, 5))
@@ -37,6 +41,7 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
      */
     fun initFromPreferences() {
         egrnUrl.text = EgrnSettingsReader.EGRN_URL_REQUEST.get()
+        userAgent.text = EgrnSettingsReader.EGRN_REQUEST_USER_AGENT.get()
         egrnRequestLimit.text = EgrnSettingsReader.REQUEST_LIMIT.get().toString()
         egrnRequestDelay.text = EgrnSettingsReader.REQUEST_DELAY.get().toString()
     }
@@ -46,6 +51,7 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
      */
     fun saveToPreferences() {
         EgrnSettingsReader.EGRN_URL_REQUEST.put(egrnUrl.text)
+        EgrnSettingsReader.EGRN_REQUEST_USER_AGENT.put(userAgent.text)
 
         try {
             var limit = Integer.valueOf(egrnRequestLimit.text)
@@ -61,18 +67,20 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
             EgrnSettingsReader.REQUEST_LIMIT.put(limit)
         } catch (e: NumberFormatException) {
             Logging.warn(e.message + "(need numeric)")
+            EgrnSettingsReader.REQUEST_LIMIT.put(2)
         }
 
         try {
             var delay = Integer.valueOf(egrnRequestDelay.text)
 
-            if (delay <= 0) {
-                delay = 1
+            if (delay < 0) {
+                delay = 0
             }
 
             EgrnSettingsReader.REQUEST_DELAY.put(delay)
         } catch (e: NumberFormatException) {
             Logging.warn(e.message + "(need numeric)")
+            EgrnSettingsReader.REQUEST_DELAY.put(1)
         }
     }
 }

@@ -21,9 +21,9 @@ data class EGRNResponse(val total: Int, val results: List<EGRNFeature>) {
                 .replace("»", "\"")
                 .replace(" ", " ")
                 .replace(Regex(""",\s*Россия\s*\.?$"""),"")
+
             //убираем все в круглых скобках - неединичные случаи дублирования номера дома прописью
             //Калужская область, Боровский район, деревня Кабицыно, улица А. Кабаевой, дом 25 (Двадцать пять)
-
             filteredEgrnAddress = filteredEgrnAddress.replace(Regex("""\(([А-Яа-я ])+\)"""),"")
 
             val streetParse = streetParser.parse(filteredEgrnAddress)

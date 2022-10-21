@@ -31,7 +31,13 @@ class SelectAction : JosmAction(
         val selected = dataSet.selected.toMutableList()
 
         selected.removeAll {
-            it !is Way || !it.hasKey("building") || it.hasKey("fixme") || it.hasKey("addr:housenumber") || it.get("building") == "shed" || it.get("building") == "garage"
+            //TO DO: вынести тэги фильтрации в настройки
+            it !is Way ||
+                    !it.hasKey("building") ||
+                    it.hasKey("fixme") ||
+                    it.hasKey("addr:housenumber") ||
+                    it.get("building") == "shed" ||
+                    it.get("building") == "garage"
         }
 
         val buildings = Buildings(selected)

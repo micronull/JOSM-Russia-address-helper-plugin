@@ -75,7 +75,7 @@ class DeleteDoubles {
                     val street = items.first().preparedTags["addr:street"]
                     val house = items.first().preparedTags["addr:housenumber"]
                     Logging.info("EGRN PLUGIN remove found double address, leaving biggest building $street $house")
-                    val msg = I18n.tr("Removed found in EGRN address doubles, leaving biggest area")
+                    val msg = I18n.tr("Removed found in EGRN address doubles, leaving biggest area building")
                     Notification("$msg $street, $house").setIcon(JOptionPane.WARNING_MESSAGE).show()
                 }
 

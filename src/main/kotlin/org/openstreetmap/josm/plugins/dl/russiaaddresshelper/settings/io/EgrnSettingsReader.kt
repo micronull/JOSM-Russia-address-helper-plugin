@@ -25,5 +25,10 @@ class EgrnSettingsReader {
          * @since 0.1.3
          */
         val REQUEST_DELAY = IntegerProperty("dl.russiaaddresshelper.ppk.request.delay", 3)
+
+        val EGRN_REQUEST_USER_AGENT = StringProperty(
+            "dl.russiaaddresshelper.ppk.useragent",
+            "JOSM/%s JOSM-RussiaAddressHelper/%s"
+        )
     }
 }
