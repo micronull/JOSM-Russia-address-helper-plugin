@@ -9,7 +9,7 @@ class StreetParser : IParser<ParsedStreet> {
 
     override fun parse(address: String): ParsedStreet {
         //тэги, откуда будут собираться возможные имена
-        val altNames : List<String> = listOf("alt_name","old_name", "short_name")
+        val altNames : List<String> = listOf("egrn_name","alt_name","old_name", "short_name")
         // Оставляем дороги у которых есть название
         // вариант - искать searchWays(Bbox) в некоей окрестности от домика/домиков
         // улицы, собранные отношениями, в которых на вэях нет тэгов??
