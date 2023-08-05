@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
-import org.openstreetmap.josm.JOSMFixture
+//import org.openstreetmap.josm.JOSMFixture
 import org.openstreetmap.josm.data.coor.LatLon
 import org.openstreetmap.josm.data.projection.Projections
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.testutils.ResourceFileLoader
@@ -23,7 +23,7 @@ internal class EgrnApiTest {
     @RegisterExtension val wmRule: WireMockExtension = WireMockExtension.newInstance().options(wireMockConfig().dynamicPort()).build()
 
     @BeforeEach fun setUpBeforeClass() {
-        JOSMFixture("src/test/config/unit-josm.home").init()
+     //   JOSMFixture("src/test/config/unit-josm.home").init()
     }
 
     @Test fun test() {

@@ -1,5 +1,6 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io
 
+import org.openstreetmap.josm.data.preferences.BooleanProperty
 import org.openstreetmap.josm.data.preferences.IntegerProperty
 import org.openstreetmap.josm.data.preferences.StringProperty
 
@@ -29,6 +30,10 @@ class EgrnSettingsReader {
         val EGRN_REQUEST_USER_AGENT = StringProperty(
             "dl.russiaaddresshelper.ppk.useragent",
             "JOSM/%s JOSM-RussiaAddressHelper/%s"
+        )
+
+        val EGRN_DISABLE_SSL_FOR_REQUEST = BooleanProperty( "dl.russiaaddresshelper.ppk.disable_ssl",
+            true
         )
     }
 }

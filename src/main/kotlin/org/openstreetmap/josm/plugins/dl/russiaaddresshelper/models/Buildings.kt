@@ -20,11 +20,13 @@ import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNFeatureType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNResponse
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsedAddressInfo
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.AddressNodesSettingsReader
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.DeleteDoubles
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedStreet
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.DeleteDoubles
 import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
@@ -90,6 +92,11 @@ class Buildings(objects: List<OsmPrimitive>) {
         val addressNodes: MutableList<Node> = mutableListOf()
 
         fun request(): Request {
+            /*    val someJson = ""
+                val res =  Response().apply {
+                    data = someJson.toByteArray()
+                    statusCode = 200
+                    httpResponseMessage = "OK" }*/
             return RussiaAddressHelperPlugin.getEgrnClient()
                 .request(coordinate!!, listOf(EGRNFeatureType.PARCEL, EGRNFeatureType.BUILDING))
         }
@@ -202,12 +209,13 @@ class Buildings(objects: List<OsmPrimitive>) {
                                 }
                                 is Result.Failure -> {
                                     failuresTotal++
-                                    if (retries>0) {
+                                    if (retries > 0) {
                                         needToRepeat = true
                                         retriesTotal++
                                     } else {
                                         noRetriesLeft++
                                         processedItems++
+                                        //add as failed request
                                     }
                                     Logging.info("EGRN-PLUGIN Request failure, retries $retries")
                                     Logging.warn(result.getException().message)
@@ -273,38 +281,71 @@ class Buildings(objects: List<OsmPrimitive>) {
         for (d in channel) {
             defers += scope.async {
                 val egrnResponse = d.responseBody
+
                 Logging.info("EGRN-PLUGIN Got data from EGRN: $egrnResponse")
                 if (egrnResponse.total == 0) {
                     Logging.info("EGRN PLUGIN empty response")
                     Logging.info("$egrnResponse")
+                    RussiaAddressHelperPlugin.egrnResponses = RussiaAddressHelperPlugin.egrnResponses.plus(
+                        Pair(
+                            d.building.osmPrimitive,
+                            Triple(d.building.coordinate, egrnResponse, ParsedAddressInfo(listOf()))
+                        )
+                    )
                 } else if (egrnResponse.results.all { it.attrs?.address?.isBlank() != false }) {
                     Logging.info("EGRN PLUGIN no addresses found for for request $egrnResponse")
+                    RussiaAddressHelperPlugin.egrnResponses = RussiaAddressHelperPlugin.egrnResponses.plus(
+                        Pair(
+                            d.building.osmPrimitive,
+                            Triple(d.building.coordinate, egrnResponse, ParsedAddressInfo(listOf()))
+                        )
+                    )
                 } else {
-                    val parsedAddresses = egrnResponse.parseAddresses()
+                    //изменения которые надо внести:
+                    //реализовать все требующие проверки и исправления ситуации через валидаторы
+                    //- нет ответа - connection-refused после n попыток
+                    //проверять на близость линий и точек, и на вхождение в полигон/мультиполигон здания. (это в парсерах улиц и мест)
+                    //если линия/точка слишком далеко (задать через настройки) то не присваиваем, ставим флаг не найденной рядом улицы
+                    //аналогично для мультика и полигона
+                    //искать дубликаты адреса в ОСМ здесь. если найдены - выкидывать в валидатор, не присваивать
+                    //искать дубликаты адреса в распознанном, если найдены - выбирать здание с наибольшей площадью
+                    // и переносить адрес на него
+                    //убрать старый функционал
+                    //новый функционал: проверка адресов для уже имеющих адреса зданий. Получать адреса парсить и
+                    // сравнивать, при несовпадении - выкидывать в валидатор
+                    val parsedAddressInfo = egrnResponse.parseAddresses(d.building.coordinate!!)
 
-                    val addresses = parsedAddresses.addresses
+                    RussiaAddressHelperPlugin.egrnResponses = RussiaAddressHelperPlugin.egrnResponses.plus(
+                        Pair(
+                            d.building.osmPrimitive,
+                            Triple(d.building.coordinate, egrnResponse, parsedAddressInfo)
+                        )
+                    )
+
+                    val addresses = parsedAddressInfo.getValidAddresses()
+                    val isMoreThanOne = addresses.size > 1
                     var additionalNodeNumber = 1
                     val buildingCoordinate = d.building.coordinate
-                    if (addresses.isNotEmpty()) {
+                    val preferredOsmAddress = parsedAddressInfo.getPreferredAddress()
+                    if (preferredOsmAddress != null) {
                         val osmPrimitive = d.building.osmPrimitive
+                        //костыль чтобы не присваивать адрес если есть проблемы
 
-                        //берем адрес здания если он есть, или первый попавшийся, если нет адреса здания
-                        val preferredOsmAddress =
-                            addresses.find { (type, _, _) -> type == EGRNFeatureType.BUILDING.type }
-                                ?: addresses.first()
+                        if (canAssignAddress(preferredOsmAddress) && !isMoreThanOne) {
+                            if (TagSettingsReader.EGRN_ADDR_RECORD.get()) {
+                                d.building.preparedTags["addr:RU:egrn"] = preferredOsmAddress.egrnAddress
+                            }
 
-                        if (TagSettingsReader.EGRN_ADDR_RECORD.get()) {
-                            d.building.preparedTags["addr:RU:egrn"] = preferredOsmAddress.third
+                            //спорное решение - добавляем зданию адрес БЕЗ номеров квартир
+                            d.building.preparedTags.plusAssign(preferredOsmAddress.getOsmAddress().getBaseAddressTags())
+                            if (!osmPrimitive.hasTag("addr:housenumber")) {
+                                d.building.preparedTags["source:addr"] = "ЕГРН"
+                            }
                         }
 
-                        //спорное решение - добавляем зданию адрес БЕЗ номеров квартир
-                        d.building.preparedTags.plusAssign(preferredOsmAddress.second.getBaseAddressTags())
-                        if (!osmPrimitive.hasTag("addr:housenumber")) {
-                            d.building.preparedTags["source:addr"] = "ЕГРН"
-                        }
-                        if (buildingCoordinate != null) {
+                      /*  if (buildingCoordinate != null && addresses.size > 1) {
                             if (AddressNodesSettingsReader.GENERATE_ADDRESS_NODES_FOR_ADDITIONAL_ADDRESSES.get()) {
-                                addresses.filter { (_, osmAddress, _) -> preferredOsmAddress.second.flatnumber != "" || preferredOsmAddress.second != osmAddress }
+                                addresses.filter { preferredOsmAddress.getOsmAddress().flatnumber != "" || preferredOsmAddress.getOsmAddress() != it.getOsmAddress() }
                                     .forEach {
                                         d.building.addressNodes.add(
                                             generateAddressNode(
@@ -318,11 +359,11 @@ class Buildings(objects: List<OsmPrimitive>) {
                                     }
                             }
 
-                        }
+                        }*/
                     }
-                    if (parsedAddresses.badAddresses.isNotEmpty()) {
+                  /*  if (parsedAddressInfo.getNonValidAddresses().isNotEmpty()) {
                         if (AddressNodesSettingsReader.GENERATE_ADDRESS_NODES_FOR_BAD_ADDRESSES.get() && buildingCoordinate != null) {
-                            parsedAddresses.badAddresses
+                            parsedAddressInfo.getNonValidAddresses()
                                 .forEach {
                                     d.building.addressNodes.add(
                                         generateBadAddressNode(
@@ -331,17 +372,16 @@ class Buildings(objects: List<OsmPrimitive>) {
                                             it
                                         )
                                     )
-
                                     additionalNodeNumber++
                                 }
                             Logging.info("Added bad address nodes, total: $additionalNodeNumber")
                         }
 
-                        loadListener?.onNotFoundStreetParser?.invoke(
-                            parsedAddresses.badAddresses.filter { (_, street) -> street.first.extractedName != "" && street.second.street == "" }
-                                .map { (_, street, _) -> Pair(street.first.extractedName, street.first.extractedType) }
-                        )
-                    }
+                        *//*   loadListener?.onNotFoundStreetParser?.invoke(
+                               parsedAddressInfo.getNonValidAdressess().filter { (_, street) -> street.extractedName != "" && street.name == "" }
+                                   .map { (_, street, _) -> Pair(street.extractedName, street.extractedType) }
+                           )*//*
+                    }*/
                 }
                 null
             }
@@ -352,32 +392,34 @@ class Buildings(objects: List<OsmPrimitive>) {
     private fun generateAddressNode(
         index: Int,
         startCoordinate: EastNorth,
-        addressInfo: Triple<Int, OSMAddress, String>
+        addressInfo: ParsedAddress
     ): Node {
         val defaultTagsForNode: Map<String, String> = mapOf("source:addr" to "ЕГРН", "fixme" to "yes")
         val node = Node(getNodePlacement(startCoordinate, index))
-        addressInfo.second.getTags().forEach { (tagKey, tagValue) -> node.put(tagKey, tagValue) }
+        addressInfo.getOsmAddress().getTags().forEach { (tagKey, tagValue) -> node.put(tagKey, tagValue) }
         defaultTagsForNode.forEach { (tagKey, tagValue) -> node.put(tagKey, tagValue) }
-        node.put("addr:RU:egrn", addressInfo.third)
-        node.put("addr:RU:egrn_type", EGRNFeatureType.fromInt(addressInfo.first).name)
+        node.put("addr:RU:egrn", addressInfo.egrnAddress)
+        node.put("addr:RU:egrn_type", if (addressInfo.isBuildingAddress()) "BUILDING" else "PARCEL")
         return node
     }
 
     private fun generateBadAddressNode(
         index: Int,
         startCoordinate: EastNorth,
-        badAddressInfo: Triple<Int, Pair<ParsedStreet, OSMAddress>, String>
+        badAddressInfo: ParsedAddress
     ): Node {
         val node = Node(getNodePlacement(startCoordinate, index))
         val defaultTagsForBadNode: Map<String, String> = mapOf("source:addr" to "ЕГРН", "fixme" to "REMOVE ME!")
 
-        node.put("addr:RU:extracted_name", badAddressInfo.second.first.extractedName)
-        node.put("addr:RU:extracted_type", badAddressInfo.second.first.extractedType)
-        node.put("addr:RU:parsed_housenumber", badAddressInfo.second.second.housenumber)
-        node.put("addr:RU:parsed_flats", badAddressInfo.second.second.flatnumber)
+        node.put("addr:RU:extracted_street_name", badAddressInfo.parsedStreet.extractedName)
+        node.put("addr:RU:extracted_street_type", badAddressInfo.parsedStreet.extractedType)
+        node.put("addr:RU:extracted_place_name", badAddressInfo.parsedPlace.extractedName)
+        node.put("addr:RU:extracted_place_type", badAddressInfo.parsedPlace.extractedType)
+        node.put("addr:RU:parsed_housenumber", badAddressInfo.parsedHouseNumber.housenumber)
+        node.put("addr:RU:parsed_flats", badAddressInfo.parsedHouseNumber.flats)
         defaultTagsForBadNode.forEach { (tagKey, tagValue) -> node.put(tagKey, tagValue) }
-        node.put("addr:RU:egrn", badAddressInfo.third)
-        node.put("addr:RU:egrn_type", EGRNFeatureType.fromInt(badAddressInfo.first).name)
+        node.put("addr:RU:egrn", badAddressInfo.egrnAddress)
+        node.put("addr:RU:egrn_type", if (badAddressInfo.isBuildingAddress()) "BUILDING" else "PARCEL")
         return node
     }
 
@@ -396,5 +438,13 @@ class Buildings(objects: List<OsmPrimitive>) {
         if (TagSettingsReader.ENABLE_CLEAR_DOUBLE.get() && items.isNotEmpty()) {
             items = DeleteDoubles().clear(items)
         }
+    }
+
+    private fun canAssignAddress(address: ParsedAddress): Boolean {
+        return !address.flags.contains(ParsingFlags.STREET_NAME_FUZZY_MATCH) &&
+                !address.flags.contains(ParsingFlags.STREET_NAME_INITIALS_MATCH) &&
+                !address.flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM) &&
+                !address.flags.contains(ParsingFlags.PLACE_NAME_INITIALS_MATCH) &&
+                !address.flags.contains(ParsingFlags.PLACE_NAME_FUZZY_MATCH)
     }
 }

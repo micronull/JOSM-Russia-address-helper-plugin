@@ -1,13 +1,16 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers
 
 import org.apache.commons.lang3.StringUtils
+import org.openstreetmap.josm.data.coor.EastNorth
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Patterns
 import org.openstreetmap.josm.tools.Logging
 
 class HouseNumberParser : IParser<ParsedHouseNumber> {
     private val patterns = Patterns.byYml("/references/house_patterns.yml").asRegExpList()
 
-    override fun parse(address: String): ParsedHouseNumber {
+    override fun parse(address: String, requestCoordinate: EastNorth): ParsedHouseNumber {
+        val parsingFlags = mutableListOf<ParsingFlags>()
         for (pattern in patterns) {
             val match = pattern.find(address)
 
@@ -15,10 +18,19 @@ class HouseNumberParser : IParser<ParsedHouseNumber> {
                 var houseNumber =
                     match.groups["housenumber"]!!.value.filterNot { it == '"' || it == ' ' || it == '-' || it == '«' || it == '»' }
                         .trim().uppercase()
+                if (houseNumber.matches(Regex("""\d{4,}"""))) {
+                    //это пока не работает поскольку регекс для номера дома изменился, надо откат?
+                    Logging.error("EGRN-PLUGIN Cant parse housenumber from address: $address, housenumber too big")
+                    parsingFlags.add(ParsingFlags.HOUSENUMBER_TOO_BIG)
+                    return ParsedHouseNumber("", "", parsingFlags)
+                }
+                val letter = match.groups["letter"]?.value?.trim()?:""
+                houseNumber += letter
                 val buildingNumber =
                     match.groups["building"]?.value?.filterNot { it == '"' || it == ' ' }?.trim()?.uppercase()
                 val corpusNumber =
                     match.groups["corpus"]?.value?.filterNot { it == '"' || it == ' ' }?.trim()?.uppercase()
+
 
                 if (buildingNumber != null) {
                     //наверное темплейт выхлопа тоже нужно вынести в конфигурацию
@@ -34,14 +46,20 @@ class HouseNumberParser : IParser<ParsedHouseNumber> {
                 val roomNumbers = match.groups["room"]?.value
                 val parsedFlats = flatNumbers1 ?: flatNumbers2 ?: ""
                 if (StringUtils.isNotBlank(flatNumbers1) || StringUtils.isNotBlank(flatNumbers2) || StringUtils.isNotBlank(roomNumbers)) {
+                    parsingFlags.add(ParsingFlags.HOUSENUMBER_HAS_FLATS)
                     Logging.info("EGRN-PLUGIN Parsed and removed flat numbers from address $address : $parsedFlats $roomNumbers ")
                 }
 
-                return ParsedHouseNumber(houseNumber, parsedFlats)
+                return ParsedHouseNumber(houseNumber, parsedFlats, parsingFlags)
             }
             Logging.error("EGRN-PLUGIN Cant parse housenumber from address: $address")
         }
-
-        return ParsedHouseNumber("", "")
+        if (address.matches(Regex("""\d"""))) {
+            Logging.error("EGRN-PLUGIN Cant parse housenumber from address: $address, though address contains some numbers")
+            parsingFlags.add(ParsingFlags.HOUSENUMBER_CANNOT_BE_PARSED_BUT_CONTAINS_NUMBERS)
+        } else {
+            parsingFlags.add(ParsingFlags.HOUSENUMBER_CANNOT_BE_PARSED)
+        }
+        return ParsedHouseNumber("", "", parsingFlags)
     }
 }

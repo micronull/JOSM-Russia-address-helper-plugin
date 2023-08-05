@@ -1,25 +1,25 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings
 
 import org.openstreetmap.josm.gui.widgets.JosmTextField
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
 import java.awt.GridBagLayout
-import javax.swing.BorderFactory
-import javax.swing.Box
-import javax.swing.JLabel
-import javax.swing.JPanel
+import javax.swing.*
 
 class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
     private val egrnUrl = JosmTextField()
     private val userAgent = JosmTextField()
     private val egrnRequestLimit = JosmTextField(3)
     private val egrnRequestDelay = JosmTextField(3)
+    private val disableSSLforRequests = JCheckBox(I18n.tr("Disable SSL for EGRN requests"))
 
     init {
         val panel: JPanel = this
         panel.border = BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        panel.add(disableSSLforRequests, GBC.eol())
 
         panel.add(JLabel(I18n.tr("EGRN request url:")), GBC.std())
         panel.add(egrnUrl, GBC.eop().fill(GBC.HORIZONTAL).insets(5, 0, 0, 5))
@@ -44,6 +44,7 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
         userAgent.text = EgrnSettingsReader.EGRN_REQUEST_USER_AGENT.get()
         egrnRequestLimit.text = EgrnSettingsReader.REQUEST_LIMIT.get().toString()
         egrnRequestDelay.text = EgrnSettingsReader.REQUEST_DELAY.get().toString()
+        disableSSLforRequests.isSelected = EgrnSettingsReader.EGRN_DISABLE_SSL_FOR_REQUEST.get()
     }
 
     /**
@@ -52,6 +53,7 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
     fun saveToPreferences() {
         EgrnSettingsReader.EGRN_URL_REQUEST.put(egrnUrl.text)
         EgrnSettingsReader.EGRN_REQUEST_USER_AGENT.put(userAgent.text)
+        EgrnSettingsReader.EGRN_DISABLE_SSL_FOR_REQUEST.put(disableSSLforRequests.isSelected)
 
         try {
             var limit = Integer.valueOf(egrnRequestLimit.text)
@@ -82,5 +84,7 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
             Logging.warn(e.message + "(need numeric)")
             EgrnSettingsReader.REQUEST_DELAY.put(1)
         }
+        //debug call
+        RussiaAddressHelperPlugin.getUnprocessedEntities()
     }
 }

@@ -1,23 +1,28 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers
 
 import org.apache.commons.text.similarity.JaroWinklerSimilarity
+import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.StreetType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.StreetTypes
-import org.openstreetmap.josm.gui.Notification
-import org.openstreetmap.josm.tools.I18n
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.tools.Logging
-import javax.swing.JOptionPane
 
-class ParsedStreet(val name: String, val extractedName: String, val extractedType: String) {
+class ParsedStreet(
+    val name: String,
+    val extractedName: String,
+    val extractedType: String,
+    val matchedPrimitives: List<OsmPrimitive>,
+    val flags: List<ParsingFlags>
+) {
     companion object {
-        fun identify(sourceaddress: String, streetTypes: StreetTypes, osmObjectNames: Map<String, String>): ParsedStreet {
+        fun identify(sourceAddress: String, streetTypes: StreetTypes, osmObjectNames: Map<String, Pair<String, List<OsmPrimitive>>>): ParsedStreet {
 
             var streetType: StreetType? = null
             var egrnStreetName = ""
-
+            val flags:MutableList<ParsingFlags> = mutableListOf()
             // Извлекаем название улицы
             for (type in streetTypes.types) {
-                egrnStreetName = extractStreetName(type.egrn.asRegExpList(), sourceaddress)
+                egrnStreetName = extractStreetName(type.egrn.asRegExpList(), sourceAddress)
 
                 if (egrnStreetName != "") {
                     streetType = type
@@ -27,8 +32,9 @@ class ParsedStreet(val name: String, val extractedName: String, val extractedTyp
             }
 
             if (egrnStreetName == "") {
-                Logging.error("EGRN-PLUGIN Cannot extract street name from EGRN address $sourceaddress")
-                return ParsedStreet("", "", "")
+                Logging.error("EGRN-PLUGIN Cannot extract street name from EGRN address $sourceAddress")
+                flags.add(ParsingFlags.CANNOT_EXTRACT_STREET_NAME)
+                return ParsedStreet("", "", "", listOf(), flags)
             }
 
             val JWSsimilarity = JaroWinklerSimilarity()
@@ -55,16 +61,20 @@ class ParsedStreet(val name: String, val extractedName: String, val extractedTyp
                 }
 
                 if (filteredEGRNStreetName.lowercase() == filteredOsmStreetName.lowercase()) {
-                    return ParsedStreet(osmObjectNames[street]!!, egrnStreetName, streetType.name)
+                    if (street != osmObjectNames[street]?.first) {
+                        flags.add(ParsingFlags.MATCHED_STREET_BY_SECONDARY_TAGS)
+                    }
+                    return ParsedStreet(osmObjectNames[street]!!.first, egrnStreetName, streetType.name, osmObjectNames[street]!!.second, flags)
                 } else {
                     if (matchedNumberedStreet(filteredEGRNStreetName, filteredOsmStreetName, streetType.name)) {
                         Logging.info("EGRN-PLUGIN Matched OSM street name by numerics parsing $egrnStreetName -> $street")
-                        return ParsedStreet(osmObjectNames[street]!!, egrnStreetName, streetType.name)
+                        return ParsedStreet(osmObjectNames[street]!!.first, egrnStreetName, streetType.name, osmObjectNames[street]!!.second, flags)
                     }
 
                     if (matchedWithoutInitials(filteredEGRNStreetName, filteredOsmStreetName)) {
+                        flags.add(ParsingFlags.STREET_NAME_INITIALS_MATCH)
                         Logging.warn("EGRN-PLUGIN Matched OSM street name without initials $egrnStreetName -> $street")
-                        return ParsedStreet(osmObjectNames[street]!!, egrnStreetName, streetType.name)
+                        return ParsedStreet(osmObjectNames[street]!!.first, egrnStreetName, streetType.name, osmObjectNames[street]!!.second, flags)
                     }
                     val similarity = JWSsimilarity.apply(filteredEGRNStreetName, filteredOsmStreetName)
                     if (similarity > maxSimilarity) {
@@ -73,18 +83,17 @@ class ParsedStreet(val name: String, val extractedName: String, val extractedTyp
                     }
                 }
             }
+            //TO DO low priority - вынести в настройки вкл.выкл нечеткого матчинга + значение схожести?
             if (mostSimilar.isNotBlank() && maxSimilarity > 0.9) {
                 Logging.warn("EGRN-PLUGIN Exact street match for $egrnStreetName not found, use most similar: $mostSimilar with distance $maxSimilarity")
-                val msg = I18n.tr("Exact street match not found, most similar will be used!")
-                Notification("$msg $egrnStreetName -> $mostSimilar").setIcon(JOptionPane.WARNING_MESSAGE).show()
-                return ParsedStreet(osmObjectNames[mostSimilar]!!, egrnStreetName, streetType!!.name)
+                flags.add(ParsingFlags.STREET_NAME_FUZZY_MATCH)
+                return ParsedStreet(osmObjectNames[mostSimilar]!!.first, egrnStreetName, streetType!!.name, osmObjectNames[mostSimilar]!!.second, flags)
             }
-
-            return ParsedStreet("", egrnStreetName, streetType!!.name)
+            flags.add(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM)
+            return ParsedStreet("", egrnStreetName, streetType!!.name, listOf(), flags)
         }
 
         //пытаемся поматчить улицы убирая из них инициалы, префикс "им" и имена
-
         private fun matchedWithoutInitials(EGRNStreetName: String, osmStreetName: String): Boolean {
             val initialsRegexp = Regex("""[А-Я](\.\s?|\s)""")
             val namedByRegex = Regex("""им(\.|\s+)|имени\s+""")
