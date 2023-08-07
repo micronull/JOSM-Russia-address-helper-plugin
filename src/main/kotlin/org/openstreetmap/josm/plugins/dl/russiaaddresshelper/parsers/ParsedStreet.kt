@@ -32,7 +32,7 @@ class ParsedStreet(
             }
 
             if (egrnStreetName == "") {
-                Logging.error("EGRN-PLUGIN Cannot extract street name from EGRN address $sourceAddress")
+                Logging.warn("EGRN-PLUGIN Cannot extract street name from EGRN address $sourceAddress")
                 flags.add(ParsingFlags.CANNOT_EXTRACT_STREET_NAME)
                 return ParsedStreet("", "", "", listOf(), flags)
             }

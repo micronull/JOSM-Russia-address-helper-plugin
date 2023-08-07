@@ -22,7 +22,7 @@ import javax.swing.JPanel
 
 
 class EGRNFuzzyStreetMatchingTest : Test(
-    I18n.tr("EGRN fuzzy or initials match"),
+    I18n.tr("EGRN fuzzy street match"),
     I18n.tr("EGRN test for parsed street name fuzzy match with OSM")
 ) {
 

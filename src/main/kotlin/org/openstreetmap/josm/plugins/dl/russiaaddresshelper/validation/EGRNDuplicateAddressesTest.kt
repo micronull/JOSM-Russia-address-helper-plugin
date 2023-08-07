@@ -16,6 +16,7 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelper
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.OSMAddress
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
+import org.openstreetmap.josm.tools.Logging
 import java.awt.GridBagLayout
 import java.awt.event.ActionEvent
 import javax.swing.JPanel
@@ -44,6 +45,10 @@ class EGRNDuplicateAddressesTest : Test(
             val addresses = addressInfo.addresses
             addresses.forEach {
                 val inlineAddress = it.getOsmAddress().getInlineAddress()
+                if (inlineAddress == null) {
+                    Logging.warn("Doubles check for object without address id={0}", primitive.id)
+                    return@forEach
+                }
                 var affectedPrimitives =
                     duplicateAddressToPrimitivesMap.getOrDefault(
                         inlineAddress,
@@ -52,7 +57,7 @@ class EGRNDuplicateAddressesTest : Test(
                 affectedPrimitives = affectedPrimitives.plus(primitive)
                 affectedPrimitives = affectedPrimitives.plus(getOsmDoubles(it.getOsmAddress(), existingPrimitivesMap))
                 duplicateAddressToPrimitivesMap =
-                    duplicateAddressToPrimitivesMap.plus(Pair(inlineAddress!!, affectedPrimitives))
+                    duplicateAddressToPrimitivesMap.plus(Pair(inlineAddress, affectedPrimitives))
             }
         }
 

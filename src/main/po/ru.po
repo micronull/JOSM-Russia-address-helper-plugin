@@ -152,8 +152,8 @@ msgstr "Создать адресные точки"
 msgid "Added address nodes from RussiaAddressHelper AddressHasFlats validator"
 msgstr "Добавление адресных точек валидатором ЕГРН AddressHasFlats"
 
-msgid "EGRN fuzzy match"
-msgstr "ЕГРН нечеткое совпадение"
+msgid "EGRN fuzzy street match"
+msgstr "ЕГРН нечеткое совпадение улицы"
 
 msgid "EGRN test for parsed street name fuzzy match with OSM"
 msgstr "Тест на нечеткое совпадение наименования улицы из ЕГРН и улицы в ОСМ"
@@ -204,7 +204,10 @@ msgid "Assign address by street"
 msgstr "Присвоить адрес по улице"
 
 msgid "EGRN fuzzy or initials place match"
-msgstr "ЕГРН имя места совпало нечетко или без инициалов"
+msgstr "ЕГРН нечеткое совпадение места"
+
+msgid "EGRN fuzzy match"
+msgstr "ЕГРН нечеткое совпадение"
 
 msgid "EGRN test for parsed place name fuzzy or without initials match with OSM"
 msgstr "ЕГРН валидатор на совпадение имени места по нечеткому алгоритму или без инициалов"
@@ -221,9 +224,6 @@ msgstr "ЕГРН нечеткое совпадение места"
 msgid "EGRN place initials match"
 msgstr "ЕГРН совпадение места без инициалов"
 
-msgid "EGRN duplicate addresses"
-msgstr "ЕГРН дублирование адресов"
-
 msgid "EGRN test for duplicate addresses recieved from registry"
 msgstr "ЕГРН тест на дубликаты адресов полученные из реестра"
 
@@ -235,6 +235,9 @@ msgstr "ЕГРН дубликат адреса"
 
 msgid "Request addresses again"
 msgstr "Запросить ЕГРН снова"
+
+msgid "EGRN place not found"
+msgstr "ЕГРН не найдено место"
 
 
 
