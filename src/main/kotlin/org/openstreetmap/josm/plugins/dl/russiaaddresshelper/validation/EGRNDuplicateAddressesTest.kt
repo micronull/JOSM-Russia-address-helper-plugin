@@ -41,6 +41,10 @@ class EGRNDuplicateAddressesTest : Test(
             RussiaAddressHelperPlugin.processedByValidators.filter { it.value.contains(EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND) }
                 .map { it.key }
         markedAsDoubles.forEach { primitive ->
+            if (RussiaAddressHelperPlugin.egrnResponses[primitive] == null) {
+                Logging.warn("Doubles check for object not in cache, id={0}", primitive.id)
+                return@forEach
+            }
             val addressInfo = RussiaAddressHelperPlugin.egrnResponses[primitive]!!.third
             val addresses = addressInfo.addresses
             addresses.forEach {

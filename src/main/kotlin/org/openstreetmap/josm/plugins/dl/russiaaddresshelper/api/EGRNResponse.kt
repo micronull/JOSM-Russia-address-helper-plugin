@@ -32,6 +32,7 @@ data class EGRNResponse(val total: Int, val results: List<EGRNFeature>) {
             val parsedOsmAddress =
                 OSMAddress(placeParseResult.name, streetParseResult.name, houseNumberParse.housenumber, houseNumberParse.flats)
             val allParsingFlags: MutableList<ParsingFlags> = mutableListOf()
+            //возможно, тут стоит подавлять добавление флагов парсинга места, если улица успешно распозналась?
             allParsingFlags.addAll(placeParseResult.flags)
             allParsingFlags.addAll(streetParseResult.flags)
             allParsingFlags.addAll(houseNumberParse.flags)

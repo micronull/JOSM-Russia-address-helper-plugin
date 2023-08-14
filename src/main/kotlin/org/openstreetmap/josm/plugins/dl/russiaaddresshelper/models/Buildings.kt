@@ -23,7 +23,6 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNResponse
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsedAddressInfo
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.AddressNodesSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.DeleteDoubles
@@ -343,41 +342,41 @@ class Buildings(objects: List<OsmPrimitive>) {
                             }
                         }
 
-                      /*  if (buildingCoordinate != null && addresses.size > 1) {
-                            if (AddressNodesSettingsReader.GENERATE_ADDRESS_NODES_FOR_ADDITIONAL_ADDRESSES.get()) {
-                                addresses.filter { preferredOsmAddress.getOsmAddress().flatnumber != "" || preferredOsmAddress.getOsmAddress() != it.getOsmAddress() }
-                                    .forEach {
-                                        d.building.addressNodes.add(
-                                            generateAddressNode(
-                                                additionalNodeNumber,
-                                                buildingCoordinate,
-                                                it
-                                            )
-                                        )
-                                        Logging.info("Added address node $additionalNodeNumber")
-                                        additionalNodeNumber++
-                                    }
-                            }
+                        /*  if (buildingCoordinate != null && addresses.size > 1) {
+                              if (AddressNodesSettingsReader.GENERATE_ADDRESS_NODES_FOR_ADDITIONAL_ADDRESSES.get()) {
+                                  addresses.filter { preferredOsmAddress.getOsmAddress().flatnumber != "" || preferredOsmAddress.getOsmAddress() != it.getOsmAddress() }
+                                      .forEach {
+                                          d.building.addressNodes.add(
+                                              generateAddressNode(
+                                                  additionalNodeNumber,
+                                                  buildingCoordinate,
+                                                  it
+                                              )
+                                          )
+                                          Logging.info("Added address node $additionalNodeNumber")
+                                          additionalNodeNumber++
+                                      }
+                              }
 
-                        }*/
+                          }*/
                     }
-                  /*  if (parsedAddressInfo.getNonValidAddresses().isNotEmpty()) {
-                        if (AddressNodesSettingsReader.GENERATE_ADDRESS_NODES_FOR_BAD_ADDRESSES.get() && buildingCoordinate != null) {
-                            parsedAddressInfo.getNonValidAddresses()
-                                .forEach {
-                                    d.building.addressNodes.add(
-                                        generateBadAddressNode(
-                                            additionalNodeNumber,
-                                            buildingCoordinate,
-                                            it
-                                        )
-                                    )
-                                    additionalNodeNumber++
-                                }
-                            Logging.info("Added bad address nodes, total: $additionalNodeNumber")
-                        }
+                    /*  if (parsedAddressInfo.getNonValidAddresses().isNotEmpty()) {
+                          if (AddressNodesSettingsReader.GENERATE_ADDRESS_NODES_FOR_BAD_ADDRESSES.get() && buildingCoordinate != null) {
+                              parsedAddressInfo.getNonValidAddresses()
+                                  .forEach {
+                                      d.building.addressNodes.add(
+                                          generateBadAddressNode(
+                                              additionalNodeNumber,
+                                              buildingCoordinate,
+                                              it
+                                          )
+                                      )
+                                      additionalNodeNumber++
+                                  }
+                              Logging.info("Added bad address nodes, total: $additionalNodeNumber")
+                          }
 
-                        *//*   loadListener?.onNotFoundStreetParser?.invoke(
+                          *//*   loadListener?.onNotFoundStreetParser?.invoke(
                                parsedAddressInfo.getNonValidAdressess().filter { (_, street) -> street.extractedName != "" && street.name == "" }
                                    .map { (_, street, _) -> Pair(street.extractedName, street.extractedType) }
                            )*//*
@@ -444,7 +443,7 @@ class Buildings(objects: List<OsmPrimitive>) {
         return !address.flags.contains(ParsingFlags.STREET_NAME_FUZZY_MATCH) &&
                 !address.flags.contains(ParsingFlags.STREET_NAME_INITIALS_MATCH) &&
                 !address.flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM) &&
-                !address.flags.contains(ParsingFlags.PLACE_NAME_INITIALS_MATCH) &&
-                !address.flags.contains(ParsingFlags.PLACE_NAME_FUZZY_MATCH)
+                !((address.flags.contains(ParsingFlags.PLACE_NAME_INITIALS_MATCH) || address.flags.contains(ParsingFlags.PLACE_NAME_FUZZY_MATCH))
+                        && !address.getOsmAddress().isValidStreetAddress())
     }
 }

@@ -39,7 +39,15 @@ data class OSMAddress(val place: String, val street: String, val housenumber: St
     }
 
     fun isValid(): Boolean {
-        return (StringUtils.isNotBlank(street) || StringUtils.isNotBlank(place)) && StringUtils.isNotBlank(housenumber)
+        return isValidStreetAddress() || isValidPlaceAddress()
+    }
+
+    fun isValidStreetAddress(): Boolean {
+        return StringUtils.isNotBlank(street) && StringUtils.isNotBlank(housenumber)
+    }
+
+    fun isValidPlaceAddress(): Boolean {
+        return StringUtils.isNotBlank(place) && StringUtils.isNotBlank(housenumber)
     }
 
 }
