@@ -239,6 +239,9 @@ msgstr "Запросить ЕГРН снова"
 msgid "EGRN place not found"
 msgstr "ЕГРН не найдено место"
 
+msgid "Rename street"
+msgstr "Переименовать улицу"
+
 
 
 

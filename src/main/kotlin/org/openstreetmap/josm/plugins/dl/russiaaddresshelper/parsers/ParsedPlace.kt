@@ -74,8 +74,8 @@ data class ParsedPlace(
                     return ParsedPlace(osmObjectName, egrnPlaceName, parsedPlaceType.name, osmPlaceEntry.value, flags)
                 } else {
                     if (matchedNumberedPlace(
-                            filteredOsmPlaceName,
                             filteredEgrnPlaceName,
+                            filteredOsmPlaceName,
                             parsedPlaceType.name
                         )
                     ) {
@@ -150,7 +150,7 @@ data class ParsedPlace(
         }
 
         private fun matchedNumberedPlace(egrnPlaceName: String, osmObjectName: String, streetTypePrefix: String): Boolean {
-            val numericsRegexp = Regex("""(?<streetNumber>\d{1,2})(\s|-)(й|ий|ый|ой|я|ая|ья|е|ое|ье)""")
+            val numericsRegexp = Regex("""(?<streetNumber>\d{1,2})((\s|-)(й|ий|ый|ой|я|ая|ья|е|ое|ье))?""")
             val numericsMatch = numericsRegexp.find(egrnPlaceName) ?: return false
             val egrnStreetNumber = numericsMatch.groups["streetNumber"]?:return false
             val osmNumericsMatch = numericsRegexp.find(osmObjectName) ?: return false

@@ -130,7 +130,7 @@ class EGRNAddressAddedTest : Test(
                 cmds.add(ChangePropertyCommand(listOf(primitive), tags))
 
             } else {
-                Notification("Адрес не удовлетворяет условиям и не был присвоен").setIcon(JOptionPane.WARNING_MESSAGE)
+                Notification(I18n.tr("Address not complete and was not added to building")).setIcon(JOptionPane.WARNING_MESSAGE)
                     .show()
                 return null
             }
@@ -138,7 +138,7 @@ class EGRNAddressAddedTest : Test(
 
         if (answer == 2) {
             val tagsToRemove = mutableMapOf<String, String?>("addr:place" to null,"addr:street" to null,
-                "addr:housenumber" to null ,"source:addr" to null)
+                "addr:housenumber" to null ,"source:addr" to null, "addr:RU:egrn" to null)
             cmds.add(ChangePropertyCommand(listOf(primitive), tagsToRemove))
                 //нужен ли тут игнор?
             //RussiaAddressHelperPlugin.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
