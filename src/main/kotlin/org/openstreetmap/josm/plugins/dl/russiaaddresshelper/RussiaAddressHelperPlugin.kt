@@ -5,6 +5,7 @@ import org.openstreetmap.josm.data.Version
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.data.validation.OsmValidator
+import org.openstreetmap.josm.data.validation.ValidationTask
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.MapFrame
 import org.openstreetmap.josm.gui.Notification
@@ -39,13 +40,13 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
 
         lateinit var versionInfo: String
 
-        var egrnResponses: Map<OsmPrimitive, Triple<EastNorth?, EGRNResponse, ParsedAddressInfo>> = mutableMapOf()
-        var ignoredValidators: Map<OsmPrimitive, MutableSet<EGRNTestCode>> = mutableMapOf()
+        var egrnResponses: MutableMap<OsmPrimitive, Triple<EastNorth?, EGRNResponse, ParsedAddressInfo>> = mutableMapOf()
+        var ignoredValidators: MutableMap<OsmPrimitive, MutableSet<EGRNTestCode>> = mutableMapOf()
 
-        var egrnUploadTagFilter : EGRNUploadTagFilter = EGRNUploadTagFilter()
-        var cleanPluginCache : EGRNCleanPluginCache = EGRNCleanPluginCache()
+        val egrnUploadTagFilterHook : EGRNUploadTagFilter = EGRNUploadTagFilter()
+        val cleanPluginCacheHook : EGRNCleanPluginCache = EGRNCleanPluginCache()
         //debug tool, to get any buildings which were processed by plugin but not validated
-        var processedByValidators: Map<OsmPrimitive, MutableSet<EGRNTestCode>> = mutableMapOf()
+        var processedByValidators: MutableMap<OsmPrimitive, MutableSet<EGRNTestCode>> = mutableMapOf()
 
         val selectAction: SelectAction = SelectAction()
         val clickAction: ClickAction = ClickAction()
@@ -63,12 +64,10 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         fun ignoreValidator(primitive: OsmPrimitive, code: EGRNTestCode) {
             val ignoredValidators = RussiaAddressHelperPlugin.ignoredValidators[primitive]
             if (ignoredValidators == null || ignoredValidators.isEmpty()) {
-                RussiaAddressHelperPlugin.ignoredValidators =
-                    RussiaAddressHelperPlugin.ignoredValidators.plus(Pair(primitive, mutableSetOf(code)))
+                RussiaAddressHelperPlugin.ignoredValidators[primitive] = mutableSetOf(code)
             } else {
                 ignoredValidators.add(code)
-                RussiaAddressHelperPlugin.ignoredValidators =
-                    RussiaAddressHelperPlugin.ignoredValidators.plus(Pair(primitive, ignoredValidators))
+                RussiaAddressHelperPlugin.ignoredValidators[primitive] = ignoredValidators
             }
         }
 
@@ -80,25 +79,29 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         fun markAsProcessed(primitive: OsmPrimitive, code: EGRNTestCode) {
             val processedByValidators = RussiaAddressHelperPlugin.processedByValidators[primitive]
             if (processedByValidators == null || processedByValidators.isEmpty()) {
-                RussiaAddressHelperPlugin.processedByValidators =
-                    RussiaAddressHelperPlugin.processedByValidators.plus(Pair(primitive, mutableSetOf(code)))
+                    RussiaAddressHelperPlugin.processedByValidators[primitive] = mutableSetOf(code)
             } else {
                 processedByValidators.add(code)
-                RussiaAddressHelperPlugin.processedByValidators =
-                    RussiaAddressHelperPlugin.processedByValidators.plus(Pair(primitive, processedByValidators))
+                RussiaAddressHelperPlugin.processedByValidators[primitive] = processedByValidators
             }
         }
 
         fun removeFromAllCaches (primitive: OsmPrimitive) {
             if (egrnResponses[primitive]!=null) {
-                egrnResponses = egrnResponses.minus(primitive)
+                egrnResponses.remove(primitive)
             }
             if (ignoredValidators[primitive] != null) {
-                ignoredValidators = ignoredValidators.minus(primitive)
+                ignoredValidators.remove(primitive)
             }
             if (processedByValidators[primitive]!=null) {
-                processedByValidators = processedByValidators.minus(primitive)
+                processedByValidators.remove(primitive)
             }
+        }
+
+        fun emptyAllCaches() {
+                egrnResponses.clear()
+                ignoredValidators.clear()
+                processedByValidators.clear()
         }
 
         fun getUnprocessedEntities() {
@@ -108,6 +111,20 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
                 Notification("Не обработано ни одним валидатором ${unprocessed.size} обьектов").setIcon(JOptionPane.WARNING_MESSAGE)
                     .show()
             }
+        }
+
+        fun runEgrnValidation(selection : Collection<OsmPrimitive?>) {
+            val map = MainApplication.getMap()
+            if (map == null || !map.isVisible) return
+
+            OsmValidator.initializeTests()
+
+            //лучше бы фильтровать более надежным методом, но я его не придумал
+            val egrnTests = OsmValidator.getEnabledTests(false)
+                .filter { test -> test.name.contains("ЕГРН") || test.name.contains("EGRN")}
+            if (egrnTests.isEmpty()) return
+
+            MainApplication.worker.submit(ValidationTask(egrnTests, selection, null))
         }
     }
 
@@ -129,8 +146,8 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         OsmValidator.addTest(EGRNFuzzyOrInitialsPlaceMatchTest::class.java)
         OsmValidator.addTest(EGRNDuplicateAddressesTest::class.java)
 
-        UploadAction.registerUploadHook(cleanPluginCache, true);
-        UploadAction.registerUploadHook(egrnUploadTagFilter, true);
+        UploadAction.registerUploadHook(cleanPluginCacheHook, true);
+        UploadAction.registerUploadHook(egrnUploadTagFilterHook, true);
 
     }
 

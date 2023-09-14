@@ -159,7 +159,7 @@ class EGRNPlaceNotFoundTest : Test(
             val c: Command =
                 SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper PlaceNotFound validator"), cmds)
             testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses = RussiaAddressHelperPlugin.egrnResponses.minus(it)
+                RussiaAddressHelperPlugin.egrnResponses.remove(it)
             }
 
             return c

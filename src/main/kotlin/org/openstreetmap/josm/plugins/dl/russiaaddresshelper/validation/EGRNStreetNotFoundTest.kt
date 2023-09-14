@@ -97,7 +97,7 @@ class EGRNStreetNotFoundTest : Test(
                     "Для разрешения ошибки вы можете присвоить линии улицы имя согласно соответственно полученными из ЕГРН данным и " +
                     "<a href =https://wiki.openstreetmap.org/wiki/RU:%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D1%8F/%D0%A1%D0%BE%D0%B3%D0%BB%D0%B0%D1%88%D0%B5%D0%BD%D0%B8%D0%B5_%D0%BE%D0%B1_%D0%B8%D0%BC%D0%B5%D0%BD%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B8_%D0%B4%D0%BE%D1%80%D0%BE%D0%B3>правилам именования улиц в ОСМ</a>" +
                     "<br>Если в ЕГРН содержится некорректное имя, не сопоставляемое плагином с именем улицы, " +
-                    "<br>можно присвоить линии улицы тэг alt_name = $egrnStreetName чтобы форсировать сопоставление",
+                    "<br>можно присвоить линии улицы тэг <b>egrn_name = $egrnStreetName</b> чтобы форсировать сопоставление",
             false,
             true
         )
@@ -155,7 +155,7 @@ class EGRNStreetNotFoundTest : Test(
             val c: Command =
                 SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper StreetNoFound validator"), cmds)
             testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses = RussiaAddressHelperPlugin.egrnResponses.minus(it)
+                RussiaAddressHelperPlugin.egrnResponses.remove(it)
             }
 
             return c

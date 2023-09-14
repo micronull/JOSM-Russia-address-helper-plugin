@@ -285,20 +285,12 @@ class Buildings(objects: List<OsmPrimitive>) {
                 if (egrnResponse.total == 0) {
                     Logging.info("EGRN PLUGIN empty response")
                     Logging.info("$egrnResponse")
-                    RussiaAddressHelperPlugin.egrnResponses = RussiaAddressHelperPlugin.egrnResponses.plus(
-                        Pair(
-                            d.building.osmPrimitive,
+                    RussiaAddressHelperPlugin.egrnResponses[d.building.osmPrimitive] =
                             Triple(d.building.coordinate, egrnResponse, ParsedAddressInfo(listOf()))
-                        )
-                    )
                 } else if (egrnResponse.results.all { it.attrs?.address?.isBlank() != false }) {
                     Logging.info("EGRN PLUGIN no addresses found for for request $egrnResponse")
-                    RussiaAddressHelperPlugin.egrnResponses = RussiaAddressHelperPlugin.egrnResponses.plus(
-                        Pair(
-                            d.building.osmPrimitive,
-                            Triple(d.building.coordinate, egrnResponse, ParsedAddressInfo(listOf()))
-                        )
-                    )
+                    RussiaAddressHelperPlugin.egrnResponses[d.building.osmPrimitive] =
+                        Triple(d.building.coordinate, egrnResponse, ParsedAddressInfo(listOf()))
                 } else {
                     //изменения которые надо внести:
                     //реализовать все требующие проверки и исправления ситуации через валидаторы
@@ -314,12 +306,8 @@ class Buildings(objects: List<OsmPrimitive>) {
                     // сравнивать, при несовпадении - выкидывать в валидатор
                     val parsedAddressInfo = egrnResponse.parseAddresses(d.building.coordinate!!)
 
-                    RussiaAddressHelperPlugin.egrnResponses = RussiaAddressHelperPlugin.egrnResponses.plus(
-                        Pair(
-                            d.building.osmPrimitive,
+                    RussiaAddressHelperPlugin.egrnResponses[d.building.osmPrimitive] =
                             Triple(d.building.coordinate, egrnResponse, parsedAddressInfo)
-                        )
-                    )
 
                     val addresses = parsedAddressInfo.getValidAddresses()
                     val isMoreThanOne = addresses.size > 1
@@ -444,6 +432,6 @@ class Buildings(objects: List<OsmPrimitive>) {
                 !address.flags.contains(ParsingFlags.STREET_NAME_INITIALS_MATCH) &&
                 !address.flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM) &&
                 !((address.flags.contains(ParsingFlags.PLACE_NAME_INITIALS_MATCH) || address.flags.contains(ParsingFlags.PLACE_NAME_FUZZY_MATCH))
-                        && !address.getOsmAddress().isValidStreetAddress())
+                        && !address.getOsmAddress().isFilledStreetAddress())
     }
 }

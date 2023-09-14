@@ -15,11 +15,11 @@ data class ParsedAddressInfo(
     }
 
     fun getValidAddresses(): List<ParsedAddress> {
-        return this.addresses.filter { it.getOsmAddress().isValid() }
+        return this.addresses.filter { it.isValidAddress() }
     }
 
     fun getNonValidAddresses(): List<ParsedAddress> {
-        return this.addresses.filter { !it.getOsmAddress().isValid() }
+        return this.addresses.filter { !it.isValidAddress() }
     }
 }
 
@@ -30,6 +30,7 @@ enum class ParsingFlags {
     STREET_NAME_INITIALS_MATCH, // совпало после удаления инициалов
     MATCHED_STREET_BY_SECONDARY_TAGS, //название улицы совпало по вторичным, альтернативным именам
     CANNOT_FIND_STREET_OBJECT_IN_OSM, //удалось разобрать адрес из ЕГРН, но не получилось сопоставить с улицей в ОСМ
+    STREET_HAS_NUMBERED_NAME, //улица пронумерована
     CANNOT_FIND_PLACE_TYPE, //ЕГРН адрес не совпал ни с одним регекспом для имени места
     CANNOT_FIND_PLACE_OBJECT_IN_OSM, //удалось разобрать адрес из ЕГРН, но в данных ОСМ не нашлось соответствующего обьекта
     PLACE_HAS_NUMBERED_NAME,
@@ -39,6 +40,7 @@ enum class ParsingFlags {
     HOUSENUMBER_CANNOT_BE_PARSED, //номер не распознан, его скорее всего нет совсем
     HOUSENUMBER_CANNOT_BE_PARSED_BUT_CONTAINS_NUMBERS, //не удалось распознать номер дома, но можно попробовать руками
     HOUSENUMBER_TOO_BIG, //регулярка распознала цифры, но их слишком много для номера дома
+
 
 
 }

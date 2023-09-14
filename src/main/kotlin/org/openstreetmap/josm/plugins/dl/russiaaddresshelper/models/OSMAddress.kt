@@ -28,7 +28,7 @@ data class OSMAddress(val place: String, val street: String, val housenumber: St
     }
 
     fun getInlineAddress(separator: String=""): String? {
-        if (isValid()) {
+        if (isFilled()) {
             return if (StringUtils.isNotBlank(street)) {
                 "$street$separator $housenumber" + if (StringUtils.isNotBlank(flatnumber)) {"$separator $flatnumber"} else { "" }
             } else {
@@ -38,15 +38,15 @@ data class OSMAddress(val place: String, val street: String, val housenumber: St
         return null
     }
 
-    fun isValid(): Boolean {
-        return isValidStreetAddress() || isValidPlaceAddress()
+    private fun isFilled(): Boolean {
+        return isFilledStreetAddress() || isFilledPlaceAddress()
     }
 
-    fun isValidStreetAddress(): Boolean {
+    fun isFilledStreetAddress(): Boolean {
         return StringUtils.isNotBlank(street) && StringUtils.isNotBlank(housenumber)
     }
 
-    fun isValidPlaceAddress(): Boolean {
+    fun isFilledPlaceAddress(): Boolean {
         return StringUtils.isNotBlank(place) && StringUtils.isNotBlank(housenumber)
     }
 

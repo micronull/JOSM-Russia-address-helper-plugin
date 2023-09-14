@@ -30,8 +30,6 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
 
     private var parsedPlaceToPrimitiveMap: Map<Pair<String, EGRNTestCode>, Pair<Set<OsmPrimitive>, String>> =
         mutableMapOf()
-    private var editedOsmPlaceName: String = ""
-    private val osmPlaceNameEditBox = JosmTextField("")
 
     override fun visit(w: Way) {
         if (!w.isUsable) return
@@ -178,7 +176,7 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
                 cmds
             )
             testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses = RussiaAddressHelperPlugin.egrnResponses.minus(it)
+                RussiaAddressHelperPlugin.egrnResponses.remove(it)
             }
 
             return c

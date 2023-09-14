@@ -167,7 +167,7 @@ class EGRNInitialsStreetMatchingTest : Test(
         if (cmds.isNotEmpty()) {
             val c: Command = SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper InitialsMatch validator"), cmds)
             testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses = RussiaAddressHelperPlugin.egrnResponses.minus(it)
+                RussiaAddressHelperPlugin.egrnResponses.remove(it)
             }
 
             return c

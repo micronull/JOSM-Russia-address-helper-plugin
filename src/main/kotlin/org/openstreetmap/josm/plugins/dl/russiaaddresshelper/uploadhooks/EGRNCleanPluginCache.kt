@@ -10,18 +10,8 @@ import org.openstreetmap.josm.tools.Logging
 
 class EGRNCleanPluginCache : UploadHook {
     override fun checkUpload(apiDataSet: APIDataSet): Boolean {
-        val objectsToUpload = apiDataSet.primitives
-        var removedCount = 0
-        objectsToUpload.forEach { primitive ->
-            val egrnResult = RussiaAddressHelperPlugin.egrnResponses[primitive]
-            if (egrnResult != null && primitiveHasAddress(primitive)) { //выбираем примитивы, у которых по итогам редактирования заполнены адресные тэги
-                //возможно, стоит удалять так же и примитивы,
-                // для которых не был распознан адрес (условия?)
-                RussiaAddressHelperPlugin.removeFromAllCaches(primitive)
-                removedCount++
-            }
-        }
-
+        var removedCount = RussiaAddressHelperPlugin.egrnResponses.size
+        RussiaAddressHelperPlugin.emptyAllCaches()
         val editLayer = MainApplication.getLayerManager().editLayer
         editLayer?.validationErrors?.clear()
 
@@ -30,7 +20,4 @@ class EGRNCleanPluginCache : UploadHook {
         return true
     }
 
-    private fun primitiveHasAddress(primitive: OsmPrimitive): Boolean {
-        return primitive.hasTag("addr:housenumber") && (primitive.hasTag("addr:street") || primitive.hasTag("addr:place"))
-    }
 }

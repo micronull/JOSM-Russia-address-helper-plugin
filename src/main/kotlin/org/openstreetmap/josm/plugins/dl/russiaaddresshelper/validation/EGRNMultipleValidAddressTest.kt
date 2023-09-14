@@ -40,7 +40,7 @@ class EGRNMultipleValidAddressTest : Test(
                 val prefferedAddress = addressInfo.getPreferredAddress()!!.getOsmAddress().getInlineAddress(",")
                 errors.add(
                     TestError.builder(
-                        this, Severity.WARNING,
+                        this, Severity.ERROR,
                         EGRNTestCode.EGRN_HAS_MULTIPLE_VALID_ADDRESSES.code
                     )
                         .message(I18n.tr("EGRN multiple addresses") + ": $prefferedAddress ")
@@ -84,8 +84,7 @@ class EGRNMultipleValidAddressTest : Test(
         val correctionTable = MultipleAddressCorrectionTable(corrections)
         correctionTable.setValueAt(true, prefferedIndex, correctionTable.correctionTableModel.applyColumn)
         correctionTable.autoResizeMode = JTable.AUTO_RESIZE_OFF
-        val preferredHeight = correctionTable.preferredScrollableViewportSize.height
-        correctionTable.preferredScrollableViewportSize = Dimension(800, preferredHeight)
+        correctionTable.preferredScrollableViewportSize = Dimension(800, 96)
         correctionTable.columnModel.getColumn(0).preferredWidth = 400
         correctionTable.columnModel.getColumn(1).preferredWidth = 220
         correctionTable.columnModel.getColumn(2).preferredWidth = 100
@@ -117,7 +116,8 @@ class EGRNMultipleValidAddressTest : Test(
         if (answer == 1) {
             val selectedCorrectionAddress = correctionTable.correctionTableModel.getSelectedValue().address
             testError.primitives.forEach {
-                    val tags = selectedCorrectionAddress.getOsmAddress().getBaseAddressTagsWithSource()
+                    var tags = selectedCorrectionAddress.getOsmAddress().getBaseAddressTagsWithSource()
+                    tags = tags.plus(Pair("addr:RU:egrn", selectedCorrectionAddress.egrnAddress))
                     cmds.add(ChangePropertyCommand(mutableListOf(it), tags))
                 }
             }
@@ -134,7 +134,7 @@ class EGRNMultipleValidAddressTest : Test(
             val c: Command =
                 SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper MultipleValidAddress validator"), cmds)
             testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses = RussiaAddressHelperPlugin.egrnResponses.minus(it)
+                RussiaAddressHelperPlugin.egrnResponses.remove(it)
             }
 
             return c

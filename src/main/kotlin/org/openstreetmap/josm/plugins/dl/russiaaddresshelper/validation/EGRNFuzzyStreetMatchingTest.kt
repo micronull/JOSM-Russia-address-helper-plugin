@@ -102,7 +102,8 @@ class EGRNFuzzyStreetMatchingTest : Test(
         val infoLabel = JMultilineLabel(
             "Несколько (${affectedHousenumbers.size}) зданий (номера ${affectedHousenumbers.joinToString(", ")})<br> получили из ЕГРН адрес с именем улицы:<br> <b>${egrnStreetName}</b>, <br>" +
                     "который был нечетко сопоставлен с именем улицы, существующей в данных ОСМ:<br><b>${osmStreetName}</b> (${affectedHighways.size} линии).<br>" +
-                    "Для разрешения ошибки вы можете присвоить зданиям распознанный адрес,<br> ИЛИ <b>(НЕ РЕКОМЕНДУЕТСЯ)</b><br> переименовать улицу соответственно полученными из ЕГРН данным и " +
+                    "Для разрешения ошибки вы можете присвоить зданиям распознанный адрес,<br> ИЛИ <b>(НЕ РЕКОМЕНДУЕТСЯ)</b>" +
+                    "<br> переименовать улицу соответственно полученными из ЕГРН данным и " +
                     "<a href =https://wiki.openstreetmap.org/wiki/RU:%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D1%8F/%D0%A1%D0%BE%D0%B3%D0%BB%D0%B0%D1%88%D0%B5%D0%BD%D0%B8%D0%B5_%D0%BE%D0%B1_%D0%B8%D0%BC%D0%B5%D0%BD%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B8_%D0%B4%D0%BE%D1%80%D0%BE%D0%B3>правилам именования улиц в ОСМ</a>" +
                     "<br>В случае переименования улицы убедитесь в правильности наименования улицы по другим источникам!" +
                     "<br>Валидными источниками являются постановления местных органов власти о присвоении наименований улицам." +
@@ -167,7 +168,7 @@ class EGRNFuzzyStreetMatchingTest : Test(
         if (cmds.isNotEmpty()) {
             val c: Command = SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper FuzzyMatch validator"), cmds)
             testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses = RussiaAddressHelperPlugin.egrnResponses.minus(it)
+                RussiaAddressHelperPlugin.egrnResponses.remove(it)
             }
 
             return c

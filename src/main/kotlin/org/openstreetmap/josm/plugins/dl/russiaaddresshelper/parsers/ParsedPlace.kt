@@ -10,7 +10,6 @@ import org.openstreetmap.josm.tools.Logging
 //TO DO LOW PRIORITY в коде ParsedPlace и ParsedStreet слишком много дублирования
 //подумать над рефакторингом этого кода на общих основаниях - общий список правил, общий парсер,
 //общая процедура матчинга. Возвращаться должен обьект с разложенным в иерархию адресом
-// так же матчинг мест не учитывает alt_name, оld name и проч. что пытается учитывать парсинг улиц
 //проблема - текущая версия кода вернет только 1 распознанный адрес по месту, даже если таких частей больше 1
 data class ParsedPlace(
     val name: String,
@@ -58,20 +57,21 @@ data class ParsedPlace(
             val primitiveNamesMap = primitivesToCompare[parsedPlaceType.name] ?: mapOf()
 
             for (osmPlaceEntry in primitiveNamesMap) {
-                val osmObjectName = osmPlaceEntry.key
+                val osmObjectComparisonName = osmPlaceEntry.key
+                val osmNameTagValue = osmPlaceEntry.value.get(0).name
 
                 val filteredOsmPlaceName =
-                    extractPlaceName(parsedPlaceType.osm.asRegExpList(), osmObjectName.replace('ё', 'е'))
+                    extractPlaceName(parsedPlaceType.osm.asRegExpList(), osmObjectComparisonName.replace('ё', 'е'))
 
 
                 if (filteredOsmPlaceName == "") {
                     //это условие вообще выполнится, если мы тут собрали только подходящие ОСМ обьекты?
-                    Logging.info("EGRN-PLUGIN Cannot get openStreetMap name for $osmObjectName, type ${parsedPlaceType.name}")
+                    Logging.info("EGRN-PLUGIN Cannot get openStreetMap name for $osmObjectComparisonName, type ${parsedPlaceType.name}")
                     continue
                 }
 
                 if (filteredOsmPlaceName.lowercase() == filteredEgrnPlaceName.lowercase()) {
-                    return ParsedPlace(osmObjectName, egrnPlaceName, parsedPlaceType.name, osmPlaceEntry.value, flags)
+                    return ParsedPlace(osmNameTagValue, egrnPlaceName, parsedPlaceType.name, osmPlaceEntry.value, flags)
                 } else {
                     if (matchedNumberedPlace(
                             filteredEgrnPlaceName,
@@ -79,10 +79,10 @@ data class ParsedPlace(
                             parsedPlaceType.name
                         )
                     ) {
-                        Logging.info("EGRN-PLUGIN Matched OSM place name by numerics parsing $egrnPlaceName -> $osmObjectName")
+                        Logging.info("EGRN-PLUGIN Matched OSM place name by numerics parsing $egrnPlaceName -> $osmObjectComparisonName")
                         flags.add(ParsingFlags.PLACE_HAS_NUMBERED_NAME)
                         return ParsedPlace(
-                            osmObjectName,
+                            osmNameTagValue,
                             egrnPlaceName,
                             parsedPlaceType.name,
                             osmPlaceEntry.value,
@@ -92,9 +92,9 @@ data class ParsedPlace(
 
                     if (matchedWithoutInitials(filteredEgrnPlaceName, filteredOsmPlaceName)) {
                         flags.add(ParsingFlags.PLACE_NAME_INITIALS_MATCH)
-                        Logging.warn("EGRN-PLUGIN Matched OSM place name without initials $egrnPlaceName -> $osmObjectName")
+                        Logging.warn("EGRN-PLUGIN Matched OSM place name without initials $egrnPlaceName -> $osmObjectComparisonName")
                         return ParsedPlace(
-                            osmObjectName,
+                            osmNameTagValue,
                             egrnPlaceName,
                             parsedPlaceType.name,
                             osmPlaceEntry.value,
@@ -104,7 +104,7 @@ data class ParsedPlace(
                     val similarity = JWSsimilarity.apply(filteredEgrnPlaceName, filteredOsmPlaceName)
                     if (similarity > maxSimilarity) {
                         maxSimilarity = similarity
-                        mostSimilar = osmObjectName
+                        mostSimilar = osmObjectComparisonName
                     }
                 }
             }
@@ -113,7 +113,7 @@ data class ParsedPlace(
                 Logging.warn("EGRN-PLUGIN Exact place match for $egrnPlaceName not found, use most similar: $mostSimilar with distance $maxSimilarity")
                 flags.add(ParsingFlags.PLACE_NAME_FUZZY_MATCH)
                 return ParsedPlace(
-                    mostSimilar,
+                    primitiveNamesMap[mostSimilar]?.get(0)?.name ?: "",
                     egrnPlaceName,
                     parsedPlaceType.name,
                     primitiveNamesMap[mostSimilar] ?: listOf(),

@@ -25,7 +25,9 @@ class PlaceParser : IParser<ParsedPlace> {
                 allLoadedPrimitives.filter { p-> type.tags.all { entry -> entry.value.contains(p.get(entry.key)) } }
             val foundPrimitives2 =
                 foundPrimitives.filter { StringUtils.isNotBlank(it.name) && type.hasOSMMatch(it.name) }
-            val primitivesGroupedByName = foundPrimitives2.associateBy({ it.name }, { listOf(it) })
+            var primitivesGroupedByName = foundPrimitives2.associateBy({ it.name }, { listOf(it) })
+            val primitivesGroupedByEgrnName = foundPrimitives2.filter { p-> p.hasTag("egrn_name") }.associateBy ({it["egrn_name"]}, {listOf(it)})
+            primitivesGroupedByName = primitivesGroupedByName.plus(primitivesGroupedByEgrnName)
             primitivesToCompare.putIfAbsent(type.name, primitivesGroupedByName)
         }
         val parsedPlace = ParsedPlace.identify(address, placeTypes, primitivesToCompare)

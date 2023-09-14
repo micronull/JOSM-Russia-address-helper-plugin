@@ -17,4 +17,9 @@ data class ParsedAddress(
     fun isBuildingAddress():Boolean {
         return flags.contains(ParsingFlags.IS_BUILDING)
     }
+
+    fun isValidAddress():Boolean {
+        val osmAddress = getOsmAddress()
+        return osmAddress.isFilledStreetAddress() || (osmAddress.isFilledPlaceAddress() && !flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM))
+    }
 }

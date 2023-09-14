@@ -83,7 +83,7 @@ class EGRNFlatsInAddressTest : Test(
             "В одном или более распознанном адресе из ЕГРН содержатся номера квартир." +
                     "<br>Можно проигнорировать их или создать адресные точки с номерами." +
                     "<br>(Хинт: рядом могут быть части здания с тем же номером дома, но другими квартирами." +
-                    "<br>(Запросите данные для них отдельно или обьедините в общий контур здания.)"
+                    "<br>(Запросите данные для них отдельно или объедините в общий контур здания.)"
         )
         infoLabel.setMaxWidth(800)
         p.add(infoLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
@@ -128,7 +128,7 @@ class EGRNFlatsInAddressTest : Test(
             val c: Command =
                 SequenceCommand(I18n.tr("Added address nodes from RussiaAddressHelper AddressHasFlats validator"), cmds)
             testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses = RussiaAddressHelperPlugin.egrnResponses.minus(it)
+                RussiaAddressHelperPlugin.egrnResponses.remove(it)
             }
 
             return c

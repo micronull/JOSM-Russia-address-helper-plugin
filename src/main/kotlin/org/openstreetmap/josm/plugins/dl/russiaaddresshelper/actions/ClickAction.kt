@@ -89,7 +89,7 @@ class ClickAction : MapMode(
                     } else {
 
                         val allAddresses = egrnResponse.parseAddresses(mouseEN)
-                        val parsedAddresses = allAddresses.addresses.filter { it.getOsmAddress().isValid() }
+                        val parsedAddresses = allAddresses.addresses.filter { it.isValidAddress() }
                         //val parsedAddresses = allAddresses.addresses
 
                         var nodes: List<Node> = listOf()
@@ -109,7 +109,7 @@ class ClickAction : MapMode(
                         }
 
                         if (AddressNodesSettingsReader.GENERATE_ADDRESS_NODES_FOR_BAD_ADDRESSES.get()) {
-                            val badAddresses = allAddresses.addresses.filter { !it.getOsmAddress().isValid() }
+                            val badAddresses = allAddresses.addresses.filter { !it.isValidAddress() }
                             badAddresses.forEachIndexed { index, addr ->
                                 val node = Node(getNodePlacement(mouseEN, index + parsedAddresses.size))
 

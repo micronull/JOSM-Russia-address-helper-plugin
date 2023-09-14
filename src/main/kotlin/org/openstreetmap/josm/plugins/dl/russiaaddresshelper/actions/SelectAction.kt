@@ -6,8 +6,8 @@ import org.openstreetmap.josm.data.osm.DataSet
 import org.openstreetmap.josm.data.osm.OsmDataManager
 import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.gui.Notification
-import org.openstreetmap.josm.gui.dialogs.ValidatorDialog
 import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Buildings
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
@@ -99,9 +99,9 @@ class  SelectAction : JosmAction(
                 messageNotFoundStreets += "</ul>Для перечисленных улиц адреса не загружены из ЕГРН.<br/>Необходимо отметить улицы на карте OSM.</html>"
 
             }
-
-            val validateAction = ValidatorDialog.validateAction
-            validateAction.doValidate(false)
+            //валидируем все, а не только выбранное в данном запросе, чтобы не терять в окне валидации результат предыдущих проверок
+            val primitivesToValidate = layerManager.activeDataSet.allNonDeletedPrimitives().filter {it -> it is Way && it.hasTag("building")}
+            RussiaAddressHelperPlugin.runEgrnValidation(primitivesToValidate)
         }
 
         val scope = buildings.load(listener)

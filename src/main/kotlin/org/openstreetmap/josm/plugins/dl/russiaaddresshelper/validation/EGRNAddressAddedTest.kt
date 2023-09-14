@@ -148,7 +148,7 @@ class EGRNAddressAddedTest : Test(
             val c: Command =
                 SequenceCommand(I18n.tr("Modified tags from RussiaAddressHelper AddressAdded validator"), cmds)
             testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses = RussiaAddressHelperPlugin.egrnResponses.minus(it)
+                RussiaAddressHelperPlugin.egrnResponses.remove(it)
             }
 
             return c

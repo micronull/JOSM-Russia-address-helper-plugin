@@ -63,7 +63,7 @@ class EGRNCantParseAddressTest : Test(
                                     .and(flags.contains(ParsingFlags.CANNOT_EXTRACT_STREET_NAME))
                             ) {
                                 code = EGRNTestCode.EGRN_NOT_PARSED_STREET_AND_PLACE
-                                message = "EGRN cant get street/place name"
+                                message = "EGRN cant get street or place name"
                             }
 
                 if (code != null && !RussiaAddressHelperPlugin.isIgnored(w, code)) {
@@ -185,7 +185,7 @@ class EGRNCantParseAddressTest : Test(
             val c: Command =
                 SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper CantParseAddress validator"), cmds)
             testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses = RussiaAddressHelperPlugin.egrnResponses.minus(it)
+                RussiaAddressHelperPlugin.egrnResponses.remove(it)
             }
 
             return c

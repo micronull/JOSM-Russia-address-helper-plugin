@@ -40,6 +40,7 @@ internal class HouseNumberIParserTest {
         assertEquals("", testSample.parse("Российская Федерация, Брянская область, городской округ город Брянск, город Брянск, улица 9 Января", fakeCoordinate).housenumber)
         assertEquals("195/4", testSample.parse("Свердловская область, Полевской городской округ, город Полевской, микрорайон Березовая роща, дом 195/4", fakeCoordinate).housenumber)
         assertEquals("16", testSample.parse("обл. Ленинградская, р-н Приозерский, с/пос. Сосновское, массив Орехово-Северное, ДПК Светлана, 3-ий Цветочный переулок, дом 16, уч. № 306", fakeCoordinate).housenumber)
+        assertEquals("5", testSample.parse("Калужская область, г Калуга, д Колюпаново, проезд Родниковый 4-й, д 5", fakeCoordinate).housenumber)
 
         //обл. Брянская, г. Брянск, пер. Белорусский, дом 30, корпус A - вообще непонятно, валидный ли это номер? для частного здания это явно ненормально
 
