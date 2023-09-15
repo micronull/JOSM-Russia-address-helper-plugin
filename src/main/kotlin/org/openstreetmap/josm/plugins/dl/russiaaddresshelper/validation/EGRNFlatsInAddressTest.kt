@@ -91,7 +91,7 @@ class EGRNFlatsInAddressTest : Test(
         affectedAddresses.forEach {
             labelText += "${it.egrnAddress}, кв. номер: ${it.getOsmAddress().flatnumber} (${if (it.isBuildingAddress()) "здание" else "участок"})<br>"
         }
-        val egrnAddressesLabel = JMultilineLabel(labelText)
+        val egrnAddressesLabel = JMultilineLabel(labelText, false, true)
         p.add(egrnAddressesLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
 
         val buttonTexts = arrayOf(

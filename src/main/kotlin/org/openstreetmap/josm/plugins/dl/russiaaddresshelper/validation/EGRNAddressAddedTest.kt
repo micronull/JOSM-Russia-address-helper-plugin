@@ -66,8 +66,9 @@ class EGRNAddressAddedTest : Test(
                     "<b>Не вносите в ОСМ данные основанные на интерполяции!" +
                     "<br>Не вносите в ОСМ данные, взятые из неразрешенных источников " +
                     "<br>(другие карты, панорамы, сайты, которые ЯВНО не дали разрешение на использование)</b>" +
-                    "<br><br>Распознанный адрес:"
-        )
+                    "<br><br>Распознанный адрес:",
+        false,
+        true)
         infoLabel.setMaxWidth(800)
         p.add(infoLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
 

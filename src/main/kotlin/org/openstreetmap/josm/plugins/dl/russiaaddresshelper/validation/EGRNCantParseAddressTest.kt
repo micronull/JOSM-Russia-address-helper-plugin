@@ -119,7 +119,7 @@ class EGRNCantParseAddressTest : Test(
                 osmNumberEditBox.text = it.parsedHouseNumber.housenumber
             }
         }
-        val egrnAddressesLabel = JMultilineLabel(labelText)
+        val egrnAddressesLabel = JMultilineLabel(labelText, false, true)
         egrnAddressesLabel.setMaxWidth(800)
         p.add(egrnAddressesLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
 

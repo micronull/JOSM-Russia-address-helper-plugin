@@ -116,7 +116,7 @@ class EGRNPlaceNotFoundTest : Test(
         affectedAddresses.forEach {
             labelText += "${it.egrnAddress},<b> тип: ${if (it.isBuildingAddress()) "здание" else "участок"}</b><br>"
         }
-        val egrnAddressesLabel = JMultilineLabel(labelText)
+        val egrnAddressesLabel = JMultilineLabel(labelText, false, true)
         egrnAddressesLabel.setMaxWidth(800)
         p.add(egrnAddressesLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
 

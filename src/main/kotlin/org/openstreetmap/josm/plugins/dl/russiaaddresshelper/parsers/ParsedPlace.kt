@@ -58,7 +58,7 @@ data class ParsedPlace(
 
             for (osmPlaceEntry in primitiveNamesMap) {
                 val osmObjectComparisonName = osmPlaceEntry.key
-                val osmNameTagValue = osmPlaceEntry.value.get(0).name
+                val osmNameTagValue = osmPlaceEntry.value[0].name
 
                 val filteredOsmPlaceName =
                     extractPlaceName(parsedPlaceType.osm.asRegExpList(), osmObjectComparisonName.replace('ё', 'е'))

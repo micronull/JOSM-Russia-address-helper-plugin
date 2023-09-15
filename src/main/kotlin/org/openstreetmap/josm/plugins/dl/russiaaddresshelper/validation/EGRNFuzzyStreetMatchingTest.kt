@@ -141,7 +141,8 @@ class EGRNFuzzyStreetMatchingTest : Test(
             testError.primitives.forEach {
                 val egrnResult = RussiaAddressHelperPlugin.egrnResponses[it]
                 if (egrnResult != null) {
-                    val tags = egrnResult.third.getPreferredAddress()!!.getOsmAddress().getBaseAddressTagsWithSource()
+                    var tags = egrnResult.third.getPreferredAddress()!!.getOsmAddress().getBaseAddressTagsWithSource()
+                    tags = tags.plus(Pair("addr:RU:egrn", egrnResult.third.getPreferredAddress()!!.egrnAddress))
                     cmds.add(ChangePropertyCommand(mutableListOf(it), tags))
                 }
             }

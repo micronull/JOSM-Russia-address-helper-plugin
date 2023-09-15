@@ -3,6 +3,7 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.*
 import org.openstreetmap.josm.data.osm.OsmPrimitive
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.StreetTypes
 
 internal class StreetNameParserTest {
@@ -43,5 +44,10 @@ internal class StreetNameParserTest {
 
         assertEquals("улица Пупкина",
             ParsedStreet.identify("Москва сити, улица Васимира Пупкина", streetTypes, mapOf("улица Васимира Пупкина" to Pair("улица Пупкина", listOf<OsmPrimitive>()))).name)
+
+        val parsedNumeredStreet = ParsedStreet.identify("Москва сити, проезд 2й Родниковый, 35", streetTypes, mapOf("2-й Родниковый проезд" to Pair("2-й Родниковый проезд", listOf<OsmPrimitive>())))
+        assertEquals("2-й Родниковый проезд", parsedNumeredStreet.name)
+        assertFalse(parsedNumeredStreet.flags.contains(ParsingFlags.STREET_NAME_FUZZY_MATCH))
+
     }
 }

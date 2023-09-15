@@ -156,23 +156,24 @@ class ParsedStreet(
         }
 
         private fun matchedNumberedStreet(
-            EGRNStreetName: String,
+            egrnStreetName: String,
             osmStreetName: String,
             streetTypePrefix: String
         ): Double {
-            val numericsRegexp = Regex("""(?<streetNumber>\d{1,2})(\s|-)(й|ий|ый|ой|я|ая|ья|е|ое|ье)""")
+            val osmNumericsRegexp = Regex("""(?<streetNumber>\d{1,2})(\s|-)(й|ий|ый|ой|я|ая|ья|е|ое|ье)""")
+            val egrnNumericsRegexp = Regex("""(?<streetNumber>\d{1,2})(\s|-)*(й|ий|ый|ой|я|ая|ья|е|ое|ье)""")
             //точно ли подходит этот регексп для ЕГРН нумерованных улиц? "2 улица Строителей" не сматчится, как и "2 Строительная улица"
-            val numericsMatch = numericsRegexp.find(EGRNStreetName) ?: return 0.0
-            val egrnStreetNumber = numericsMatch.groups["streetNumber"] ?: return 0.0
-            val osmNumericsMatch = numericsRegexp.find(osmStreetName) ?: return 0.0
+            val egrnNumericsMatch = egrnNumericsRegexp.find(egrnStreetName) ?: return 0.0
+            val egrnStreetNumber = egrnNumericsMatch.groups["streetNumber"] ?: return 0.0
+            val osmNumericsMatch = osmNumericsRegexp.find(osmStreetName) ?: return 0.0
             val osmStreetNumber = osmNumericsMatch.groups["streetNumber"] ?: return 0.0
             if (egrnStreetNumber.value != osmStreetNumber.value) {
                 return 0.1
             }
             val filteredEgrnName =
-                EGRNStreetName.replace(numericsRegexp, "").replace(streetTypePrefix, "").trim().lowercase()
+                egrnStreetName.replace(egrnNumericsRegexp, "").replace(streetTypePrefix, "").trim().lowercase()
             val filteredOsmName =
-                osmStreetName.replace(numericsRegexp, "").replace(streetTypePrefix, "").trim().lowercase()
+                osmStreetName.replace(osmNumericsRegexp, "").replace(streetTypePrefix, "").trim().lowercase()
 
             if (filteredEgrnName == filteredOsmName) {
                 return 1.0

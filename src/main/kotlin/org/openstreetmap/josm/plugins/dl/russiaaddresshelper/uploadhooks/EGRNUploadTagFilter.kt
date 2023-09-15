@@ -14,10 +14,9 @@ import org.openstreetmap.josm.tools.Logging
 
 class EGRNUploadTagFilter : UploadHook {
     override fun checkUpload(apiDataSet: APIDataSet): Boolean {
-        val objectsToUpload = apiDataSet.primitives
 
-        val needsToRemove = objectsToUpload.filter {
-            it is Node && (it.hasTag("fixme", "REMOVE_ME!") ||
+        val needsToRemove = apiDataSet.primitivesToAdd.filter {
+            it is Node && (it.hasTag("fixme", "REMOVE_ME!") || it.hasTag("fixme", "REMOVE ME!") ||
                     (it.hasTag("fixme", "yes") && it.hasTag("source:addr", "ЕГРН")))
         }
         if (needsToRemove.isNotEmpty()) {
@@ -25,8 +24,10 @@ class EGRNUploadTagFilter : UploadHook {
                 I18n.tr("Removed EGRN generated nodes"),
                 DeleteCommand(needsToRemove)
             )
+
             UndoRedoHandler.getInstance().add(removeObjects)
             apiDataSet.removeProcessed(needsToRemove)
+
             Logging.info("EGRN-PLUGIN Upload filter removed some unneeded nodes (${needsToRemove.size})")
         }
 
@@ -39,7 +40,7 @@ class EGRNUploadTagFilter : UploadHook {
             "addr:RU:parsed_flats",
             "egrn_name"
         )
-        val needsChange = objectsToUpload.stream().flatMap { obj: OsmPrimitive -> obj.keys() }
+        val needsChange = apiDataSet.primitives.stream().flatMap { obj: OsmPrimitive -> obj.keys() }
             .anyMatch { o: String -> discardableKeys.contains(o) }
         if (needsChange) {
             val map: MutableMap<String, String?> = HashMap()
@@ -48,7 +49,7 @@ class EGRNUploadTagFilter : UploadHook {
             }
             val removeKeys = SequenceCommand(
                 I18n.tr("Removed EGRN obsolete tags"),
-                ChangePropertyCommand(objectsToUpload, map)
+                ChangePropertyCommand(apiDataSet.primitives, map)
             )
             UndoRedoHandler.getInstance().add(removeKeys)
             Logging.info("EGRN-PLUGIN Upload filter removed some unneeded tags")
