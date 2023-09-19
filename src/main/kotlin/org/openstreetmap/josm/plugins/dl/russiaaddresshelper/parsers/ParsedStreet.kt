@@ -43,7 +43,7 @@ class ParsedStreet(
 
             val JWSsimilarity = JaroWinklerSimilarity()
 
-            val filteredEGRNStreetName = egrnStreetName.replace('ё', 'е')
+            val filteredEGRNStreetName = egrnStreetName.replace('ё', 'е').replace('Ё', 'Е')
 
             var maxSimilarity = 0.0
             var mostSimilar = ""
@@ -57,7 +57,7 @@ class ParsedStreet(
                 }
 
                 val filteredOsmStreetName = extractStreetName(streetType.osm.asRegExpList(), street)
-                    .replace('ё', 'е')
+                    .replace('ё', 'е').replace('Ё', 'Е')
 
                 if (filteredOsmStreetName == "") {
                     Logging.info("EGRN-PLUGIN Cannot get openStreetMap name for $street, type ${streetType.name}")

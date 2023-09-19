@@ -13,9 +13,9 @@ import org.openstreetmap.josm.data.validation.TestError
 import org.openstreetmap.josm.gui.ExtendedDialog
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel
-import org.openstreetmap.josm.gui.widgets.JosmTextField
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagLayout
@@ -39,12 +39,11 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
             val addressInfo = entry.value.third
             val address = addressInfo.getPreferredAddress()
 
-            if (address != null) {
-                var code: EGRNTestCode
-                if (address.flags.contains(ParsingFlags.PLACE_NAME_FUZZY_MATCH)) {
-                    code = EGRNTestCode.EGRN_PLACE_FUZZY_MATCHING
+            if (address != null && !(primitive.hasTag("addr:place") || primitive.hasTag("addr:street"))) {
+                val code: EGRNTestCode = if (address.flags.contains(ParsingFlags.PLACE_NAME_FUZZY_MATCH)) {
+                    EGRNTestCode.EGRN_PLACE_FUZZY_MATCHING
                 } else if (address.flags.contains(ParsingFlags.PLACE_NAME_INITIALS_MATCH)) {
-                    code = EGRNTestCode.EGRN_PLACE_MATCH_WITHOUT_INITIALS
+                    EGRNTestCode.EGRN_PLACE_MATCH_WITHOUT_INITIALS
                 } else {
                     return@forEach
                 }
@@ -100,6 +99,7 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
         var egrnPlaceName = ""
         var egrnPlaceType = ""
         var osmPlaceName = ""
+        val affectedAddresses = mutableListOf<ParsedAddress>()
         testError.primitives.forEach {
             if (RussiaAddressHelperPlugin.egrnResponses[it] != null) {
                 val addressInfo = RussiaAddressHelperPlugin.egrnResponses[it]?.third
@@ -107,6 +107,7 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
                 egrnPlaceName = prefferedAddress!!.parsedPlace.extractedName
                 egrnPlaceType = prefferedAddress.parsedPlace.extractedType
                 osmPlaceName = prefferedAddress.parsedPlace.name
+                affectedAddresses.add(prefferedAddress)
                 prefferedAddress.parsedHouseNumber.housenumber.let { it1 -> affectedHousenumbers.add(it1) }
             }
         }
@@ -137,6 +138,16 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
 
         p.add(infoLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
 
+        var labelText = "Полученные из ЕГРН адреса: <br>"
+
+        affectedAddresses.forEach {
+            labelText += "${it.egrnAddress},<b> тип: ${if (it.isBuildingAddress()) "здание" else "участок"}</b><br>"
+        }
+
+        val egrnAddressesLabel = JMultilineLabel(labelText, false, true)
+        egrnAddressesLabel.setMaxWidth(800)
+        p.add(egrnAddressesLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
+
         val buttonTexts = arrayOf(
             I18n.tr("Assign address by place") + ": $osmPlaceName",
             I18n.tr("Retry match with place"),
@@ -160,7 +171,8 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
             testError.primitives.forEach {
                 val egrnResult = RussiaAddressHelperPlugin.egrnResponses[it]
                 if (egrnResult != null) {
-                    val tags = egrnResult.third.getPreferredAddress()!!.getOsmAddress().getBaseAddressTagsWithSource()
+                    var tags = egrnResult.third.getPreferredAddress()!!.getOsmAddress().getBaseAddressTagsWithSource()
+                    tags = tags.plus(Pair("addr:RU:egrn", egrnResult.third.getPreferredAddress()!!.egrnAddress))
                     cmds.add(ChangePropertyCommand(mutableListOf(it), tags))
                 }
             }
@@ -177,10 +189,6 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
                 I18n.tr("Added tags from RussiaAddressHelper Place has Fuzzy or Initials Match validator"),
                 cmds
             )
-            testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses.remove(it)
-            }
-
             return c
         }
 

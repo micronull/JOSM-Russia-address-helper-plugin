@@ -109,27 +109,28 @@ class EGRNFlatsInAddressTest : Test(
         dialog.showDialog()
 
         val answer = dialog.value
-        if (answer == 2) {
-            RussiaAddressHelperPlugin.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
-            return null
-        }
+
         val cmds: MutableList<Command> = mutableListOf()
         if (answer == 1) {
             val ds = MainApplication.getLayerManager().editDataSet
             affectedAddresses.forEachIndexed { index, element ->
                 val node = Node(getNodePlacement(coordinate, index))
                 element.getOsmAddress().getTags().forEach { node.put(it.key, it.value) }
+                node.put("addr:RU:egrn", element.egrnAddress)
                 cmds.add(AddCommand(ds, node))
             }
 
         }
 
+        if (answer == 2) {
+            RussiaAddressHelperPlugin.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
+            return null
+        }
+
         if (cmds.isNotEmpty()) {
             val c: Command =
                 SequenceCommand(I18n.tr("Added address nodes from RussiaAddressHelper AddressHasFlats validator"), cmds)
-            testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses.remove(it)
-            }
+                RussiaAddressHelperPlugin.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
 
             return c
         }

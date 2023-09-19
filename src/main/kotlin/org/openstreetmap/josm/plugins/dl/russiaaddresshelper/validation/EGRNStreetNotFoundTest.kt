@@ -2,7 +2,6 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation
 
 import org.apache.commons.lang3.StringUtils
 import org.openstreetmap.josm.command.Command
-import org.openstreetmap.josm.command.SequenceCommand
 import org.openstreetmap.josm.data.osm.DataSet
 import org.openstreetmap.josm.data.osm.OsmDataManager
 import org.openstreetmap.josm.data.osm.OsmPrimitive
@@ -42,6 +41,7 @@ class EGRNStreetNotFoundTest : Test(
                 if (it.flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM)
                     && (StringUtils.isNotBlank(it.parsedHouseNumber.housenumber))
                     && (!RussiaAddressHelperPlugin.isIgnored(primitive,EGRNTestCode.EGRN_NOT_MATCHED_OSM_STREET))
+                    && !primitive.hasTag("addr:street")
                 ) {
                     val parsedStreetName = it.parsedStreet.extractedType + " " + it.parsedStreet.extractedName
                     var affectedPrimitives = parsedStreetToPrimitiveMap.getOrDefault(parsedStreetName, mutableSetOf())
@@ -105,7 +105,7 @@ class EGRNStreetNotFoundTest : Test(
 
         p.add(infoLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
 
-        var labelText = ""
+        var labelText = "Полученные из ЕГРН адреса: <br>"
         affectedAddresses.forEach {
             labelText += "${it.egrnAddress},<b> тип: ${if (it.isBuildingAddress()) "здание" else "участок"}</b><br>"
         }
@@ -141,25 +141,13 @@ class EGRNStreetNotFoundTest : Test(
 
             return null
         }
-        //это невалидный способ присваивать адреса
-        //команда не успевает отработать (асинхронно) и в условии получаем пустой список команд
-        //к тому же, пересопоставление почему-то не сбрасывает флаг кривой улицы (проверить)
-        val cmds: MutableList<Command> = mutableListOf()
+
         if (answer == 1) {
             val dataSet: DataSet = OsmDataManager.getInstance().editDataSet ?: return null
             dataSet.setSelected(testError.primitives)
             RussiaAddressHelperPlugin.selectAction.actionPerformed(ActionEvent(this, 0, ""))
         }
-        //это условие никогда не выполнится, потому что никто не добавляет в коде команды
-        if (cmds.isNotEmpty()) {
-            val c: Command =
-                SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper StreetNoFound validator"), cmds)
-            testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses.remove(it)
-            }
 
-            return c
-        }
         return null
     }
 

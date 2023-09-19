@@ -17,6 +17,7 @@ import org.openstreetmap.josm.data.osm.Node
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.gui.MainApplication
+import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNFeatureType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNResponse
@@ -31,6 +32,7 @@ import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
+import javax.swing.JOptionPane
 
 // FIXME: такой молодой, а уже легаси...
 class Buildings(objects: List<OsmPrimitive>) {
@@ -47,6 +49,8 @@ class Buildings(objects: List<OsmPrimitive>) {
         var onNotFoundStreetParser: ((List<Pair<String, String>>) -> Unit)? = null
         var onComplete: ((changeBuildings: Array<OsmPrimitive>) -> Unit)? = null
     }
+
+    private val CONSECUTIVE_FAILURE_LIMIT = 10
 
     class Building(val osmPrimitive: OsmPrimitive) {
         val coordinate: EastNorth?
@@ -167,6 +171,8 @@ class Buildings(objects: List<OsmPrimitive>) {
         var failuresTotal = 0L
         var noRetriesLeft = 0L
         var processedItems = 0
+        //val totalTime =
+        var consecutiveFailures = 0
         items.mapIndexed { index, building ->
             scope.launch {
                 try {
@@ -178,6 +184,7 @@ class Buildings(objects: List<OsmPrimitive>) {
                             val (_, response, result) = building.request()
                                 .responseObject<EGRNResponse>(jacksonDeserializerOf())
                             requestsTotal++
+                            RussiaAddressHelperPlugin.totalRequestsPerSession++
                             retriesTotal++
                             needToRepeat = false
                             when (result) {
@@ -189,6 +196,7 @@ class Buildings(objects: List<OsmPrimitive>) {
 
                                         loadListener?.onResponse?.invoke(response)
                                         processedItems++
+                                        consecutiveFailures = 0
                                         if (processedItems == items.size) {
                                             val finishTime = LocalDateTime.now()
                                             printReport(
@@ -207,11 +215,14 @@ class Buildings(objects: List<OsmPrimitive>) {
                                     }
                                 }
                                 is Result.Failure -> {
+                                    RussiaAddressHelperPlugin.totalRequestsPerSession++
                                     failuresTotal++
+                                    consecutiveFailures++
                                     if (retries > 0) {
                                         needToRepeat = true
                                         retriesTotal++
                                     } else {
+                                        loadListener?.onResponse?.invoke(response)
                                         noRetriesLeft++
                                         processedItems++
                                         //add as failed request
@@ -219,7 +230,8 @@ class Buildings(objects: List<OsmPrimitive>) {
                                     Logging.info("EGRN-PLUGIN Request failure, retries $retries")
                                     Logging.warn(result.getException().message)
                                     retries--
-                                    if (processedItems == items.size) {
+                                    val isBanned = consecutiveFailures > CONSECUTIVE_FAILURE_LIMIT
+                                    if (processedItems == items.size || isBanned) {
                                         val finishTime = LocalDateTime.now()
                                         printReport(
                                             requestsTotal,
@@ -229,6 +241,10 @@ class Buildings(objects: List<OsmPrimitive>) {
                                             startTime,
                                             finishTime
                                         )
+                                        if (isBanned) {
+                                            val msg = I18n.tr("Too many consecutive failures, your IP maybe banned from EGRN side (")
+                                            Notification(msg).setIcon(JOptionPane.WARNING_MESSAGE).show()
+                                        }
                                         loadListener?.onResponseContinue?.invoke()
                                         channel.close()
                                     }
@@ -257,6 +273,7 @@ class Buildings(objects: List<OsmPrimitive>) {
         finishTime: LocalDateTime?
     ) {
         Logging.info("EGRN-PLUGIN report:")
+        Logging.info("EGRN-PLUGIN total requests per session: ${RussiaAddressHelperPlugin.totalRequestsPerSession}")
         Logging.info("EGRN-PLUGIN total requests: $requestsTotal")
         Logging.info("EGRN-PLUGIN total failures: $failuresTotal")
         Logging.info("EGRN-PLUGIN total retries: $retriesTotal, average ${retriesTotal / requestsTotal.toFloat()}")

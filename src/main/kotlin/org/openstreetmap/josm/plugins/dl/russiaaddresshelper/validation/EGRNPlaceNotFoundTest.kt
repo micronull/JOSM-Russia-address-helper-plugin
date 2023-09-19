@@ -2,7 +2,6 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation
 
 import org.apache.commons.lang3.StringUtils
 import org.openstreetmap.josm.command.Command
-import org.openstreetmap.josm.command.SequenceCommand
 import org.openstreetmap.josm.data.osm.DataSet
 import org.openstreetmap.josm.data.osm.OsmDataManager
 import org.openstreetmap.josm.data.osm.OsmPrimitive
@@ -38,12 +37,16 @@ class EGRNPlaceNotFoundTest : Test(
             val primitive = entry.key
             val addressInfo = entry.value.third
             val addresses = addressInfo.addresses
+            if (RussiaAddressHelperPlugin.processedByValidators[primitive]?.contains(EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND) == true) {
+                return@forEach
+            }
             addresses.forEach {
                 if (it.flags.contains(ParsingFlags.CANNOT_FIND_PLACE_OBJECT_IN_OSM)
                     && (StringUtils.isNotBlank(it.parsedHouseNumber.housenumber)
                             && !RussiaAddressHelperPlugin.isIgnored(primitive, EGRNTestCode.EGRN_NOT_MATCHED_OSM_PLACE))
                     &&(!it.flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM))
                     &&(!it.flags.contains(ParsingFlags.STREET_NAME_FUZZY_MATCH))
+                    && !it.isValidAddress()
                 ) {
                     val parsedPlaceName = it.parsedPlace.extractedType + " " + it.parsedPlace.extractedName
                     var affectedPrimitives = parsedPlaceToPrimitiveMap.getOrDefault(parsedPlaceName, mutableSetOf())
@@ -155,15 +158,6 @@ class EGRNPlaceNotFoundTest : Test(
             RussiaAddressHelperPlugin.selectAction.actionPerformed(ActionEvent(this, 0, ""))
         }
 
-        if (cmds.isNotEmpty()) {
-            val c: Command =
-                SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper PlaceNotFound validator"), cmds)
-            testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses.remove(it)
-            }
-
-            return c
-        }
         return null
     }
 

@@ -13,6 +13,8 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
     private val egrnUrl = JosmTextField()
     private val userAgent = JosmTextField()
     private val egrnRequestLimit = JosmTextField(3)
+    private val egrnRequestSelectionLimit = JosmTextField(3)
+    private val egrnTotalRequestsCounter = JosmTextField(3)
     private val egrnRequestDelay = JosmTextField(3)
     private val disableSSLforRequests = JCheckBox(I18n.tr("Disable SSL for EGRN requests"))
 
@@ -30,8 +32,14 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
         panel.add(JLabel(I18n.tr("Request limit (from 1 to 10):")), GBC.std())
         panel.add(egrnRequestLimit, GBC.eop().insets(5, 0, 0, 5))
 
+        panel.add(JLabel(I18n.tr("Request limit for single select action:")), GBC.std())
+        panel.add(egrnRequestSelectionLimit, GBC.eop().insets(5, 0, 0, 5))
+
         panel.add(JLabel(I18n.tr("Delay between requests in seconds:")), GBC.std())
         panel.add(egrnRequestDelay, GBC.eop().insets(5, 0, 0, 5))
+
+        panel.add(JLabel(I18n.tr("Total requests to EGRN in current session:")), GBC.std())
+        panel.add(egrnTotalRequestsCounter, GBC.eop().insets(5, 0, 0, 5))
 
         panel.add(Box.createVerticalGlue(), GBC.eol().fill())
     }
@@ -43,8 +51,11 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
         egrnUrl.text = EgrnSettingsReader.EGRN_URL_REQUEST.get()
         userAgent.text = EgrnSettingsReader.EGRN_REQUEST_USER_AGENT.get()
         egrnRequestLimit.text = EgrnSettingsReader.REQUEST_LIMIT.get().toString()
+        egrnRequestSelectionLimit.text = EgrnSettingsReader.REQUEST_LIMIT_PER_SELECTION.get().toString()
         egrnRequestDelay.text = EgrnSettingsReader.REQUEST_DELAY.get().toString()
         disableSSLforRequests.isSelected = EgrnSettingsReader.EGRN_DISABLE_SSL_FOR_REQUEST.get()
+        egrnTotalRequestsCounter.text = RussiaAddressHelperPlugin.totalRequestsPerSession.toString()
+        egrnTotalRequestsCounter.isEnabled = false
     }
 
     /**
@@ -70,6 +81,23 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
         } catch (e: NumberFormatException) {
             Logging.warn(e.message + "(need numeric)")
             EgrnSettingsReader.REQUEST_LIMIT.put(2)
+        }
+
+        try {
+            var limit = Integer.valueOf(egrnRequestSelectionLimit.text)
+
+            if (limit <= 10) {
+                limit = 10
+            }
+
+            if (limit > 500) {
+                limit = 500
+            }
+
+            EgrnSettingsReader.REQUEST_LIMIT_PER_SELECTION.put(limit)
+        } catch (e: NumberFormatException) {
+            Logging.warn(e.message + "(need numeric)")
+            EgrnSettingsReader.REQUEST_LIMIT_PER_SELECTION.put(100)
         }
 
         try {

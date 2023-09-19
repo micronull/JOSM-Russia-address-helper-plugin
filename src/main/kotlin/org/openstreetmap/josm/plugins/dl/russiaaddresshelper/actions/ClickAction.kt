@@ -80,6 +80,7 @@ class ClickAction : MapMode(
             if (response.statusCode == 200) {
                 needToRepeat = false
                 result.success { egrnResponse ->
+                    RussiaAddressHelperPlugin.totalRequestsPerSession++
                     if (egrnResponse.total == 0) {
                         Logging.info("EGRN PLUGIN empty response for request ${request.url}")
                         Logging.info("$egrnResponse")
@@ -158,6 +159,7 @@ class ClickAction : MapMode(
                 } else {
                     Logging.warn("EGRN-Plugin Error on request: ${response.statusCode}")
                 }
+                RussiaAddressHelperPlugin.totalRequestsPerSession++
                 retries--
                 Thread.sleep(clickDelay)
             }

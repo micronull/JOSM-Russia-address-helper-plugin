@@ -19,7 +19,7 @@ import javax.swing.JOptionPane
  * Фильтрует переданный список по имеющимся адресам и оставляет здания с наибольшей площадью.
  */
 class DeleteDoubles {
-    private val osmAddressMap: MutableMap<String, MutableMap<String,EastNorth>> = mutableMapOf()
+    private val osmAddressMap: MutableMap<String, MutableMap<String, EastNorth>> = mutableMapOf()
 
     init {
         // Предварительно загружаем список адресов из OSM, чтоб по нему удалить загруженные из ЕГРН дубли.
@@ -38,18 +38,28 @@ class DeleteDoubles {
         //удаляем все здания, которые совпадают по данным адреса с уже существующими в ОСМ
         //находящиеся на расстоянии ближе заданного в настройках
         items.removeAll {
-            val streetOrPlace = if (StringUtils.isNotBlank(it.preparedTags["addr:street"])) { it.preparedTags["addr:street"] } else { it.preparedTags["addr:place"] }
+            val streetOrPlace = if (StringUtils.isNotBlank(it.preparedTags["addr:street"])) {
+                it.preparedTags["addr:street"]
+            } else {
+                it.preparedTags["addr:place"]
+            }
             val house = it.preparedTags["addr:housenumber"]!!
-            val centroid = it.coordinate
-            if(osmAddressMap.containsKey(streetOrPlace) && osmAddressMap[streetOrPlace]!!.contains(house) &&
-                    (centroid?.distance(osmAddressMap[streetOrPlace]?.get(house) ?: centroid) ?: Double.MIN_VALUE) < TagSettingsReader.CLEAR_DOUBLE_DISTANCE.get()) {
-                Logging.info("EGRN PLUGIN remove existing in OSM address $streetOrPlace $house")
-                val msg = I18n.tr("Removed existing in OSM address double")
-                Notification("$msg $streetOrPlace, $house").setIcon(JOptionPane.WARNING_MESSAGE).show()
-                //debug code until deduplication through validator will be implemented
-                RussiaAddressHelperPlugin.markAsProcessed(it.osmPrimitive, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)
+            val itemCentroid = it.coordinate
+            if (osmAddressMap.containsKey(streetOrPlace) && osmAddressMap[streetOrPlace]!!.contains(house)) {
+                if ((itemCentroid?.distance(osmAddressMap[streetOrPlace]?.get(house) ?: itemCentroid)
+                        ?: Double.MIN_VALUE) < TagSettingsReader.CLEAR_DOUBLE_DISTANCE.get()
+                ) {
+                    Logging.info("EGRN PLUGIN remove existing in OSM address $streetOrPlace $house")
+                 /*   val msg = I18n.tr("Removed existing in OSM address double")
+                    Notification("$msg $streetOrPlace, $house").setIcon(JOptionPane.WARNING_MESSAGE).show()*/
+                    //debug code until deduplication through validator will be implemented
+                    RussiaAddressHelperPlugin.markAsProcessed(it.osmPrimitive, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)
 
-                return@removeAll true
+                    return@removeAll true
+                } else {
+                    Logging.info("EGRN PLUGIN found double for address, but not mark it for removal, because distance ${(itemCentroid?.distance(osmAddressMap[streetOrPlace]?.get(house) ?: itemCentroid)
+                        ?: Double.MIN_VALUE)} is bigger than ${TagSettingsReader.CLEAR_DOUBLE_DISTANCE.get()}")
+                }
             }
             return@removeAll false
         }
@@ -57,7 +67,11 @@ class DeleteDoubles {
         val counter: MutableMap<String, MutableMap<String, MutableList<Buildings.Building>>> = mutableMapOf()
         //оставшиеся прочесываем на дубликаты, выстраивая по приоритету площади
         items.forEach {
-            val streetOrPlace = if (StringUtils.isNotBlank(it.preparedTags["addr:street"]))  { it.preparedTags["addr:street"]!! } else { it.preparedTags["addr:place"]!! }
+            val streetOrPlace = if (StringUtils.isNotBlank(it.preparedTags["addr:street"])) {
+                it.preparedTags["addr:street"]!!
+            } else {
+                it.preparedTags["addr:place"]!!
+            }
             val house = it.preparedTags["addr:housenumber"]!!
 
             if (!counter.containsKey(streetOrPlace)) {
@@ -77,7 +91,11 @@ class DeleteDoubles {
             houses.forEach { (_, items) ->
                 if (items.size > 1) {
                     items.sortByDescending { Geometry.computeArea(it.osmPrimitive) }
-                    val street = if (items.first().preparedTags["addr:street"]!=null) { items.first().preparedTags["addr:street"] } else { items.first().preparedTags["addr:place"]}
+                    val street = if (items.first().preparedTags["addr:street"] != null) {
+                        items.first().preparedTags["addr:street"]
+                    } else {
+                        items.first().preparedTags["addr:place"]
+                    }
                     val house = items.first().preparedTags["addr:housenumber"]
 
                     Logging.info("EGRN PLUGIN remove found double address, leaving biggest building $street $house")
@@ -85,7 +103,12 @@ class DeleteDoubles {
                     Notification("$msg $street, $house").setIcon(JOptionPane.WARNING_MESSAGE).show()
                     //debug code until deduplication through validator will be implemented
                     val otherPrimitives = items.toList().drop(1)
-                    otherPrimitives.forEach{RussiaAddressHelperPlugin.markAsProcessed(it.osmPrimitive, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)}
+                    otherPrimitives.forEach {
+                        RussiaAddressHelperPlugin.markAsProcessed(
+                            it.osmPrimitive,
+                            EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND
+                        )
+                    }
                 }
 
                 newItems.add(items.first())
@@ -101,12 +124,18 @@ class DeleteDoubles {
      */
     private fun loadOsmAddress() {
         val primitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives()
-        val buildings = primitives.filter { p -> p.hasKey("building") && p.hasKey("addr:housenumber")
-                && (p.hasKey("addr:street") || p.hasKey("addr:place"))}
-            .filter { it is Way }.map { it as Way }
+        val buildings = primitives.filter { p ->
+            p.hasTag("building") && p.hasTag("addr:housenumber")
+                    && (p.hasTag("addr:street") || p.hasTag("addr:place"))
+        }
+            .filterIsInstance<Way>().map { it }
 
         buildings.forEach {
-            val streetOrPlace = if (StringUtils.isNotBlank(it.get("addr:street")))  { it.get("addr:street") } else { it.get("addr:place")}
+            val streetOrPlace = if (StringUtils.isNotBlank(it.get("addr:street"))) {
+                it.get("addr:street")
+            } else {
+                it.get("addr:place")
+            }
 
             val house = it.get("addr:housenumber")
             val centroid = Geometry.getCentroid(it.nodes)

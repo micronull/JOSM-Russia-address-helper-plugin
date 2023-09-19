@@ -48,6 +48,8 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         //debug tool, to get any buildings which were processed by plugin but not validated
         var processedByValidators: MutableMap<OsmPrimitive, MutableSet<EGRNTestCode>> = mutableMapOf()
 
+        var totalRequestsPerSession = 0L
+
         val selectAction: SelectAction = SelectAction()
         val clickAction: ClickAction = ClickAction()
 
@@ -110,6 +112,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
                 val egrnResponses = egrnResponses.filter { unprocessed.contains(it.key) }
                 Notification("Не обработано ни одним валидатором ${unprocessed.size} обьектов").setIcon(JOptionPane.WARNING_MESSAGE)
                     .show()
+
             }
         }
 
@@ -146,8 +149,8 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         OsmValidator.addTest(EGRNFuzzyOrInitialsPlaceMatchTest::class.java)
         OsmValidator.addTest(EGRNDuplicateAddressesTest::class.java)
 
-        UploadAction.registerUploadHook(cleanPluginCacheHook, true);
-        UploadAction.registerUploadHook(egrnUploadTagFilterHook, true);
+        UploadAction.registerUploadHook(cleanPluginCacheHook, true)
+        UploadAction.registerUploadHook(egrnUploadTagFilterHook, true)
 
     }
 

@@ -224,7 +224,7 @@ msgstr "ЕГРН нечеткое совпадение места"
 msgid "EGRN place initials match"
 msgstr "ЕГРН совпадение места без инициалов"
 
-msgid "EGRN test for duplicate addresses recieved from registry"
+msgid "EGRN test for duplicate addresses received from registry"
 msgstr "ЕГРН тест на дубликаты адресов полученные из реестра"
 
 msgid "EGRN duplicate addresses"
@@ -241,6 +241,18 @@ msgstr "ЕГРН не найдено место"
 
 msgid "Rename street"
 msgstr "Переименовать улицу"
+
+msgid "Too many consecutive failures, your IP maybe banned from EGRN side ("
+msgstr "Слишком много последовательных неудач, возможно ваш IP забанен со стороны сервиса ЕГРН ("
+
+msgid "Selected more than set limit buildings, only first %s will be processed"
+msgstr "Выбрано больше зданий, чем установлено в настройках, будет запрошено только %s объектов из выделения"
+
+msgid "Total requests to EGRN in current session:"
+msgstr "Всего запросов к ЕГРН в текущей сессии:"
+
+msgid "Request limit for single select action:"
+msgstr "Лимит количества зданий в одном запросе массовой загрузки:"
 
 
 

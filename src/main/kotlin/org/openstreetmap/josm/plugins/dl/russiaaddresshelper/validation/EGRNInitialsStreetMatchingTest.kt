@@ -39,7 +39,7 @@ class EGRNInitialsStreetMatchingTest : Test(
             val addresses = addressInfo.addresses
             addresses.forEach {
                 if (addressInfo.getPreferredAddress() == it) {
-                    if (it.flags.contains(ParsingFlags.STREET_NAME_INITIALS_MATCH)) {
+                    if (it.flags.contains(ParsingFlags.STREET_NAME_INITIALS_MATCH) && !primitive.hasTag("addr:street")) {
                         val parsedStreetName = it.parsedStreet.extractedType + " " + it.parsedStreet.extractedName
                         val osmObjName = it.parsedStreet.name
                         var affectedPrimitives =
@@ -143,7 +143,8 @@ class EGRNInitialsStreetMatchingTest : Test(
             testError.primitives.forEach {
                 val egrnResult = RussiaAddressHelperPlugin.egrnResponses[it]
                 if (egrnResult != null) {
-                    val tags = egrnResult.third.getPreferredAddress()!!.getOsmAddress().getBaseAddressTagsWithSource()
+                    var tags = egrnResult.third.getPreferredAddress()!!.getOsmAddress().getBaseAddressTagsWithSource()
+                    tags = tags.plus(Pair("addr:RU:egrn", egrnResult.third.getPreferredAddress()!!.egrnAddress))
                     cmds.add(ChangePropertyCommand(mutableListOf(it), tags))
                 }
             }
@@ -162,6 +163,7 @@ class EGRNInitialsStreetMatchingTest : Test(
                 if (egrnResult != null) {
                     var tags = egrnResult.third.getPreferredAddress()!!.getOsmAddress().getBaseAddressTagsWithSource()
                     tags = tags.plus(Pair("addr:street", editedOsmStreetName))
+                    tags = tags.plus(Pair("addr:RU:egrn", egrnResult.third.getPreferredAddress()!!.egrnAddress))
                     cmds.add(ChangePropertyCommand(mutableListOf(it), tags))
                 }
             }
@@ -169,10 +171,6 @@ class EGRNInitialsStreetMatchingTest : Test(
 
         if (cmds.isNotEmpty()) {
             val c: Command = SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper InitialsMatch validator"), cmds)
-            testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses.remove(it)
-            }
-
             return c
         }
 

@@ -121,7 +121,8 @@ class EGRNAddressAddedTest : Test(
                 val tags: MutableMap<String, String> = mutableMapOf(
                     "addr:housenumber" to number,
                     "source:addr" to "ЕГРН",
-                    "note" to "адрес из ЕГРН разобран вручную"
+                    "note" to "адрес из ЕГРН разобран вручную",
+                    "addr:RU:egrn" to prefferedAddress.egrnAddress
                 )
                 if (StringUtils.isNotBlank(streetName)) {
                     tags.put("addr:street", streetName)

@@ -109,7 +109,7 @@ class EGRNCantParseAddressTest : Test(
         var labelText = ""
         affectedAddresses.forEach {
             labelText += "${it.egrnAddress},<b> тип: ${if (it.isBuildingAddress()) "здание" else "участок"}</b><br>"
-            if (StringUtils.isNotBlank(it.parsedStreet.name)) {
+            if (StringUtils.isNotBlank(it.parsedStreet.name) ) {
                 osmStreetNameEditBox.text = it.parsedStreet.name
             }
             if (StringUtils.isNotBlank(it.parsedPlace.name)) {
@@ -165,7 +165,8 @@ class EGRNCantParseAddressTest : Test(
                 val tags: MutableMap<String, String> = mutableMapOf(
                     "addr:housenumber" to number,
                     "source:addr" to "ЕГРН",
-                    "note" to "адрес из ЕГРН разобран вручную"
+                    "note" to "адрес из ЕГРН разобран вручную",
+                    "addr:RU:egrn" to affectedAddresses.first().egrnAddress
                 )
                 if (StringUtils.isNotBlank(streetName)) {
                     tags.put("addr:street", streetName)
@@ -184,10 +185,7 @@ class EGRNCantParseAddressTest : Test(
         if (cmds.isNotEmpty()) {
             val c: Command =
                 SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper CantParseAddress validator"), cmds)
-            testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses.remove(it)
-            }
-
+            RussiaAddressHelperPlugin.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
             return c
         }
 

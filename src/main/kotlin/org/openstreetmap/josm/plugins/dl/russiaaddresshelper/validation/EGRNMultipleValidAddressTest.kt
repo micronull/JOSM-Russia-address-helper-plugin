@@ -35,15 +35,24 @@ class EGRNMultipleValidAddressTest : Test(
 
         if (egrnResponse != null) {
             val addressInfo = egrnResponse.third
-            if (addressInfo.getValidAddresses().size > 1 && !RussiaAddressHelperPlugin.isIgnored(w, EGRNTestCode.EGRN_HAS_MULTIPLE_VALID_ADDRESSES)) {
+            if (addressInfo.getValidAddresses().size > 1 && !RussiaAddressHelperPlugin.isIgnored(
+                    w,
+                    EGRNTestCode.EGRN_HAS_MULTIPLE_VALID_ADDRESSES
+                ) && !w.hasTag("addr:housenumber")
+            ) {
                 RussiaAddressHelperPlugin.markAsProcessed(w, EGRNTestCode.EGRN_HAS_MULTIPLE_VALID_ADDRESSES)
-                val prefferedAddress = addressInfo.getPreferredAddress()!!.getOsmAddress().getInlineAddress(",")
+                val firstAddress = addressInfo.getPreferredAddress()!!
+                val secondAddress = addressInfo.getValidAddresses().first { it != firstAddress }
                 errors.add(
                     TestError.builder(
                         this, Severity.ERROR,
                         EGRNTestCode.EGRN_HAS_MULTIPLE_VALID_ADDRESSES.code
                     )
-                        .message(I18n.tr("EGRN multiple addresses") + ": $prefferedAddress ")
+                        .message(
+                            I18n.tr("EGRN multiple addresses") + ": ${
+                                firstAddress.getOsmAddress().getInlineAddress(",")
+                            } / ${secondAddress.getOsmAddress().getInlineAddress(",")}"
+                        )
                         .primitives(w)
                         .highlight(w)
                         .build()
@@ -105,7 +114,7 @@ class EGRNMultipleValidAddressTest : Test(
             *buttonTexts
         )
         dialog.setContent(p, false)
-        dialog.setButtonIcons("dialogs/edit","dialogs/edit", "cancel")
+        dialog.setButtonIcons("dialogs/edit", "dialogs/edit", "cancel")
         dialog.showDialog()
 
         val answer = dialog.value
@@ -116,11 +125,12 @@ class EGRNMultipleValidAddressTest : Test(
         if (answer == 1) {
             val selectedCorrectionAddress = correctionTable.correctionTableModel.getSelectedValue().address
             testError.primitives.forEach {
-                    var tags = selectedCorrectionAddress.getOsmAddress().getBaseAddressTagsWithSource()
-                    tags = tags.plus(Pair("addr:RU:egrn", selectedCorrectionAddress.egrnAddress))
-                    cmds.add(ChangePropertyCommand(mutableListOf(it), tags))
-                }
+                var tags = selectedCorrectionAddress.getOsmAddress().getBaseAddressTagsWithSource()
+                tags = tags.plus(Pair("addr:RU:egrn", selectedCorrectionAddress.egrnAddress))
+                cmds.add(ChangePropertyCommand(mutableListOf(it), tags))
             }
+        }
+
         if (answer == 2) {
             testError.primitives.forEach {
                 RussiaAddressHelperPlugin.ignoreValidator(
@@ -131,13 +141,7 @@ class EGRNMultipleValidAddressTest : Test(
         }
 
         if (cmds.isNotEmpty()) {
-            val c: Command =
-                SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper MultipleValidAddress validator"), cmds)
-            testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses.remove(it)
-            }
-
-            return c
+            return SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper MultipleValidAddress validator"), cmds)
         }
         return null
     }
