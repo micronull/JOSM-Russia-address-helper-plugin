@@ -14,7 +14,7 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
     private val userAgent = JosmTextField()
     private val egrnRequestLimit = JosmTextField(3)
     private val egrnRequestSelectionLimit = JosmTextField(3)
-    private val egrnTotalRequestsCounter = JosmTextField(3)
+    private val egrnTotalRequestsCounter = JosmTextField(9)
     private val egrnRequestDelay = JosmTextField(3)
     private val disableSSLforRequests = JCheckBox(I18n.tr("Disable SSL for EGRN requests"))
 
@@ -38,7 +38,7 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
         panel.add(JLabel(I18n.tr("Delay between requests in seconds:")), GBC.std())
         panel.add(egrnRequestDelay, GBC.eop().insets(5, 0, 0, 5))
 
-        panel.add(JLabel(I18n.tr("Total requests to EGRN in current session:")), GBC.std())
+        panel.add(JLabel(I18n.tr("Total requests to EGRN in current session (total/success):")), GBC.std())
         panel.add(egrnTotalRequestsCounter, GBC.eop().insets(5, 0, 0, 5))
 
         panel.add(Box.createVerticalGlue(), GBC.eol().fill())
@@ -54,7 +54,7 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
         egrnRequestSelectionLimit.text = EgrnSettingsReader.REQUEST_LIMIT_PER_SELECTION.get().toString()
         egrnRequestDelay.text = EgrnSettingsReader.REQUEST_DELAY.get().toString()
         disableSSLforRequests.isSelected = EgrnSettingsReader.EGRN_DISABLE_SSL_FOR_REQUEST.get()
-        egrnTotalRequestsCounter.text = RussiaAddressHelperPlugin.totalRequestsPerSession.toString()
+        egrnTotalRequestsCounter.text = "${RussiaAddressHelperPlugin.totalRequestsPerSession}/${RussiaAddressHelperPlugin.totalSuccessRequestsPerSession}"
         egrnTotalRequestsCounter.isEnabled = false
     }
 

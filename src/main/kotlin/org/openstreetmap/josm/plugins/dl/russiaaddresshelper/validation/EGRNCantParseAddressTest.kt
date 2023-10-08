@@ -169,9 +169,9 @@ class EGRNCantParseAddressTest : Test(
                     "addr:RU:egrn" to affectedAddresses.first().egrnAddress
                 )
                 if (StringUtils.isNotBlank(streetName)) {
-                    tags.put("addr:street", streetName)
+                    tags["addr:street"] = streetName
                 } else {
-                    tags.put("addr:place", placeName)
+                    tags["addr:place"] = placeName
                 }
                 cmds.add(ChangePropertyCommand(listOf(primitive), tags))
 

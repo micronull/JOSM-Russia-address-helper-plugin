@@ -45,12 +45,6 @@ data class EGRNResponse(val total: Int, val results: List<EGRNFeature>) {
                 addresses.add(ParsedAddress(placeParseResult, streetParseResult, houseNumberParse, filteredEgrnAddress, allParsingFlags))
                 existingAddresses.add(key)
             }
-
-           /* //for testing purposes
-            val fakeHouseNum = ParsedHouseNumber(houseNumberParse.housenumber+"Ю","", listOf())
-            val fakeHouseNum2 = ParsedHouseNumber(houseNumberParse.housenumber+"Ь","", listOf())
-            addresses.add(ParsedAddress(placeParseResult, streetParseResult, fakeHouseNum, filteredEgrnAddress+" Ю", allParsingFlags.plus(ParsingFlags.IS_BUILDING)))
-            addresses.add(ParsedAddress(placeParseResult, streetParseResult, fakeHouseNum2, filteredEgrnAddress+" Ь", allParsingFlags.plus(ParsingFlags.IS_BUILDING)))*/
         }
         return ParsedAddressInfo(addresses)
     }

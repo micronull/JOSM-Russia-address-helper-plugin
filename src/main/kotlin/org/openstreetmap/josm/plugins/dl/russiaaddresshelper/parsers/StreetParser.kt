@@ -13,23 +13,25 @@ class StreetParser : IParser<ParsedStreet> {
         //тэги, откуда будут собираться возможные имена
         val altNames: List<String> = listOf("egrn_name", "alt_name", "old_name", "short_name")
         // Оставляем дороги у которых есть название
-        // вариант - искать searchWays(Bbox) в некоей окрестности от домика/домиков
         // улицы, собранные отношениями, в которых на вэях нет тэгов??
 
         val primitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives().filter { p ->
             p.hasKey("highway") && p.hasKey("name") && p.type.equals(OsmPrimitiveType.WAY)
         }
 
-        //формируем мапу <название вэя (в том числе из альтернативных тэгов), название из name, список обьектов
+        //формируем мапу <название вэя (в том числе из альтернативных тэгов), название из name, список объектов
         val primitiveNames: MutableMap<String, Pair<String, List<OsmPrimitive>>> = mutableMapOf()
         val primitivesByName = primitives.groupBy({ it.name }, { it })
         primitivesByName.forEach { (name, primitivesList) ->
             primitiveNames.putIfAbsent(name, Pair(name, primitivesList))
-            primitivesList.forEach { primitive->
+            primitivesList.forEach { primitive ->
                 altNames.map {
                     if (primitive.hasKey(it)) {
                         val altName = primitive.get(it)
-                        primitiveNames.putIfAbsent(altName,Pair(primitive.name, primitivesList.filter {pr ->  pr.hasTag(it, altName) }))
+                        primitiveNames.putIfAbsent(
+                            altName,
+                            Pair(primitive.name, primitivesList.filter { pr -> pr.hasTag(it, altName) })
+                        )
                     }
                 }
             }

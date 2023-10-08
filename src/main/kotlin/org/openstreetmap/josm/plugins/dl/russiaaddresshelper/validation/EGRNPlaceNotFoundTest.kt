@@ -48,7 +48,7 @@ class EGRNPlaceNotFoundTest : Test(
                     &&(!it.flags.contains(ParsingFlags.STREET_NAME_FUZZY_MATCH))
                     && !it.isValidAddress()
                 ) {
-                    val parsedPlaceName = it.parsedPlace.extractedType + " " + it.parsedPlace.extractedName
+                    val parsedPlaceName = it.parsedPlace.extractedType?.name + " " + it.parsedPlace.extractedName
                     var affectedPrimitives = parsedPlaceToPrimitiveMap.getOrDefault(parsedPlaceName, mutableSetOf())
                     affectedPrimitives = affectedPrimitives.plus(primitive)
                     parsedPlaceToPrimitiveMap = parsedPlaceToPrimitiveMap.plus(
@@ -58,7 +58,7 @@ class EGRNPlaceNotFoundTest : Test(
             }
         }
 
-        parsedPlaceToPrimitiveMap.forEach { parsedName, primitives ->
+        parsedPlaceToPrimitiveMap.forEach { (parsedName, primitives) ->
             primitives.forEach {
                 RussiaAddressHelperPlugin.markAsProcessed(
                     it,
@@ -90,7 +90,7 @@ class EGRNPlaceNotFoundTest : Test(
                 affectedAddresses.addAll(addresses)
                 val prefferedAddress: ParsedAddress = addresses.first()
                 egrnPlaceName =
-                    "${prefferedAddress.parsedPlace.extractedType} ${prefferedAddress.parsedPlace.extractedName}"
+                    "${prefferedAddress.parsedPlace.extractedType?.name} ${prefferedAddress.parsedPlace.extractedName}"
                 prefferedAddress.parsedHouseNumber.housenumber.let { it1 -> affectedHousenumbers.add(it1) }
             }
         }

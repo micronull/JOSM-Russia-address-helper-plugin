@@ -248,12 +248,50 @@ msgstr "Слишком много последовательных неудач,
 msgid "Selected more than set limit buildings, only first %s will be processed"
 msgstr "Выбрано больше зданий, чем установлено в настройках, будет запрошено только %s объектов из выделения"
 
-msgid "Total requests to EGRN in current session:"
-msgstr "Всего запросов к ЕГРН в текущей сессии:"
+msgid "Total requests to EGRN in current session (total/success):"
+msgstr "Всего запросов к ЕГРН в текущей сессии (всего/успех):"
 
 msgid "Request limit for single select action:"
 msgstr "Лимит количества зданий в одном запросе массовой загрузки:"
 
+msgid "Remove address and request again"
+msgstr "Удалить все и перезапросить"
+
+msgid "Remove address from all"
+msgstr "Удалить все"
+
+msgid "Assign same address to all"
+msgstr "Присвоить всем одинаковый"
+
+msgid "Assign to biggest"
+msgstr "Присвоить наибольшему"
+
+msgid "Assign to closest"
+msgstr "Присвоить ближайшему"
+
+msgid "Street way should be closer than, meters:"
+msgstr "Линия улицы должна быть ближе чем, метров:"
+
+msgid "Place node should be closer than, meters:"
+msgstr "Точка места должна быть ближе чем, метров:"
+
+msgid "EGRN street/place too far"
+msgstr "ЕГРН проверка геометрии "
+
+msgid "EGRN street/place way too far from street/place in OSM"
+msgstr "ЕГРН валидация на близость улицы/места к данным ОСМ"
+
+msgid "EGRN street found too far:"
+msgstr "ЕГРН улица слишком далеко:"
+
+msgid "EGRN place found too far:"
+msgstr "ЕГРН место слишком далеко:"
+
+msgid "EGRN outside of place boundary:"
+msgstr "ЕГРН вне границ места:"
+
+msgid "EGRN place boundary incomplete:"
+msgstr "ЕГРН граница места неполная:"
 
 
 

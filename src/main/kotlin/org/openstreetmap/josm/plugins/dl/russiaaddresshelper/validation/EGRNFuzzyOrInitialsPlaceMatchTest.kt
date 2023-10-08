@@ -47,7 +47,7 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
                 } else {
                     return@forEach
                 }
-                val parsedStreetName = address.parsedPlace.extractedType + " " + address.parsedPlace.extractedName
+                val parsedStreetName = address.parsedPlace.extractedType?.name + " " + address.parsedPlace.extractedName
                 val osmObjName = address.parsedPlace.name
                 var affectedPrimitives =
                     parsedPlaceToPrimitiveMap.getOrDefault(
@@ -105,7 +105,7 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
                 val addressInfo = RussiaAddressHelperPlugin.egrnResponses[it]?.third
                 val prefferedAddress = addressInfo?.getPreferredAddress()
                 egrnPlaceName = prefferedAddress!!.parsedPlace.extractedName
-                egrnPlaceType = prefferedAddress.parsedPlace.extractedType
+                egrnPlaceType = prefferedAddress.parsedPlace.extractedType!!.name
                 osmPlaceName = prefferedAddress.parsedPlace.name
                 affectedAddresses.add(prefferedAddress)
                 prefferedAddress.parsedHouseNumber.housenumber.let { it1 -> affectedHousenumbers.add(it1) }

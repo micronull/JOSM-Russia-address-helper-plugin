@@ -49,6 +49,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         var processedByValidators: MutableMap<OsmPrimitive, MutableSet<EGRNTestCode>> = mutableMapOf()
 
         var totalRequestsPerSession = 0L
+        var totalSuccessRequestsPerSession = 0L
 
         val selectAction: SelectAction = SelectAction()
         val clickAction: ClickAction = ClickAction()
@@ -148,6 +149,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         OsmValidator.addTest(EGRNPlaceNotFoundTest::class.java)
         OsmValidator.addTest(EGRNFuzzyOrInitialsPlaceMatchTest::class.java)
         OsmValidator.addTest(EGRNDuplicateAddressesTest::class.java)
+        OsmValidator.addTest(EGRNStreetOrPlaceTooFarTest::class.java)
 
         UploadAction.registerUploadHook(cleanPluginCacheHook, true)
         UploadAction.registerUploadHook(egrnUploadTagFilterHook, true)

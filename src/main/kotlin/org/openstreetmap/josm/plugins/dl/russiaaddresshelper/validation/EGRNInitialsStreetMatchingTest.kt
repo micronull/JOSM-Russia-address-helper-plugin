@@ -40,7 +40,7 @@ class EGRNInitialsStreetMatchingTest : Test(
             addresses.forEach {
                 if (addressInfo.getPreferredAddress() == it) {
                     if (it.flags.contains(ParsingFlags.STREET_NAME_INITIALS_MATCH) && !primitive.hasTag("addr:street")) {
-                        val parsedStreetName = it.parsedStreet.extractedType + " " + it.parsedStreet.extractedName
+                        val parsedStreetName = it.parsedStreet.extractedType?.name + " " + it.parsedStreet.extractedName
                         val osmObjName = it.parsedStreet.name
                         var affectedPrimitives =
                             parsedStreetToPrimitiveMap.getOrDefault(
@@ -87,7 +87,7 @@ class EGRNInitialsStreetMatchingTest : Test(
                 val addressInfo = RussiaAddressHelperPlugin.egrnResponses[it]?.third
                 val prefferedAddress = addressInfo?.getPreferredAddress()
                 egrnStreetName =
-                    "${prefferedAddress!!.parsedStreet.extractedType} ${prefferedAddress.parsedStreet.extractedName}"
+                    "${prefferedAddress!!.parsedStreet.extractedType?.name} ${prefferedAddress.parsedStreet.extractedName}"
                 osmStreetName = prefferedAddress.parsedStreet.name
                 prefferedAddress.parsedHouseNumber.housenumber.let { it1 -> affectedHousenumbers.add(it1) }
             } else {
@@ -121,7 +121,7 @@ class EGRNInitialsStreetMatchingTest : Test(
         editedOsmStreetName = osmStreetNameEditBox.text
 
         val buttonTexts = arrayOf(
-            I18n.tr("Assign address by street)")+ ": $osmStreetName",
+            I18n.tr("Assign address by street")+ ": $osmStreetName",
             I18n.tr("Rename street"),
             I18n.tr("Cancel")
         )

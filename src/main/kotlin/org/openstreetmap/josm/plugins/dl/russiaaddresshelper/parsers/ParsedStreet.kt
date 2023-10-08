@@ -1,7 +1,9 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers
 
 import org.apache.commons.text.similarity.JaroWinklerSimilarity
+import org.openstreetmap.josm.data.osm.OsmDataManager
 import org.openstreetmap.josm.data.osm.OsmPrimitive
+import org.openstreetmap.josm.data.osm.OsmPrimitiveType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.StreetType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.StreetTypes
@@ -10,9 +12,9 @@ import org.openstreetmap.josm.tools.Logging
 class ParsedStreet(
     val name: String,
     val extractedName: String,
-    val extractedType: String,
+    val extractedType: StreetType?,
     val matchedPrimitives: List<OsmPrimitive>,
-    val flags: List<ParsingFlags>
+    val flags: MutableList<ParsingFlags>
 ) {
     companion object {
         fun identify(
@@ -35,10 +37,22 @@ class ParsedStreet(
                 }
             }
 
+            if (streetType != null && streetType.name == "улица") {
+                for (type in streetTypes.types) {
+                    val internalEgrnStreetName = extractStreetName(type.egrn.asRegExpList(), egrnStreetName)
+                    if (internalEgrnStreetName != "") {
+                        streetType = type
+                        Logging.info("EGRN-PLUGIN Street parser found double typed name in $sourceAddress, found secondary ${streetType.name}")
+                        egrnStreetName = internalEgrnStreetName
+                        break
+                    }
+                }
+            }
+
             if (egrnStreetName == "") {
                 Logging.warn("EGRN-PLUGIN Cannot extract street name from EGRN address $sourceAddress")
                 flags.add(ParsingFlags.CANNOT_EXTRACT_STREET_NAME)
-                return ParsedStreet("", "", "", listOf(), flags)
+                return ParsedStreet("", "", null, listOf(), flags)
             }
 
             val JWSsimilarity = JaroWinklerSimilarity()
@@ -71,7 +85,7 @@ class ParsedStreet(
                     return ParsedStreet(
                         osmObjectNames[street]!!.first,
                         egrnStreetName,
-                        streetType.name,
+                        streetType,
                         osmObjectNames[street]!!.second,
                         flags
                     )
@@ -84,7 +98,7 @@ class ParsedStreet(
                         return ParsedStreet(
                             osmObjectNames[street]!!.first,
                             egrnStreetName,
-                            streetType.name,
+                            streetType,
                             osmObjectNames[street]!!.second,
                             flags
                         )
@@ -96,7 +110,7 @@ class ParsedStreet(
                         return ParsedStreet(
                             osmObjectNames[street]!!.first,
                             egrnStreetName,
-                            streetType.name,
+                            streetType,
                             osmObjectNames[street]!!.second,
                             flags
                         )
@@ -120,13 +134,13 @@ class ParsedStreet(
                 return ParsedStreet(
                     osmObjectNames[mostSimilar]!!.first,
                     egrnStreetName,
-                    streetType!!.name,
+                    streetType!!,
                     osmObjectNames[mostSimilar]!!.second,
                     flags
                 )
             }
             flags.add(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM)
-            return ParsedStreet("", egrnStreetName, streetType!!.name, listOf(), flags)
+            return ParsedStreet("", egrnStreetName, streetType!!, listOf(), flags)
         }
 
         //пытаемся поматчить улицы убирая из них инициалы, префикс "им" и имена
@@ -209,5 +223,24 @@ class ParsedStreet(
 
             return ""
         }
+
+    }
+
+    private fun getOsmObjectsByType(streetType: StreetType): Set<OsmPrimitive> {
+
+        val primitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives().filter { p ->
+            p.hasKey("highway") && p.hasKey("name") && p.type.equals(OsmPrimitiveType.WAY)
+        }
+        return primitives.filter { p ->
+            streetType.osm.asRegExpList().any { p["name"].matches(it) || p["egrn_name"].matches(it) }
+        }.toSet()
+    }
+
+    fun getMatchingPrimitives(): Set<OsmPrimitive> {
+        if (extractedType == null || extractedName.isEmpty() || name.isEmpty()) {
+            return emptySet()
+        }
+        return getOsmObjectsByType(extractedType).filter { name == it["name"] || name == it["egrn_name"] }
+            .toSet()
     }
 }

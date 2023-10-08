@@ -4,6 +4,7 @@ import org.apache.commons.lang3.StringUtils
 import org.apache.commons.text.similarity.JaroWinklerSimilarity
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.PlaceType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.PlaceTypes
 import org.openstreetmap.josm.tools.Logging
 
@@ -14,7 +15,7 @@ import org.openstreetmap.josm.tools.Logging
 data class ParsedPlace(
     val name: String,
     val extractedName: String, //целевое решение - должен быть список обьектов типа AddressPart: name type priority
-    val extractedType: String,
+    val extractedType: PlaceType?,
     val matchedPrimitives: List<OsmPrimitive>,
     val flags: List<ParsingFlags>
 ) {
@@ -71,7 +72,7 @@ data class ParsedPlace(
                 }
 
                 if (filteredOsmPlaceName.lowercase() == filteredEgrnPlaceName.lowercase()) {
-                    return ParsedPlace(osmNameTagValue, egrnPlaceName, parsedPlaceType.name, osmPlaceEntry.value, flags)
+                    return ParsedPlace(osmNameTagValue, egrnPlaceName, parsedPlaceType, osmPlaceEntry.value, flags)
                 } else {
                     if (matchedNumberedPlace(
                             filteredEgrnPlaceName,
@@ -84,7 +85,7 @@ data class ParsedPlace(
                         return ParsedPlace(
                             osmNameTagValue,
                             egrnPlaceName,
-                            parsedPlaceType.name,
+                            parsedPlaceType,
                             osmPlaceEntry.value,
                             flags
                         )
@@ -96,7 +97,7 @@ data class ParsedPlace(
                         return ParsedPlace(
                             osmNameTagValue,
                             egrnPlaceName,
-                            parsedPlaceType.name,
+                            parsedPlaceType,
                             osmPlaceEntry.value,
                             flags
                         )
@@ -115,14 +116,14 @@ data class ParsedPlace(
                 return ParsedPlace(
                     primitiveNamesMap[mostSimilar]?.get(0)?.name ?: "",
                     egrnPlaceName,
-                    parsedPlaceType.name,
+                    parsedPlaceType,
                     primitiveNamesMap[mostSimilar] ?: listOf(),
                     flags
                 )
             }
 
             flags.add(ParsingFlags.CANNOT_FIND_PLACE_OBJECT_IN_OSM)
-            return ParsedPlace("", egrnPlaceName, parsedPlaceType.name, listOf(), flags)
+            return ParsedPlace("", egrnPlaceName, parsedPlaceType, listOf(), flags)
         }
 
 
@@ -200,7 +201,7 @@ data class ParsedPlace(
         }
 
         private fun emptyParsedPlace(flags: List<ParsingFlags> = listOf()): ParsedPlace {
-            return ParsedPlace("", "", "", listOf(), flags)
+            return ParsedPlace("", "", null, listOf(), flags)
         }
     }
 

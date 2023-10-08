@@ -41,7 +41,7 @@ class EGRNFuzzyStreetMatchingTest : Test(
             addresses.forEach {
                 if (addressInfo.getPreferredAddress() == it) {
                     if (it.flags.contains(ParsingFlags.STREET_NAME_FUZZY_MATCH) && !primitive.hasTag("addr:street")) {
-                        val parsedStreetName = it.parsedStreet.extractedType + " " + it.parsedStreet.extractedName
+                        val parsedStreetName = it.parsedStreet.extractedType?.name + " " + it.parsedStreet.extractedName
                         val osmObjName = it.parsedStreet.name
                         var affectedPrimitives =
                             parsedStreetToPrimitiveMap.getOrDefault(
@@ -90,7 +90,7 @@ class EGRNFuzzyStreetMatchingTest : Test(
                 val prefferedAddress = addressInfo?.getPreferredAddress()
                 affectedAddresses.add(prefferedAddress!!)
                 egrnStreetName =
-                    "${prefferedAddress.parsedStreet.extractedType} ${prefferedAddress.parsedStreet.extractedName}"
+                    "${prefferedAddress.parsedStreet.extractedType?.name} ${prefferedAddress.parsedStreet.extractedName}"
                 osmStreetName = prefferedAddress.parsedStreet.name
                 prefferedAddress.parsedHouseNumber.housenumber.let { it1 -> affectedHousenumbers.add(it1) }
             } else {

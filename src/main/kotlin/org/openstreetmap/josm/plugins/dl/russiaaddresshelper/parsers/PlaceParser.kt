@@ -13,26 +13,28 @@ class PlaceParser : IParser<ParsedPlace> {
         // фильтруем все загруженные примитивы, основываясь на заданных в файле правилах - совпадению
         //имени с регэкспом и наличием тэгов с определенными значениями
         val allLoadedPrimitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives()
-        //на вход подавается мапа <тип, map<имя, List<примитив>>
+        //на вход подается мапа <тип, map<имя, List<примитив>>
         //необходимо отфильтровать в зависимости от типа
-        //если сопоставляемый примитив точка - то по расстоянию,
-        //если сопоставляемый примитив - полигон (как понять?) или мультиполигон - то по вхождению точки запроса в полигон
-        //фильтровать тут или ниже в identify? если там, то можно генерировать ошибки типа (место найдено но не входит/слишком далеко)
-        //брать из настроек таблицу расстояний
         val primitivesToCompare: MutableMap<String, Map<String, List<OsmPrimitive>>> = mutableMapOf()
         placeTypes.types.forEach { type ->
             val foundPrimitives =
-                allLoadedPrimitives.filter { p-> type.tags.all { entry -> entry.value.contains(p.get(entry.key)) } }
+                allLoadedPrimitives.filter { p -> type.tags.all { entry -> entry.value.contains(p.get(entry.key)) } }
             val foundPrimitives2 =
                 foundPrimitives.filter { StringUtils.isNotBlank(it.name) && type.hasOSMMatch(it.name) }
-            var primitivesGroupedByName = foundPrimitives2.associateBy({ it.name }, { listOf(it) })
-            val primitivesGroupedByEgrnName = foundPrimitives2.filter { p-> p.hasTag("egrn_name") }.associateBy ({it["egrn_name"]}, {listOf(it)})
-            primitivesGroupedByName = primitivesGroupedByName.plus(primitivesGroupedByEgrnName)
+            val primitivesGroupedByName = foundPrimitives2.groupBy { it.name }.toMutableMap()
+            val primitivesGroupedByEgrnName =
+                foundPrimitives.filter { p -> p.hasTag("egrn_name") }.groupBy { it["egrn_name"] }
+            primitivesGroupedByEgrnName.forEach { entry ->
+                if (primitivesGroupedByName[entry.key] == null) {
+                    primitivesGroupedByName.put(entry.key, entry.value)
+                } else {
+                    var existingPrimitives = primitivesGroupedByName[entry.key]
+                    existingPrimitives = existingPrimitives!!.plus(entry.value)
+                    primitivesGroupedByName.put(entry.key, existingPrimitives)
+                }
+            }
             primitivesToCompare.putIfAbsent(type.name, primitivesGroupedByName)
         }
-        val parsedPlace = ParsedPlace.identify(address, placeTypes, primitivesToCompare)
-        //тут можно проверить сопоставление, и добавить проверки на расстояние/вхождение?
-
-        return parsedPlace
+        return ParsedPlace.identify(address, placeTypes, primitivesToCompare)
     }
 }

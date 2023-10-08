@@ -19,7 +19,16 @@ data class ParsedAddress(
     }
 
     fun isValidAddress():Boolean {
+        return isMatchedByStreet() || isMatchedByPlace()
+    }
+
+    fun isMatchedByStreet() : Boolean {
         val osmAddress = getOsmAddress()
-        return osmAddress.isFilledStreetAddress() || (osmAddress.isFilledPlaceAddress() && !flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM))
+        return osmAddress.isFilledStreetAddress() //|| flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM)
+    }
+
+    fun isMatchedByPlace() : Boolean {
+        val osmAddress = getOsmAddress()
+        return osmAddress.isFilledPlaceAddress() && !flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM)
     }
 }

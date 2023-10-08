@@ -1,7 +1,9 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers
 
-import org.junit.Test
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.openstreetmap.josm.JOSMFixture
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.Node
 import org.openstreetmap.josm.data.osm.OsmPrimitive
@@ -9,6 +11,12 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.PlaceTypes
 
 internal class PlaceNameParserTest {
     private val placeTypes: PlaceTypes = PlaceTypes.byYml("/references/place_types.yml")
+
+
+    @BeforeEach
+    fun setUpBeforeClass() {
+        JOSMFixture("src/test/config/unit-josm.home").init()
+    }
 
     @Test
     fun parseTest() {
@@ -28,7 +36,7 @@ internal class PlaceNameParserTest {
         placeTypes.types.forEach { type ->
 
             val foundPrimitives = testData.entries.filter { it.value.second == type.name }
-                .associate { Pair(it.key, listOf<OsmPrimitive>( getNewNode(it.key))) }
+                .associate { Pair(it.key, listOf<OsmPrimitive>(getNewNode(it.key))) }
             primitivesToCompare.putIfAbsent(type.name, foundPrimitives)
         }
 
@@ -40,7 +48,7 @@ internal class PlaceNameParserTest {
         }
     }
 
-    private fun getNewNode(name:String) : Node {
+    private fun getNewNode(name: String): Node {
         val node = Node(EastNorth.ZERO)
         node.put("name", name)
         return node
