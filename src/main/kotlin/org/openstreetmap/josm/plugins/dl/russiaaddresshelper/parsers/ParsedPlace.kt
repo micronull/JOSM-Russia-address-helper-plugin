@@ -2,6 +2,7 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers
 
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.text.similarity.JaroWinklerSimilarity
+import org.openstreetmap.josm.data.osm.OsmDataManager
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.PlaceType
@@ -203,6 +204,24 @@ data class ParsedPlace(
         private fun emptyParsedPlace(flags: List<ParsingFlags> = listOf()): ParsedPlace {
             return ParsedPlace("", "", null, listOf(), flags)
         }
+    }
+
+    private fun getOsmObjectsByType(placeType: PlaceType): Set<OsmPrimitive> {
+
+        val allLoadedPrimitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives()
+        val foundPrimitives =
+            allLoadedPrimitives.filter { p -> placeType.tags.all { entry -> entry.value.contains(p.get(entry.key)) } }
+        return foundPrimitives.filter { p ->
+            placeType.osm.asRegExpList().any { p["name"].matches(it) || p["egrn_name"].matches(it) }
+        }.toSet()
+    }
+
+    fun getMatchingPrimitives(): Set<OsmPrimitive> {
+        if (extractedType == null || extractedName.isEmpty() || name.isEmpty()) {
+            return emptySet()
+        }
+        return getOsmObjectsByType(extractedType).filter { name == it["name"] || name == it["egrn_name"] }
+            .toSet()
     }
 
 }

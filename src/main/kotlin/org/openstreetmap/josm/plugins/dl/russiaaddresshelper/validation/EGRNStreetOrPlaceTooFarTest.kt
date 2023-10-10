@@ -2,6 +2,7 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation
 
 import org.openstreetmap.josm.command.Command
 import org.openstreetmap.josm.data.osm.Node
+import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.data.osm.Relation
 import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.data.validation.Severity
@@ -13,12 +14,12 @@ import org.openstreetmap.josm.gui.widgets.JMultilineLabel
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.ValidationSettingsReader
 import org.openstreetmap.josm.tools.GBC
-import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.Geometry.*
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
 import java.awt.GridBagLayout
 import javax.swing.JPanel
+import kotlin.math.min
 import kotlin.math.roundToLong
 
 class EGRNStreetOrPlaceTooFarTest : Test(
@@ -50,10 +51,12 @@ class EGRNStreetOrPlaceTooFarTest : Test(
             val centroidNode = Node(getCentroid(w.nodes))
             val closestStreet = getClosestPrimitive(centroidNode, matchingPrimitives)
             val closestStreetNode = getClosestPrimitive(centroidNode, (closestStreet as Way).nodes)
-            val distance = getDistance(
+            val distanceToWay = getDistance(centroidNode, closestStreet)
+            val distanceToNode = getDistance(
                 centroidNode,
                 closestStreetNode
             )
+            val distance = min(distanceToNode, distanceToWay)
             if (distance > ValidationSettingsReader.DISTANCE_FOR_STREET_WAY_SEARCH.get()
             ) {
                 val streetName = parsedStreet.name
@@ -69,18 +72,21 @@ class EGRNStreetOrPlaceTooFarTest : Test(
 
         }
 
-        if(preferredAddress.isMatchedByPlace()) {
-            val severity = if(preferredAddress.isMatchedByStreet()) Severity.WARNING else Severity.ERROR
+        if (preferredAddress.isMatchedByPlace()) {
+            val severity = if (preferredAddress.isMatchedByStreet()) Severity.WARNING else Severity.ERROR
 
             //если не по улице, значит по месту
             val parsedPlace = preferredAddress.parsedPlace
-            if (parsedPlace.matchedPrimitives.isEmpty()) {
+            var placeNodeTooFar = false
+            var distanceToPlaceNode = 0.0
+            val matchedPrimitives = parsedPlace.getMatchingPrimitives()
+            if (matchedPrimitives.isEmpty()) {
                 Logging.warn("EGRN PLUGIN: Parent too far validator got matched place ${parsedPlace.name}, but have no matched primitives! ")
                 return
             }
-            val matchedNodes = parsedPlace.matchedPrimitives.filterIsInstance<Node>()
-            val matchedWays = parsedPlace.matchedPrimitives.filterIsInstance<Way>()
-            val matchedRelations = parsedPlace.matchedPrimitives.filterIsInstance<Relation>()
+            val matchedNodes = matchedPrimitives.filterIsInstance<Node>()
+            val matchedWays = matchedPrimitives.filterIsInstance<Way>()
+            val matchedRelations = matchedPrimitives.filterIsInstance<Relation>()
             val centroidNode = Node(getCentroid(w.nodes))
             if (matchedNodes.isNotEmpty() && !RussiaAddressHelperPlugin.isIgnored(
                     w,
@@ -93,17 +99,9 @@ class EGRNStreetOrPlaceTooFarTest : Test(
                     centroidNode,
                     closestNode
                 )
-                if (distance > ValidationSettingsReader.DISTANCE_FOR_PLACE_NODE_SEARCH.get()
-                ) {
-                    val placeName = parsedPlace.name
-                    val primitives = matchedNodes.plus(w)
-                    errors.add(
-                        TestError.builder(this, severity, EGRNTestCode.EGRN_PLACE_FOUND_TOO_FAR.code)
-                            .message(I18n.tr("EGRN place found too far:") + " " + placeName+ " (${distance.roundToLong()}м)")
-                            .primitives(w)
-                            .highlight(primitives)
-                            .build()
-                    )
+                if (distance > ValidationSettingsReader.DISTANCE_FOR_PLACE_NODE_SEARCH.get()) {
+                    placeNodeTooFar = true
+                    distanceToPlaceNode = distance
                 }
             }
 
@@ -132,6 +130,9 @@ class EGRNStreetOrPlaceTooFarTest : Test(
                             .highlight(primitives)
                             .build()
                     )
+                } else {
+                    //нашелся полигон места, гасим ошибку "точка слишком далеко"
+                    placeNodeTooFar = false
                 }
             }
 
@@ -141,8 +142,14 @@ class EGRNStreetOrPlaceTooFarTest : Test(
                 }
                 val placeName = parsedPlace.name
                 val primitives = matchedRelations.plus(w)
+                var insideOfSomePlaceBoundary = false
+                val outsideOfBoundaries = mutableListOf<Relation>()
                 matchedRelations.forEach { relation ->
-                    if (relation.hasIncompleteMembers() && !RussiaAddressHelperPlugin.isIgnored(w, EGRNTestCode.EGRN_PLACE_BOUNDARY_INCOMPLETE)) {
+                    if (relation.hasIncompleteMembers() && !RussiaAddressHelperPlugin.isIgnored(
+                            w,
+                            EGRNTestCode.EGRN_PLACE_BOUNDARY_INCOMPLETE
+                        )
+                    ) {
                         errors.add(
                             TestError.builder(this, severity, EGRNTestCode.EGRN_PLACE_BOUNDARY_INCOMPLETE.code)
                                 .message(I18n.tr("EGRN place boundary incomplete:") + " " + placeName)
@@ -152,23 +159,43 @@ class EGRNStreetOrPlaceTooFarTest : Test(
                         )
                     } else {
                         if (!isPolygonInsideMultiPolygon(w.nodes, relation, null)
-                            && !RussiaAddressHelperPlugin.isIgnored(w, EGRNTestCode.EGRN_PLACE_BOUNDARY_INCOMPLETE)) {
-
-                            errors.add(
-                                TestError.builder(
-                                    this,
-                                    severity,
-                                    EGRNTestCode.EGRN_ADDRESS_NOT_INSIDE_PLACE_POLY.code
-                                )
-                                    .message(I18n.tr("EGRN outside of place boundary:") + " " + placeName)
-                                    .primitives(w)
-                                    .highlight(primitives)
-                                    .build()
-                            )
+                            && !RussiaAddressHelperPlugin.isIgnored(w, EGRNTestCode.EGRN_PLACE_BOUNDARY_INCOMPLETE)
+                        ) {
+                            outsideOfBoundaries.add(relation)
+                        } else {
+                            insideOfSomePlaceBoundary = true
+                            placeNodeTooFar = false
                         }
 
                     }
                 }
+                if (!insideOfSomePlaceBoundary) {
+                    outsideOfBoundaries.forEach{ boundary ->
+                        val highlightPrimitives = listOf<OsmPrimitive>(boundary, w)
+                        errors.add(
+                        TestError.builder(
+                            this,
+                            severity,
+                            EGRNTestCode.EGRN_ADDRESS_NOT_INSIDE_PLACE_POLY.code
+                        )
+                            .message(I18n.tr("EGRN outside of place boundary:") + " " + placeName)
+                            .primitives(w)
+                            .highlight(highlightPrimitives)
+                            .build()
+                    )}
+                }
+            }
+
+            if (placeNodeTooFar) {
+                val placeName = parsedPlace.name
+                val primitives = matchedNodes.plus(w)
+                errors.add(
+                    TestError.builder(this, severity, EGRNTestCode.EGRN_PLACE_FOUND_TOO_FAR.code)
+                        .message(I18n.tr("EGRN place found too far:") + " " + placeName + " (${distanceToPlaceNode.roundToLong()}м)")
+                        .primitives(w)
+                        .highlight(primitives)
+                        .build()
+                )
             }
         }
     }
