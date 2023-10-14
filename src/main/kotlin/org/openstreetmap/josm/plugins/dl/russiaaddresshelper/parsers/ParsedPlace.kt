@@ -178,15 +178,14 @@ data class ParsedPlace(
             }
 
             for (pattern in regExList) {
-                val match = pattern.find(address)
-
-                if (match != null) {
-                    val placeName = match.groups["place"]!!.value
+                if ( pattern.containsMatchIn(address)) {
+                    val lastMatch = pattern.findAll(address).last() //берем самое правое совпадение
+                    val placeName = lastMatch.groups["place"]!!.value
                     //костыли, потому что эта функция обрабатывает и ОСМ имена и ЕГРН.
                     //возможно стоит добавить в ОСМ паттерн тоже номер улицы и убрать это условие?
                     //условие нужно для приведения нумерованных обьектов в одинаковое состояние?
                     if (pattern.toString().contains("placeNumber")) {
-                        val numericPrefixMatch = match.groups["placeNumber"]
+                        val numericPrefixMatch = lastMatch.groups["placeNumber"]
                         if (numericPrefixMatch != null) {
                             val numericPrefix = numericPrefixMatch.value
                             var filteredPlaceName = placeName.replace(numericPrefix, "").trim()

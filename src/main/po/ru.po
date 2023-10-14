@@ -293,5 +293,11 @@ msgstr "ЕГРН вне границ места:"
 msgid "EGRN place boundary incomplete:"
 msgstr "ЕГРН граница места неполная:"
 
+msgid "Shift layer doesnt set in plugin settings. Mass request without shift layer will be invalid. Aborting operation."
+msgstr "В настройках плагина не выбран слой для сдвига. Массовый запрос без сдвига некорректен. Прерывание операции."
+
+msgid "Shift layer doesnt have offset, this is probably an error. Change offset of layer"
+msgstr "Выбранный слой сдвига запроса не откорректирован. Сдвиньте согласно геометрии слой"
+
 
 

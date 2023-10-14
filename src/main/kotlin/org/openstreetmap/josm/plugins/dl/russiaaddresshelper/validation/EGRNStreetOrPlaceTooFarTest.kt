@@ -159,7 +159,7 @@ class EGRNStreetOrPlaceTooFarTest : Test(
                         )
                     } else {
                         if (!isPolygonInsideMultiPolygon(w.nodes, relation, null)
-                            && !RussiaAddressHelperPlugin.isIgnored(w, EGRNTestCode.EGRN_PLACE_BOUNDARY_INCOMPLETE)
+                            && !RussiaAddressHelperPlugin.isIgnored(w, EGRNTestCode.EGRN_ADDRESS_NOT_INSIDE_PLACE_POLY)
                         ) {
                             outsideOfBoundaries.add(relation)
                         } else {
@@ -278,7 +278,7 @@ class EGRNStreetOrPlaceTooFarTest : Test(
             *buttonTexts
         )
         dialog.setContent(p, false)
-        dialog.setButtonIcons("dialogs/edit", "dialogs/edit", "cancel")
+        dialog.setButtonIcons("dialogs/edit", "cancel")
         dialog.showDialog()
 
         val answer = dialog.value
@@ -287,10 +287,7 @@ class EGRNStreetOrPlaceTooFarTest : Test(
         }
         if (answer == 1) {
             testError.primitives.forEach {
-                RussiaAddressHelperPlugin.ignoreValidator(
-                    it,
-                    EGRNTestCode.getByCode(testError.code)!!
-                )
+                RussiaAddressHelperPlugin.ignoreValidator( it, EGRNTestCode.getByCode(testError.code)!! )
             }
 
             return null

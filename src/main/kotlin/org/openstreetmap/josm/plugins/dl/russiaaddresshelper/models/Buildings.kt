@@ -316,6 +316,8 @@ class Buildings(objects: List<OsmPrimitive>) {
                     //убрать старый функционал
                     //новый функционал: проверка адресов для уже имеющих адреса зданий. Получать адреса парсить и
                     // сравнивать, при несовпадении - выкидывать в валидатор
+
+                    RussiaAddressHelperPlugin.removeFromAllCaches(d.building.osmPrimitive)
                     val parsedAddressInfo = egrnResponse.parseAddresses(d.building.coordinate!!)
 
                     RussiaAddressHelperPlugin.egrnResponses[d.building.osmPrimitive] =

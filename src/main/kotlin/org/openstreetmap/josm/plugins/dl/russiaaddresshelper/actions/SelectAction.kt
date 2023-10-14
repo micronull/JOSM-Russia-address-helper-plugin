@@ -2,6 +2,7 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions
 
 import kotlinx.coroutines.cancel
 import org.openstreetmap.josm.actions.JosmAction
+import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.DataSet
 import org.openstreetmap.josm.data.osm.OsmDataManager
 import org.openstreetmap.josm.data.osm.Way
@@ -10,6 +11,7 @@ import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Buildings
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.LayerShiftSettingsReader
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
 import org.openstreetmap.josm.tools.Shortcut
@@ -46,6 +48,22 @@ class SelectAction : JosmAction(
                 .format(EgrnSettingsReader.REQUEST_LIMIT_PER_SELECTION.get().toString())
             Notification(msg).setIcon(JOptionPane.WARNING_MESSAGE).show()
         }
+
+        val shiftLayer = LayerShiftSettingsReader.getValidShiftLayer(LayerShiftSettingsReader.LAYER_SHIFT_SOURCE)
+        if (shiftLayer == null) {
+            val msg =
+                "Shift layer doesnt set in plugin settings. Mass request without shift layer will be invalid. Aborting operation."
+            val msgLoc = I18n.tr(msg)
+            Notification(msgLoc ).setIcon(JOptionPane.ERROR_MESSAGE).show()
+            return
+        } else {
+            if (shiftLayer.displaySettings.displacement == EastNorth.ZERO) {
+                val msg = "Shift layer doesnt have offset, this is probably an error. Change offset of layer"
+                val msgLoc = I18n.tr(msg)
+                Notification("$msgLoc: ${shiftLayer.name}").setIcon(JOptionPane.WARNING_MESSAGE).show()
+            }
+        }
+
         val buildings = Buildings(selected)
 
         if (!buildings.isNotEmpty()) {
@@ -108,6 +126,7 @@ class SelectAction : JosmAction(
             }*/
             //валидируем все, а не только выбранное в данном запросе, чтобы не терять в окне валидации результат предыдущих проверок
             //верно ли это?
+
             val primitivesToValidate =
                 layerManager.activeDataSet.allNonDeletedPrimitives().filter { it is Way && it.hasTag("building") }
             RussiaAddressHelperPlugin.runEgrnValidation(primitivesToValidate)

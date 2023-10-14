@@ -8,7 +8,7 @@ data class ParsedAddress(
     val parsedStreet: ParsedStreet,
     val parsedHouseNumber: ParsedHouseNumber,
     val egrnAddress: String,
-    val flags: List<ParsingFlags>
+    val flags: MutableList<ParsingFlags>
 ) {
     fun getOsmAddress(): OSMAddress {
         return OSMAddress(parsedPlace.name, parsedStreet.name, parsedHouseNumber.housenumber, parsedHouseNumber.flats)

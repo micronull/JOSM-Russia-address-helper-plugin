@@ -42,6 +42,8 @@ internal class HouseNumberIParserTest {
         assertEquals("5", testSample.parse("Калужская область, г Калуга, д Колюпаново, проезд Родниковый 4-й, д 5", fakeCoordinate).housenumber)
         assertEquals("16", testSample.parse("обл. Ленинградская, р-н Приозерский, с/пос. Сосновское, массив Орехово-Северное, ДПК Светлана, 3-ий Цветочный переулок, дом 16, уч. № 306", fakeCoordinate).housenumber)
         assertEquals("35", testSample.parse("обл. Московская р-н Мытищинский Сухаревский с.о. д. Шолохово д. 35", fakeCoordinate).housenumber)
+       // assertEquals("", testSample.parse("Калужская область, г. Калуга, проезд Академический 3-й", fakeCoordinate).housenumber)
+            //"обл. Калужская, р-н Жуковский, д. Верховье,, дом № 6, квартира № 2"
 
 
         //обл. Брянская, г. Брянск, пер. Белорусский, дом 30, корпус A - вообще непонятно, валидный ли это номер? для частного здания это явно ненормально
