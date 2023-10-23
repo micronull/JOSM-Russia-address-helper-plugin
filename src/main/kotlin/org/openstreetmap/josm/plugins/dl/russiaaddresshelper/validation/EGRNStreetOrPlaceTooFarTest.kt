@@ -203,7 +203,11 @@ class EGRNStreetOrPlaceTooFarTest : Test(
     override fun fixError(testError: TestError): Command? {
         val primitive = testError.primitives.first() //должен быть в каждой ошибке только 1 примитив
         val parsedResponse = RussiaAddressHelperPlugin.egrnResponses[primitive]
-        val parsedAddress = parsedResponse!!.third
+        if (parsedResponse == null) {
+            Logging.error("EGRN PLUGIN trying to fix building without EGRN response")
+            return null
+        }
+        val parsedAddress = parsedResponse.third
 
         val egrnTestCode = EGRNTestCode.getByCode(testError.code)
         val errorMessage = testError.message

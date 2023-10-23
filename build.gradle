@@ -8,7 +8,7 @@ plugins {
 }
 
 group 'org.openstreetmap.josm.plugins.dl.russiaaddresshelper'
-version '0.8.6.2'
+version '0.8.6.3'
 
 repositories {
     mavenCentral()
@@ -36,7 +36,7 @@ dependencies {
     packIntoJar 'com.github.kittinunf.fuel:fuel-jackson:2.3.1'
 
     testImplementation 'org.junit.vintage:junit-vintage-engine:5.8.2'
-    testImplementation 'org.mockito.kotlin:mockito-kotlin:4.0.0'
+    testImplementation 'org.mockito.kotlin:mockito-kotlin:5.1.0'
     testImplementation("org.openstreetmap.josm:josm-unittest:") { changing = true }
     testImplementation 'com.github.tomakehurst:wiremock-jre8:2.32.0'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.8.2'

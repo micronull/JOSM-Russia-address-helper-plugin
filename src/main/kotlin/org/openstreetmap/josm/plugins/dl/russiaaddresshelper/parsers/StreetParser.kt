@@ -1,7 +1,7 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers
 
 import org.openstreetmap.josm.data.coor.EastNorth
-import org.openstreetmap.josm.data.osm.OsmDataManager
+import org.openstreetmap.josm.data.osm.DataSet
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.StreetTypes
@@ -9,13 +9,13 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.StreetTypes
 class StreetParser : IParser<ParsedStreet> {
     private val streetTypes: StreetTypes = StreetTypes.byYml("/references/street_types.yml")
 
-    override fun parse(address: String, requestCoordinate: EastNorth): ParsedStreet {
+    override fun parse(address: String, requestCoordinate: EastNorth, editDataSet: DataSet): ParsedStreet {
         //тэги, откуда будут собираться возможные имена
         val altNames: List<String> = listOf("egrn_name", "alt_name", "old_name", "short_name")
         // Оставляем дороги у которых есть название
         // улицы, собранные отношениями, в которых на вэях нет тэгов??
 
-        val primitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives().filter { p ->
+        val primitives = editDataSet.allNonDeletedCompletePrimitives().filter { p ->
             p.hasKey("highway") && p.hasKey("name") && p.type.equals(OsmPrimitiveType.WAY)
         }
 

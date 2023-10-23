@@ -11,7 +11,7 @@ data class ParsedAddress(
     val flags: MutableList<ParsingFlags>
 ) {
     fun getOsmAddress(): OSMAddress {
-        return OSMAddress(parsedPlace.name, parsedStreet.name, parsedHouseNumber.housenumber, parsedHouseNumber.flats)
+        return OSMAddress(parsedPlace.name, parsedStreet.name, parsedHouseNumber.houseNumber, parsedHouseNumber.flats)
     }
 
     fun isBuildingAddress():Boolean {

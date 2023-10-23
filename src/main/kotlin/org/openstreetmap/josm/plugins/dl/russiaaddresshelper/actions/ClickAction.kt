@@ -115,9 +115,11 @@ class ClickAction : MapMode(
                             val defaultTagsForBadNode: Map<String, String> =
                                 mapOf("source:addr" to "ЕГРН", "fixme" to "REMOVE ME!")
 
-                            node.put("addr:RU:extracted_name", addr.parsedStreet.extractedName)
-                            node.put("addr:RU:extracted_type", addr.parsedStreet.extractedType?.name)
-                            node.put("addr:RU:parsed_housenumber", addr.parsedHouseNumber.housenumber)
+                            node.put("addr:RU:extracted_street_name", addr.parsedStreet.extractedName)
+                            node.put("addr:RU:extracted_street_type", addr.parsedStreet.extractedType?.name)
+                            node.put("addr:RU:extracted_place_name", addr.parsedPlace.extractedName)
+                            node.put("addr:RU:extracted_place_type", addr.parsedPlace.extractedType?.name)
+                            node.put("addr:RU:parsed_housenumber", addr.parsedHouseNumber.houseNumber)
                             node.put("addr:RU:parsed_flats", addr.parsedHouseNumber.flats)
                             defaultTagsForBadNode.forEach { (tagKey, tagValue) ->
                                 node.put(

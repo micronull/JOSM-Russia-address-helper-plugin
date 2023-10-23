@@ -243,4 +243,15 @@ class ParsedStreet(
         return getOsmObjectsByType(extractedType).filter { name == it["name"] || name == it["egrn_name"] }
             .toSet()
     }
+
+    fun removeEndingWith(address: String): String {
+        if (extractedType == null) return address
+        val matchedPattern = extractedType.egrn.asRegExpList().find { it.containsMatchIn(address) }
+        if (matchedPattern == null) {
+            Logging.error("EGRN PLUGIN RemoveEndingWith - somehow matched street type ${extractedType.name} doesnt match $address")
+            return address
+        }
+        val matchEndIndex = matchedPattern.findAll(address).last().groups["street"]?.range?.last ?: 0
+        return address.slice(matchEndIndex+1 until address.length)
+    }
 }

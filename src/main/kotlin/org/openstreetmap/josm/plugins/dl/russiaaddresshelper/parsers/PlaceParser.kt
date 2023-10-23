@@ -2,17 +2,17 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers
 
 import org.apache.commons.lang3.StringUtils
 import org.openstreetmap.josm.data.coor.EastNorth
-import org.openstreetmap.josm.data.osm.OsmDataManager
+import org.openstreetmap.josm.data.osm.DataSet
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.PlaceTypes
 
 class PlaceParser : IParser<ParsedPlace> {
     private val placeTypes: PlaceTypes = PlaceTypes.byYml("/references/place_types.yml")
 
-    override fun parse(address: String, requestCoordinate: EastNorth): ParsedPlace {
+    override fun parse(address: String, requestCoordinate: EastNorth, editDataSet: DataSet): ParsedPlace {
         // фильтруем все загруженные примитивы, основываясь на заданных в файле правилах - совпадению
         //имени с регэкспом и наличием тэгов с определенными значениями
-        val allLoadedPrimitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives()
+        val allLoadedPrimitives = editDataSet.allNonDeletedCompletePrimitives()
         //на вход подается мапа <тип, map<имя, List<примитив>>
         //необходимо отфильтровать в зависимости от типа
         val primitivesToCompare: MutableMap<String, Map<String, List<OsmPrimitive>>> = mutableMapOf()

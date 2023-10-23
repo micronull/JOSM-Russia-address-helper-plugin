@@ -82,8 +82,8 @@ class EGRNAddressAddedTest : Test(
         if (StringUtils.isNotBlank(prefferedAddress.parsedPlace.name)) {
             osmPlaceNameEditBox.text = prefferedAddress.parsedPlace.name
         }
-        if (StringUtils.isNotBlank(prefferedAddress.parsedHouseNumber.housenumber)) {
-            osmNumberEditBox.text = prefferedAddress.parsedHouseNumber.housenumber
+        if (StringUtils.isNotBlank(prefferedAddress.parsedHouseNumber.houseNumber)) {
+            osmNumberEditBox.text = prefferedAddress.parsedHouseNumber.houseNumber
         }
 
         p.add(JLabel("addr:street"), GBC.std())
@@ -130,7 +130,7 @@ class EGRNAddressAddedTest : Test(
                     tags.put("addr:place", placeName)
                 }
                 cmds.add(ChangePropertyCommand(listOf(primitive), tags))
-
+                RussiaAddressHelperPlugin.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
             } else {
                 Notification(I18n.tr("Address not complete and was not added to building")).setIcon(JOptionPane.WARNING_MESSAGE)
                     .show()
@@ -142,17 +142,12 @@ class EGRNAddressAddedTest : Test(
             val tagsToRemove = mutableMapOf<String, String?>("addr:place" to null,"addr:street" to null,
                 "addr:housenumber" to null ,"source:addr" to null, "addr:RU:egrn" to null)
             cmds.add(ChangePropertyCommand(listOf(primitive), tagsToRemove))
-                //нужен ли тут игнор?
-            //RussiaAddressHelperPlugin.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
+            RussiaAddressHelperPlugin.ignoreAllValidators(primitive)
         }
 
         if (cmds.isNotEmpty()) {
             val c: Command =
                 SequenceCommand(I18n.tr("Modified tags from RussiaAddressHelper AddressAdded validator"), cmds)
-            testError.primitives.forEach {
-                RussiaAddressHelperPlugin.egrnResponses.remove(it)
-            }
-
             return c
         }
 

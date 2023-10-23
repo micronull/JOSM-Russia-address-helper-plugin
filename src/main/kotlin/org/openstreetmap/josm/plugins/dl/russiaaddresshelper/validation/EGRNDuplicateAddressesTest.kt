@@ -199,6 +199,12 @@ class EGRNDuplicateAddressesTest : Test(
                 )
             )
             msg = "Added duplicate address tags to all found primitives"
+
+            affectedPrimitives.forEach {
+                if (RussiaAddressHelperPlugin.egrnResponses[it] != null) {
+                    RussiaAddressHelperPlugin.ignoreValidator(it, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)
+                }
+            }
         }
 
         if (answer == 4) {

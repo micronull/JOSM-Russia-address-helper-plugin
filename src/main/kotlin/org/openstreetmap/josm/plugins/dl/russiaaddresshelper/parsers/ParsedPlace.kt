@@ -73,6 +73,7 @@ data class ParsedPlace(
                 }
 
                 if (filteredOsmPlaceName.lowercase() == filteredEgrnPlaceName.lowercase()) {
+                    if (filteredOsmPlaceName.contains(Regex("""\d"""))) flags.add(ParsingFlags.PLACE_HAS_NUMBERED_NAME)
                     return ParsedPlace(osmNameTagValue, egrnPlaceName, parsedPlaceType, osmPlaceEntry.value, flags)
                 } else {
                     if (matchedNumberedPlace(
@@ -94,6 +95,7 @@ data class ParsedPlace(
 
                     if (matchedWithoutInitials(filteredEgrnPlaceName, filteredOsmPlaceName)) {
                         flags.add(ParsingFlags.PLACE_NAME_INITIALS_MATCH)
+
                         Logging.warn("EGRN-PLUGIN Matched OSM place name without initials $egrnPlaceName -> $osmObjectComparisonName")
                         return ParsedPlace(
                             osmNameTagValue,
@@ -221,6 +223,17 @@ data class ParsedPlace(
         }
         return getOsmObjectsByType(extractedType).filter { name == it["name"] || name == it["egrn_name"] }
             .toSet()
+    }
+
+    fun removeEndingWith(address: String): String {
+        if (extractedType == null) return address
+        val matchedPattern = extractedType.egrn.asRegExpList().find { it.containsMatchIn(address) }
+        if (matchedPattern == null) {
+            Logging.error("EGRN PLUGIN RemoveEndingWith - somehow matched place type ${extractedType.name} doesnt match $address")
+            return address
+        }
+        val matchEndIndex = matchedPattern.findAll(address).last().groups["place"]?.range?.last ?: 0
+        return address.slice(matchEndIndex+1 until address.length)
     }
 
 }

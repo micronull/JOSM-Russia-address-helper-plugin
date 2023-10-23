@@ -42,7 +42,7 @@ class EGRNPlaceNotFoundTest : Test(
             }
             addresses.forEach {
                 if (it.flags.contains(ParsingFlags.CANNOT_FIND_PLACE_OBJECT_IN_OSM)
-                    && (StringUtils.isNotBlank(it.parsedHouseNumber.housenumber)
+                    && (StringUtils.isNotBlank(it.parsedHouseNumber.houseNumber)
                             && !RussiaAddressHelperPlugin.isIgnored(primitive, EGRNTestCode.EGRN_NOT_MATCHED_OSM_PLACE))
                     &&(!it.flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM))
                     &&(!it.flags.contains(ParsingFlags.STREET_NAME_FUZZY_MATCH))
@@ -91,7 +91,7 @@ class EGRNPlaceNotFoundTest : Test(
                 val prefferedAddress: ParsedAddress = addresses.first()
                 egrnPlaceName =
                     "${prefferedAddress.parsedPlace.extractedType?.name} ${prefferedAddress.parsedPlace.extractedName}"
-                prefferedAddress.parsedHouseNumber.housenumber.let { it1 -> affectedHousenumbers.add(it1) }
+                prefferedAddress.parsedHouseNumber.houseNumber.let { it1 -> affectedHousenumbers.add(it1) }
             }
         }
         affectedHousenumbers.sort()
@@ -151,7 +151,6 @@ class EGRNPlaceNotFoundTest : Test(
 
             return null
         }
-        val cmds: MutableList<Command> = mutableListOf()
         if (answer == 1) {
             val dataSet: DataSet = OsmDataManager.getInstance().editDataSet ?: return null
             dataSet.setSelected(testError.primitives)

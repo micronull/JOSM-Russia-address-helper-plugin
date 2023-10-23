@@ -108,7 +108,7 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
                 egrnPlaceType = prefferedAddress.parsedPlace.extractedType!!.name
                 osmPlaceName = prefferedAddress.parsedPlace.name
                 affectedAddresses.add(prefferedAddress)
-                prefferedAddress.parsedHouseNumber.housenumber.let { it1 -> affectedHousenumbers.add(it1) }
+                prefferedAddress.parsedHouseNumber.houseNumber.let { it1 -> affectedHousenumbers.add(it1) }
             }
         }
 
@@ -168,13 +168,14 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
         }
         val cmds: MutableList<Command> = mutableListOf()
         if (answer == 1) {
-            testError.primitives.forEach {
-                val egrnResult = RussiaAddressHelperPlugin.egrnResponses[it]
-                if (egrnResult != null) {
-                    var tags = egrnResult.third.getPreferredAddress()!!.getOsmAddress().getBaseAddressTagsWithSource()
-                    tags = tags.plus(Pair("addr:RU:egrn", egrnResult.third.getPreferredAddress()!!.egrnAddress))
-                    cmds.add(ChangePropertyCommand(mutableListOf(it), tags))
-                }
+            val filteredPrimitives =
+                testError.primitives.filter { RussiaAddressHelperPlugin.egrnResponses[it] != null }.toMutableList()
+            RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
+            filteredPrimitives.forEach {
+                val prefferedAddress = RussiaAddressHelperPlugin.egrnResponses[it]!!.third.getPreferredAddress()
+                var tags = prefferedAddress!!.getOsmAddress().getBaseAddressTagsWithSource()
+                tags = tags.plus(Pair("addr:RU:egrn", prefferedAddress.egrnAddress))
+                cmds.add(ChangePropertyCommand(listOf(it), tags))
             }
         }
 

@@ -65,7 +65,7 @@ class EGRNInitialsStreetMatchingTest : Test(
             errorPrimitives.forEach{RussiaAddressHelperPlugin.markAsProcessed(it, EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)}
             errors.add(
                 TestError.builder(
-                    this, Severity.WARNING,
+                    this, Severity.ERROR,
                     EGRNTestCode.EGRN_STREET_MATCH_WITHOUT_INITIALS.code
                 )
                     .message(I18n.tr("EGRN initials match") + ": ${entry.key} " + " -> " + entry.value.second)
@@ -89,7 +89,7 @@ class EGRNInitialsStreetMatchingTest : Test(
                 egrnStreetName =
                     "${prefferedAddress!!.parsedStreet.extractedType?.name} ${prefferedAddress.parsedStreet.extractedName}"
                 osmStreetName = prefferedAddress.parsedStreet.name
-                prefferedAddress.parsedHouseNumber.housenumber.let { it1 -> affectedHousenumbers.add(it1) }
+                prefferedAddress.parsedHouseNumber.houseNumber.let { it1 -> affectedHousenumbers.add(it1) }
             } else {
                 affectedHighways.add(it)
             }
@@ -140,13 +140,16 @@ class EGRNInitialsStreetMatchingTest : Test(
         }
         val cmds: MutableList<Command> = mutableListOf()
         if (answer == 1) {
-            testError.primitives.forEach {
-                val egrnResult = RussiaAddressHelperPlugin.egrnResponses[it]
-                if (egrnResult != null) {
-                    var tags = egrnResult.third.getPreferredAddress()!!.getOsmAddress().getBaseAddressTagsWithSource()
-                    tags = tags.plus(Pair("addr:RU:egrn", egrnResult.third.getPreferredAddress()!!.egrnAddress))
-                    cmds.add(ChangePropertyCommand(mutableListOf(it), tags))
-                }
+
+            val filteredPrimitives =
+                testError.primitives.filter { RussiaAddressHelperPlugin.egrnResponses[it] != null }.toMutableList()
+            RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
+            filteredPrimitives.forEach {
+                val prefferedAddress = RussiaAddressHelperPlugin.egrnResponses[it]!!.third.getPreferredAddress()
+                var tags = prefferedAddress!!.getOsmAddress().getBaseAddressTagsWithSource()
+                tags = tags.plus(Pair("addr:street", editedOsmStreetName))
+                tags = tags.plus(Pair("addr:RU:egrn", prefferedAddress.egrnAddress))
+                cmds.add(ChangePropertyCommand(listOf(it), tags))
             }
         }
 

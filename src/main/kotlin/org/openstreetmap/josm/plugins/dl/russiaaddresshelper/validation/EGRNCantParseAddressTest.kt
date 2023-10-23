@@ -115,8 +115,8 @@ class EGRNCantParseAddressTest : Test(
             if (StringUtils.isNotBlank(it.parsedPlace.name)) {
                 osmPlaceNameEditBox.text = it.parsedPlace.name
             }
-            if (StringUtils.isNotBlank(it.parsedHouseNumber.housenumber)) {
-                osmNumberEditBox.text = it.parsedHouseNumber.housenumber
+            if (StringUtils.isNotBlank(it.parsedHouseNumber.houseNumber)) {
+                osmNumberEditBox.text = it.parsedHouseNumber.houseNumber
             }
         }
         val egrnAddressesLabel = JMultilineLabel(labelText, false, true)

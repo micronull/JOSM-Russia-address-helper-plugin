@@ -2,6 +2,7 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers
 
 import org.apache.commons.lang3.StringUtils
 import org.openstreetmap.josm.data.coor.EastNorth
+import org.openstreetmap.josm.data.osm.DataSet
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Patterns
 import org.openstreetmap.josm.tools.Logging
@@ -9,12 +10,13 @@ import org.openstreetmap.josm.tools.Logging
 class HouseNumberParser : IParser<ParsedHouseNumber> {
     private val patterns = Patterns.byYml("/references/house_patterns.yml").asRegExpList()
 
-    override fun parse(address: String, requestCoordinate: EastNorth): ParsedHouseNumber {
+    override fun parse(address: String, requestCoordinate: EastNorth, editDataSet: DataSet): ParsedHouseNumber {
         val parsingFlags = mutableListOf<ParsingFlags>()
         for (pattern in patterns) {
             val match = pattern.find(address)
 
             if (match != null) {
+
                 var houseNumber =
                     match.groups["housenumber"]!!.value.filterNot { it == '"' || it == ' ' || it == '-' || it == '«' || it == '»' }
                         .trim().uppercase()
@@ -22,7 +24,7 @@ class HouseNumberParser : IParser<ParsedHouseNumber> {
                     //это пока не работает поскольку регекс для номера дома изменился, надо откат?
                     Logging.error("EGRN-PLUGIN Cant parse housenumber from address: $address, housenumber too big")
                     parsingFlags.add(ParsingFlags.HOUSENUMBER_TOO_BIG)
-                    return ParsedHouseNumber("", "", parsingFlags)
+                    return ParsedHouseNumber("", "", null, parsingFlags)
                 }
                 val letter = match.groups["letter"]?.value?.trim()?:""
                 houseNumber += letter
@@ -50,7 +52,7 @@ class HouseNumberParser : IParser<ParsedHouseNumber> {
                     Logging.info("EGRN-PLUGIN Parsed and removed flat numbers from address $address : $parsedFlats $roomNumbers ")
                 }
 
-                return ParsedHouseNumber(houseNumber, parsedFlats, parsingFlags)
+                return ParsedHouseNumber(houseNumber, parsedFlats, pattern, parsingFlags)
             }
             Logging.error("EGRN-PLUGIN Cant parse housenumber from address: $address")
         }
@@ -60,6 +62,6 @@ class HouseNumberParser : IParser<ParsedHouseNumber> {
         } else {
             parsingFlags.add(ParsingFlags.HOUSENUMBER_CANNOT_BE_PARSED)
         }
-        return ParsedHouseNumber("", "", parsingFlags)
+        return ParsedHouseNumber("", "", null, parsingFlags)
     }
 }

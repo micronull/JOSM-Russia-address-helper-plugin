@@ -39,7 +39,7 @@ class EGRNStreetNotFoundTest : Test(
             val addresses = addressInfo.addresses
             addresses.forEach {
                 if (it.flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM)
-                    && (StringUtils.isNotBlank(it.parsedHouseNumber.housenumber))
+                    && (StringUtils.isNotBlank(it.parsedHouseNumber.houseNumber))
                     && (!RussiaAddressHelperPlugin.isIgnored(primitive,EGRNTestCode.EGRN_NOT_MATCHED_OSM_STREET))
                     && !primitive.hasTag("addr:street")
                 ) {
@@ -81,7 +81,7 @@ class EGRNStreetNotFoundTest : Test(
                 affectedAddresses.addAll(addresses)
                 egrnStreetName =
                     "${prefferedAddress.parsedStreet.extractedType?.name} ${prefferedAddress.parsedStreet.extractedName}"
-                prefferedAddress.parsedHouseNumber.housenumber.let { it1 -> affectedHousenumbers.add(it1) }
+                prefferedAddress.parsedHouseNumber.houseNumber.let { it1 -> affectedHousenumbers.add(it1) }
             }
         }
 

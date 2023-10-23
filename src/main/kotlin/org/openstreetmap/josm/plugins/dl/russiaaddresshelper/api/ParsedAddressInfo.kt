@@ -33,6 +33,7 @@ enum class ParsingFlags {
     STREET_HAS_NUMBERED_NAME, //улица пронумерована
     CANNOT_FIND_PLACE_TYPE, //ЕГРН адрес не совпал ни с одним регекспом для имени места
     CANNOT_FIND_PLACE_OBJECT_IN_OSM, //удалось разобрать адрес из ЕГРН, но в данных ОСМ не нашлось соответствующего обьекта
+    UNSUPPORTED_ADDRESS_TYPE, //адрес разобран но, результат не может быть (автоматически) назначен обьекту ОСМ
     PLACE_HAS_NUMBERED_NAME,
     PLACE_NAME_INITIALS_MATCH,
     PLACE_NAME_FUZZY_MATCH,

@@ -1,12 +1,12 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers
 
 import org.openstreetmap.josm.data.coor.EastNorth
+import org.openstreetmap.josm.data.osm.DataSet
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.OSMAddress
 import org.openstreetmap.josm.tools.Logging
 
 class AddressParser : IParser<ParsedAddress> {
-    override fun parse(address: String, requestCoordinate: EastNorth): ParsedAddress {
+    override fun parse(address: String, requestCoordinate: EastNorth, editDataSet: DataSet): ParsedAddress {
         val streetParser = StreetParser()
         val houseNumberParser = HouseNumberParser()
         val placeParser = PlaceParser()
@@ -16,33 +16,42 @@ class AddressParser : IParser<ParsedAddress> {
             .replace("«", "\"")
             .replace("»", "\"")
             .replace(" ", " ")
+            .replace(",,", ",")
             .replace(Regex(""",\s*Россия\s*\.?$"""), "")
 
         //убираем все в круглых скобках - неединичные случаи дублирования номера дома прописью
         //Калужская область, Боровский район, деревня Кабицыно, улица А. Кабаевой, дом 25 (Двадцать пять)
         filteredEgrnAddress = filteredEgrnAddress.replace(Regex("""\(([А-Яа-я ])+\)"""), "")
 
-        val placeParseResult = placeParser.parse(filteredEgrnAddress, requestCoordinate)
-        val streetParseResult = streetParser.parse(filteredEgrnAddress, requestCoordinate)
-        var houseNumberParse = houseNumberParser.parse(filteredEgrnAddress, requestCoordinate)
+        val placeParseResult = placeParser.parse(filteredEgrnAddress, requestCoordinate, editDataSet)
+        val streetParseResult = streetParser.parse(filteredEgrnAddress, requestCoordinate, editDataSet)
+        var houseNumberParse = houseNumberParser.parse(filteredEgrnAddress, requestCoordinate, editDataSet)
+
+        //костыли-костылики... эту часть надо будет заменить полноценным тестом на взаимопроникновение частей адреса друг в друга
         if (streetParseResult.flags.contains(ParsingFlags.STREET_HAS_NUMBERED_NAME)
             && houseNumberParser.parse(
                 streetParseResult.extractedName,
-                requestCoordinate
-            ).housenumber == houseNumberParse.housenumber
+                requestCoordinate,
+            editDataSet).houseNumber == houseNumberParse.houseNumber
         ) {
-            Logging.warn("EGRN-PLUGIN Discard housenumber parsing result, because street name ${streetParseResult.extractedName} contains housenumber ${houseNumberParse.housenumber}")
+            Logging.warn("EGRN-PLUGIN Discard housenumber parsing result, because street name ${streetParseResult.extractedName} contains housenumber ${houseNumberParse.houseNumber}")
             houseNumberParse =
-                ParsedHouseNumber("", "", houseNumberParse.flags.plus(ParsingFlags.HOUSENUMBER_CANNOT_BE_PARSED))
+                ParsedHouseNumber("", "", null, houseNumberParse.flags.plus(ParsingFlags.HOUSENUMBER_CANNOT_BE_PARSED))
         }
-        val parsedOsmAddress =
-            OSMAddress(
-                placeParseResult.name,
-                streetParseResult.name,
-                houseNumberParse.housenumber,
-                houseNumberParse.flats
-            )
+
+        val placeParseAddress = "${placeParseResult.extractedType?.name} ${placeParseResult.extractedName}"
+        if (placeParseResult.flags.contains(ParsingFlags.PLACE_HAS_NUMBERED_NAME)
+            && houseNumberParser.parse(placeParseAddress,
+                requestCoordinate,
+                editDataSet).houseNumber == houseNumberParse.houseNumber
+        ) {
+            Logging.warn("EGRN-PLUGIN Discard housenumber parsing result, because place name $placeParseAddress contains housenumber ${houseNumberParse.houseNumber}")
+            houseNumberParse =
+                ParsedHouseNumber("", "", null, houseNumberParse.flags.plus(ParsingFlags.HOUSENUMBER_CANNOT_BE_PARSED))
+        }
+
         val allParsingFlags: MutableList<ParsingFlags> = mutableListOf()
+
         //возможно, тут стоит подавлять добавление флагов парсинга места, если улица успешно распозналась?
         allParsingFlags.addAll(placeParseResult.flags)
         allParsingFlags.addAll(streetParseResult.flags)
@@ -55,4 +64,17 @@ class AddressParser : IParser<ParsedAddress> {
             allParsingFlags
         )
     }
+
+    private fun parsedPartsHasSomethingBetweenThem(
+        address: String,
+        place: ParsedPlace,
+        street: ParsedStreet,
+        houseNumber: ParsedHouseNumber
+    ): Boolean {
+        val addressWithoutHouseNumber = houseNumber.removeStartingAt(address)
+        val addressWithoutStreet = street.removeEndingWith(addressWithoutHouseNumber)
+        val addressWithoutPlace = place.removeEndingWith(addressWithoutHouseNumber)
+        return (minOf(addressWithoutStreet.length, addressWithoutPlace.length) > 3)
+    }
+
 }
