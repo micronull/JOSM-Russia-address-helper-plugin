@@ -142,4 +142,4 @@
 
 ## Изменения  
 
-[см. CHANGELOG.md](https://https://github.com/micronull/JOSM-Russia-address-helper-plugin/blob/master/CHANGELOG.md)
+[см. CHANGELOG.md](https://github.com/micronull/JOSM-Russia-address-helper-plugin/blob/master/CHANGELOG.md)
