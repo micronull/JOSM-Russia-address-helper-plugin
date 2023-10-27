@@ -30,7 +30,7 @@ class PlaceParser : IParser<ParsedPlace> {
                 } else {
                     var existingPrimitives = primitivesGroupedByName[entry.key]
                     existingPrimitives = existingPrimitives!!.plus(entry.value)
-                    primitivesGroupedByName.put(entry.key, existingPrimitives)
+                    primitivesGroupedByName[entry.key] = existingPrimitives
                 }
             }
             primitivesToCompare.putIfAbsent(type.name, primitivesGroupedByName)

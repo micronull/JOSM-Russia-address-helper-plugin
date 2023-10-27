@@ -39,7 +39,8 @@ class EGRNInitialsStreetMatchingTest : Test(
             val addresses = addressInfo.addresses
             addresses.forEach {
                 if (addressInfo.getPreferredAddress() == it) {
-                    if (it.flags.contains(ParsingFlags.STREET_NAME_INITIALS_MATCH) && !primitive.hasTag("addr:street")) {
+                    if (it.flags.contains(ParsingFlags.STREET_NAME_INITIALS_MATCH) && !primitive.hasTag("addr:street")
+                        && !RussiaAddressHelperPlugin.isIgnored(primitive, EGRNTestCode.EGRN_PLACE_MATCH_WITHOUT_INITIALS)                            ) {
                         val parsedStreetName = it.parsedStreet.extractedType?.name + " " + it.parsedStreet.extractedName
                         val osmObjName = it.parsedStreet.name
                         var affectedPrimitives =
@@ -143,7 +144,8 @@ class EGRNInitialsStreetMatchingTest : Test(
 
             val filteredPrimitives =
                 testError.primitives.filter { RussiaAddressHelperPlugin.egrnResponses[it] != null }.toMutableList()
-            RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
+            val doubles = RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
+            RussiaAddressHelperPlugin.ignoreValidator(doubles, EGRNTestCode.EGRN_STREET_MATCH_WITHOUT_INITIALS)
             filteredPrimitives.forEach {
                 val prefferedAddress = RussiaAddressHelperPlugin.egrnResponses[it]!!.third.getPreferredAddress()
                 var tags = prefferedAddress!!.getOsmAddress().getBaseAddressTagsWithSource()

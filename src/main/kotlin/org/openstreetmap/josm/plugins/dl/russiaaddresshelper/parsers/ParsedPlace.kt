@@ -39,7 +39,7 @@ data class ParsedPlace(
                 return emptyParsedPlace()
             }
 
-            val filteredEgrnAddress = address.replace("ё", "е")
+            val filteredEgrnAddress = address.replace("ё", "е").replace("\"", "")
             val flags: MutableList<ParsingFlags> = mutableListOf()
 
             val parsedPlaceType = placeTypes.types.find { it.hasEgrnMatch(address) }

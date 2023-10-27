@@ -1,6 +1,7 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation.correction
 
 import org.openstreetmap.josm.gui.correction.CorrectionTable
+import java.awt.Color
 import java.awt.Component
 import java.awt.Font
 import javax.swing.JList
@@ -31,21 +32,29 @@ class MultipleAddressCorrectionTable(corrections: MutableList<AddressCorrection>
                         table.setRowHeight(row, newHeight)
                     }
                 }
+            } else {
+                val valueAsArray = arrayOf((value as String))
+                setListData(valueAsArray)
             }
 
             val model = table.model as AddressCorrectionTableModel
             val f = font
-            if (model.isBoldCell(row, column)) {
-                font = Font(f.name, f.style or Font.BOLD, f.size)
+            font = if (model.isBoldCell(row, column)) {
+                Font(f.name, f.style or Font.BOLD, f.size)
             } else {
-                font = Font(f.name, f.style xor Font.BOLD, f.size)
+                Font(f.name, f.style xor Font.BOLD, f.size)
+            }
+            if (model.isFilled(row, column)) {
+                this.background = Color.PINK
+            } else {
+                this.background = Color.WHITE
             }
             return this
         }
     }
 
     override fun getCellRenderer(row: Int, column: Int): TableCellRenderer? {
-        return if (column == 0) {
+        return if (column < 3) {
             multilineTableCellRenderer
         } else {
             super.getCellRenderer(row, column)

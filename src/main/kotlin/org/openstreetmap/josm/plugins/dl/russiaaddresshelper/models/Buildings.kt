@@ -353,7 +353,7 @@ class Buildings(objects: List<OsmPrimitive>) {
     private fun sanitize() {
         items.removeAll { it.preparedTags.isEmpty() }
 
-        if (TagSettingsReader.ENABLE_CLEAR_DOUBLE.get() && items.isNotEmpty()) {
+        if (items.isNotEmpty()) {
             items = DeleteDoubles().clear(items)
         }
     }

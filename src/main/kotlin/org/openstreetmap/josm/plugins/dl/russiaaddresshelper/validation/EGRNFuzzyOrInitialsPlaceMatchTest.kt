@@ -40,9 +40,11 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
             val address = addressInfo.getPreferredAddress()
 
             if (address != null && !(primitive.hasTag("addr:place") || primitive.hasTag("addr:street"))) {
-                val code: EGRNTestCode = if (address.flags.contains(ParsingFlags.PLACE_NAME_FUZZY_MATCH)) {
+                val code: EGRNTestCode = if (address.flags.contains(ParsingFlags.PLACE_NAME_FUZZY_MATCH)
+                    && !RussiaAddressHelperPlugin.isIgnored(primitive, EGRNTestCode.EGRN_PLACE_FUZZY_MATCHING)) {
                     EGRNTestCode.EGRN_PLACE_FUZZY_MATCHING
-                } else if (address.flags.contains(ParsingFlags.PLACE_NAME_INITIALS_MATCH)) {
+                } else if (address.flags.contains(ParsingFlags.PLACE_NAME_INITIALS_MATCH)
+                    && !RussiaAddressHelperPlugin.isIgnored(primitive, EGRNTestCode.EGRN_PLACE_MATCH_WITHOUT_INITIALS)) {
                     EGRNTestCode.EGRN_PLACE_MATCH_WITHOUT_INITIALS
                 } else {
                     return@forEach
@@ -170,7 +172,8 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
         if (answer == 1) {
             val filteredPrimitives =
                 testError.primitives.filter { RussiaAddressHelperPlugin.egrnResponses[it] != null }.toMutableList()
-            RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
+            val doubles = RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
+            RussiaAddressHelperPlugin.ignoreValidator(doubles, EGRNTestCode.getByCode(testError.code)!!)
             filteredPrimitives.forEach {
                 val prefferedAddress = RussiaAddressHelperPlugin.egrnResponses[it]!!.third.getPreferredAddress()
                 var tags = prefferedAddress!!.getOsmAddress().getBaseAddressTagsWithSource()

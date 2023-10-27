@@ -10,7 +10,6 @@ import javax.swing.*
 
 class TagSettingsPanel : JPanel(GridBagLayout()) {
     private val egrnAddrRecord = JCheckBox(I18n.tr("Record address from egrn to addr:RU:egrn tag."))
-    private val doubleClear = JCheckBox(I18n.tr("Enable duplicate cleaning."))
     private val doubleClearDistance = JosmTextField(4)
 
     init {
@@ -19,9 +18,6 @@ class TagSettingsPanel : JPanel(GridBagLayout()) {
 
         egrnAddrRecord.isSelected = TagSettingsReader.EGRN_ADDR_RECORD.get()
         panel.add(egrnAddrRecord, GBC.eol().insets(0, 0, 0, 0))
-
-        doubleClear.isSelected = TagSettingsReader.ENABLE_CLEAR_DOUBLE.get()
-        panel.add(doubleClear, GBC.eol().insets(0, 0, 0, 0))
 
         panel.add(JLabel(I18n.tr("Duplicates search distance in meters")), GBC.std())
         doubleClearDistance.text = TagSettingsReader.CLEAR_DOUBLE_DISTANCE.get().toString()
@@ -35,7 +31,6 @@ class TagSettingsPanel : JPanel(GridBagLayout()) {
      */
     fun saveToPreferences() {
         TagSettingsReader.EGRN_ADDR_RECORD.put(egrnAddrRecord.isSelected)
-        TagSettingsReader.ENABLE_CLEAR_DOUBLE.put(doubleClear.isSelected)
         val distanceText = doubleClearDistance.getText()
         try {
             var distance = Integer.valueOf(distanceText)

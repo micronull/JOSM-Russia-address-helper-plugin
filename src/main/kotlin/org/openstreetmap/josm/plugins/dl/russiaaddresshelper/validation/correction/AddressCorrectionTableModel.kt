@@ -75,4 +75,9 @@ class AddressCorrectionTableModel(corrections: List<AddressCorrection>) :
         }
     }
 
+    fun isFilled(row: Int, column: Int): Boolean {
+        val correction =  this.corrections[row] as AddressCorrection
+        return correction.hasDouble
+    }
+
 }

@@ -72,7 +72,8 @@ class EGRNMultipleValidAddressTest : Test(
 
 
         }
-        val corrections = affectedAddresses.map { AddressCorrection(it) }.toMutableList()
+        val doubledAddresses = RussiaAddressHelperPlugin.findDoubledAddresses(affectedAddresses)
+        val corrections = affectedAddresses.map { AddressCorrection(it, doubledAddresses.contains(it)) }.toMutableList()
         var prefferedIndex = corrections.indexOfFirst { it.address.isBuildingAddress() }
         if (prefferedIndex == -1) {
             prefferedIndex = 0
@@ -84,7 +85,9 @@ class EGRNMultipleValidAddressTest : Test(
 
         val infoLabel = JMultilineLabel(
             "Для одного здания было получено более одного распознанного адреса." +
-                    "<br>Выберите верный (обычно это адрес типа <b><ЗДАНИЕ</b>), или оставьте здание без адреса"
+                    "<br>Выберите верный (обычно это адрес типа <b><ЗДАНИЕ</b>), или оставьте здание без адреса" +
+                    "<br>Жирным выделен текущий выбранный для присвоения адрес" +
+                    "<br>Цветной заливкой выделены адреса, которые дублируют уже существующие на карте"
         )
         infoLabel.setMaxWidth(800)
 

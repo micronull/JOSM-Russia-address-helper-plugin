@@ -40,7 +40,8 @@ class EGRNFuzzyStreetMatchingTest : Test(
             val addresses = addressInfo.addresses
             addresses.forEach {
                 if (addressInfo.getPreferredAddress() == it) {
-                    if (it.flags.contains(ParsingFlags.STREET_NAME_FUZZY_MATCH) && !primitive.hasTag("addr:street")) {
+                    if (it.flags.contains(ParsingFlags.STREET_NAME_FUZZY_MATCH) && !primitive.hasTag("addr:street")
+                        && !RussiaAddressHelperPlugin.isIgnored(primitive, EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)) {
                         val parsedStreetName = it.parsedStreet.extractedType?.name + " " + it.parsedStreet.extractedName
                         val osmObjName = it.parsedStreet.name
                         var affectedPrimitives =
@@ -172,7 +173,8 @@ class EGRNFuzzyStreetMatchingTest : Test(
 
             val filteredPrimitives =
                 testError.primitives.filter { RussiaAddressHelperPlugin.egrnResponses[it] != null }.toMutableList()
-            RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
+            val doubled = RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
+            RussiaAddressHelperPlugin.ignoreValidator(doubled, EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)
             filteredPrimitives.forEach {
                 val prefferedAddress = RussiaAddressHelperPlugin.egrnResponses[it]!!.third.getPreferredAddress()
                 var tags = prefferedAddress!!.getOsmAddress().getBaseAddressTagsWithSource()

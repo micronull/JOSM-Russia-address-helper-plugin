@@ -20,6 +20,7 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions.SelectActio
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNResponse
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnApi
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsedAddressInfo
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.PluginSetting
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.uploadhooks.EGRNCleanPluginCache
@@ -45,11 +46,13 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
 
         lateinit var versionInfo: String
 
-        var egrnResponses: MutableMap<OsmPrimitive, Triple<EastNorth?, EGRNResponse, ParsedAddressInfo>> = mutableMapOf()
+        var egrnResponses: MutableMap<OsmPrimitive, Triple<EastNorth?, EGRNResponse, ParsedAddressInfo>> =
+            mutableMapOf()
         var ignoredValidators: MutableMap<OsmPrimitive, MutableSet<EGRNTestCode>> = mutableMapOf()
 
-        val egrnUploadTagFilterHook : EGRNUploadTagFilter = EGRNUploadTagFilter()
-        val cleanPluginCacheHook : EGRNCleanPluginCache = EGRNCleanPluginCache()
+        val egrnUploadTagFilterHook: EGRNUploadTagFilter = EGRNUploadTagFilter()
+        val cleanPluginCacheHook: EGRNCleanPluginCache = EGRNCleanPluginCache()
+
         //debug tool, to get any buildings which were processed by plugin but not validated
         var processedByValidators: MutableMap<OsmPrimitive, MutableSet<EGRNTestCode>> = mutableMapOf()
 
@@ -79,6 +82,10 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             }
         }
 
+        fun ignoreValidator(primitives: Collection<OsmPrimitive>, code: EGRNTestCode) {
+            primitives.forEach { ignoreValidator(it, code) }
+        }
+
         fun ignoreAllValidators(primitive: OsmPrimitive) {
             ignoredValidators[primitive] = EGRNTestCode.values().toMutableSet()
         }
@@ -92,29 +99,29 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         fun markAsProcessed(primitive: OsmPrimitive, code: EGRNTestCode) {
             val processedByValidators = RussiaAddressHelperPlugin.processedByValidators[primitive]
             if (processedByValidators == null || processedByValidators.isEmpty()) {
-                    RussiaAddressHelperPlugin.processedByValidators[primitive] = mutableSetOf(code)
+                RussiaAddressHelperPlugin.processedByValidators[primitive] = mutableSetOf(code)
             } else {
                 processedByValidators.add(code)
                 RussiaAddressHelperPlugin.processedByValidators[primitive] = processedByValidators
             }
         }
 
-        fun removeFromAllCaches (primitive: OsmPrimitive) {
-            if (egrnResponses[primitive]!=null) {
+        fun removeFromAllCaches(primitive: OsmPrimitive) {
+            if (egrnResponses[primitive] != null) {
                 egrnResponses.remove(primitive)
             }
             if (ignoredValidators[primitive] != null) {
                 ignoredValidators.remove(primitive)
             }
-            if (processedByValidators[primitive]!=null) {
+            if (processedByValidators[primitive] != null) {
                 processedByValidators.remove(primitive)
             }
         }
 
         fun emptyAllCaches() {
-                egrnResponses.clear()
-                ignoredValidators.clear()
-                processedByValidators.clear()
+            egrnResponses.clear()
+            ignoredValidators.clear()
+            processedByValidators.clear()
         }
 
         fun getUnprocessedEntities() {
@@ -127,7 +134,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             }
         }
 
-        fun runEgrnValidation(selection : Collection<OsmPrimitive?>) {
+        fun runEgrnValidation(selection: Collection<OsmPrimitive?>) {
             val map = MainApplication.getMap()
             if (map == null || !map.isVisible) return
 
@@ -135,7 +142,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
 
             //лучше бы фильтровать более надежным методом, но я его не придумал
             val egrnTests = OsmValidator.getEnabledTests(false)
-                .filter { test -> test.name.contains("ЕГРН") || test.name.contains("EGRN")}
+                .filter { test -> test.name.contains("ЕГРН") || test.name.contains("EGRN") }
             if (egrnTests.isEmpty()) return
 
             MainApplication.worker.submit(ValidationTask(egrnTests, selection, null))
@@ -143,29 +150,26 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
 
         fun cleanFromDoubles(primitives: MutableList<OsmPrimitive>): Set<OsmPrimitive> {
             //получает на вход мутабельный список примитивов, которым хотим присвоить адрес.
-            //удаляем из него все примитивы, для которых есть дубликат адреса в ОСМ или среди них самих
+            //удаляем из него все примитивы, для которых есть дубликат предпочитаемого адреса в ОСМ или среди них самих
             //возвращаем список дублей
-            val needToAssignAddressPrimitives = primitives.filter { egrnResponses[it]!=null
-                    && egrnResponses[it]?.third?.getPreferredAddress() != null
-                    && !it.hasKey("addr:housenumber") }
+            val needToAssignAddressPrimitives = primitives.filter {
+                egrnResponses[it] != null
+                        && egrnResponses[it]?.third?.getPreferredAddress() != null
+                        && !it.hasKey("addr:housenumber")
+            }
             val needToAssignAddressPrimitivesMap = needToAssignAddressPrimitives.groupBy { getParsedInlineAddress(it) }
 
-            val doubleAddressPrimitives : MutableSet<OsmPrimitive> = mutableSetOf()
-            val osmBuildingsWithAddress = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives()
-                .filter { p ->
-                    p !is Node && p.hasKey("building") && p.hasKey("addr:housenumber") && (p.hasKey("addr:street") || p.hasKey(
-                        "addr:place"
-                    ))
-                }
-            val osmBuildingsAddressMap = osmBuildingsWithAddress.groupBy { getOsmInlineAddress(it) }
+            val doubleAddressPrimitives: MutableSet<OsmPrimitive> = mutableSetOf()
+            val osmBuildingsAddressMap = getOsmAddressesMap()
 
-            needToAssignAddressPrimitivesMap.forEach{(address, listToProcess) ->
+            needToAssignAddressPrimitivesMap.forEach { (address, listToProcess) ->
                 if (listToProcess.isEmpty()) return@forEach
                 if (osmBuildingsAddressMap.containsKey(address)) {
                     //уже есть дубль в данных ОСМ
                     primitives.removeAll(listToProcess)
                     doubleAddressPrimitives.addAll(listToProcess)
-                    return@forEach}
+                    return@forEach
+                }
 
                 val assignToPrimitive = listToProcess.filterIsInstance<Way>().maxByOrNull { Geometry.computeArea(it) }
                 if (assignToPrimitive == null) {
@@ -181,21 +185,52 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             return doubleAddressPrimitives
         }
 
-        private fun getParsedInlineAddress(primitive: OsmPrimitive) :String {
+        fun findDoubledAddresses(addresses: MutableList<ParsedAddress>): Set<ParsedAddress> {
+            //получает на вход мутабельный список адресов, которым хотим проверить на дубликаты среди данных ОСМ.
+            //удаляем из него все примитивы, для которых есть дубликат предпочитаемого адреса в ОСМ
+            //возвращаем список дублей
+
+            val doubleAddresses: MutableSet<ParsedAddress> = mutableSetOf()
+            val osmBuildingsAddressMap = getOsmAddressesMap()
+
+            addresses.forEach {
+                val inlineAddress = it.getOsmAddress().getInlineAddress(",")
+                if (osmBuildingsAddressMap.containsKey(inlineAddress)) {
+                    //уже есть дубль в данных ОСМ
+                    doubleAddresses.add(it)
+                }
+            }
+            return doubleAddresses
+        }
+
+        private fun getOsmAddressesMap(): Map<String, List<OsmPrimitive>> {
+            val osmBuildingsWithAddress = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives()
+                .filter { p ->
+                    p !is Node && p.hasKey("building") && p.hasKey("addr:housenumber") && (p.hasKey("addr:street") || p.hasKey(
+                        "addr:place"
+                    ))
+                }
+            val osmBuildingsAddressMap = osmBuildingsWithAddress.groupBy { getOsmInlineAddress(it) }
+            return osmBuildingsAddressMap
+        }
+
+
+        private fun getParsedInlineAddress(primitive: OsmPrimitive): String {
             val prefAddress = egrnResponses[primitive]?.third?.getPreferredAddress() ?: return ""
             return prefAddress.getOsmAddress().getInlineAddress(",") ?: ""
         }
 
 
         private fun getOsmInlineAddress(p: OsmPrimitive): String {
-        return if (p.hasKey("addr:street")) {
-            "${p["addr:street"]}, ${p["addr:housenumber"]}"
-        } else {
-            "${p["addr:place"]}, ${p["addr:housenumber"]}"
+            return if (p.hasKey("addr:street")) {
+                "${p["addr:street"]}, ${p["addr:housenumber"]}"
+            } else {
+                "${p["addr:place"]}, ${p["addr:housenumber"]}"
+            }
         }
-    }
 
     }
+
     override fun getPreferenceSetting(): PreferenceSetting {
         return PluginSetting()
     }
