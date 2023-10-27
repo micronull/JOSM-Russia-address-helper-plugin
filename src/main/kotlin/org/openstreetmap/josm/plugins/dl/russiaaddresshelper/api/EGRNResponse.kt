@@ -1,45 +1,37 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api
 
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.OSMAddress
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.HouseNumberParser
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedStreet
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.StreetParser
+import org.openstreetmap.josm.data.coor.EastNorth
+import org.openstreetmap.josm.data.osm.OsmDataManager
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.*
 
+@kotlinx.serialization.Serializable
 data class EGRNResponse(val total: Int, val results: List<EGRNFeature>) {
-    fun parseAddresses(): ParsedAddressInfo {
-        val streetParser = StreetParser()
-        val houseNumberParser = HouseNumberParser()
-
-        val addresses: MutableList<Triple<Int, OSMAddress, String>> = mutableListOf()
-        val badAddresses: MutableList<Triple<Int, Pair<ParsedStreet, OSMAddress>, String>> = mutableListOf()
+    fun parseAddresses(requestCoordinate: EastNorth): ParsedAddressInfo {
+        val addressParser = AddressParser()
+        val addresses: MutableList<ParsedAddress> = mutableListOf()
         val existingAddresses: MutableList<String> = mutableListOf()
         this.results.forEach { res ->
             val egrnAddress = res.attrs?.address ?: return@forEach
-            //предварительная фильтрация - убираем одинарные кавычки, кавычки елочки, и "Россия" из конца адреса (такое тоже есть!)
-            var filteredEgrnAddress =  egrnAddress.replace("''","\"")
-                .replace("«","\"")
-                .replace("»", "\"")
-                .replace(" ", " ")
-                .replace(Regex(""",\s*Россия\s*\.?$"""),"")
+            val parsedAddress = addressParser.parse(egrnAddress, requestCoordinate, OsmDataManager.getInstance().editDataSet)
 
-            //убираем все в круглых скобках - неединичные случаи дублирования номера дома прописью
-            //Калужская область, Боровский район, деревня Кабицыно, улица А. Кабаевой, дом 25 (Двадцать пять)
-            filteredEgrnAddress = filteredEgrnAddress.replace(Regex("""\(([А-Яа-я ])+\)"""),"")
+            if (res.type == EGRNFeatureType.BUILDING.type) {
+                parsedAddress.flags.add(ParsingFlags.IS_BUILDING)
+            }
 
-            val streetParse = streetParser.parse(filteredEgrnAddress)
-            val houseNumberParse = houseNumberParser.parse(filteredEgrnAddress)
-            val parsedOsmAddress =
-                OSMAddress(streetParse.name, houseNumberParse.housenumber, houseNumberParse.flats)
-            val key = parsedOsmAddress.getInlineAddress() ?: "${streetParse.extractedName} ${streetParse.extractedType}"
+            val key = parsedAddress.getOsmAddress().getInlineAddress()
+                ?: getAddressMatchKeyForUnparsedAddress(parsedAddress)
             if (!existingAddresses.contains(key)) {
-                if (streetParse.name != "" && houseNumberParse.housenumber != "") {
-                    addresses.add(Triple(res.type, parsedOsmAddress, filteredEgrnAddress))
-                } else {
-                    badAddresses.add(Triple(res.type, Pair(streetParse, parsedOsmAddress), filteredEgrnAddress))
-                }
+                addresses.add(parsedAddress)
                 existingAddresses.add(key)
             }
         }
-        return ParsedAddressInfo(addresses, badAddresses)
+        return ParsedAddressInfo(addresses)
+    }
+
+    private fun getAddressMatchKeyForUnparsedAddress(parsedAddress: ParsedAddress): String {
+        /*return ("${parsedAddress.parsedPlace.extractedName} ${parsedAddress.parsedPlace.extractedType?.name ?: ""}" +
+                " ${parsedAddress.parsedStreet.extractedName} ${parsedAddress.parsedStreet.extractedType?.name ?: ""}" +
+                " ${parsedAddress.parsedHouseNumber.houseNumber} ${parsedAddress.parsedHouseNumber.flats}")*/
+        return parsedAddress.egrnAddress
     }
 }

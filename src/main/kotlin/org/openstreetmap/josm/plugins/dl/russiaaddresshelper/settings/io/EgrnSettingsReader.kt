@@ -1,5 +1,6 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io
 
+import org.openstreetmap.josm.data.preferences.BooleanProperty
 import org.openstreetmap.josm.data.preferences.IntegerProperty
 import org.openstreetmap.josm.data.preferences.StringProperty
 
@@ -30,5 +31,15 @@ class EgrnSettingsReader {
             "dl.russiaaddresshelper.ppk.useragent",
             "JOSM/%s JOSM-RussiaAddressHelper/%s"
         )
+
+        val EGRN_DISABLE_SSL_FOR_REQUEST = BooleanProperty( "dl.russiaaddresshelper.ppk.disable_ssl",
+            true
+        )
+
+        /**
+         * Property for limiting selection size for mass request.
+         * @since 0.8.5.7
+         */
+        val REQUEST_LIMIT_PER_SELECTION = IntegerProperty("dl.russiaaddresshelper.ppk.requestselection.limit", 100)
     }
 }

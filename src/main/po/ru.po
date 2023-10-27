@@ -20,6 +20,9 @@ msgstr "Загрузка адресов из ЕГРН"
 msgid "Russia address helper"
 msgstr "Загрузка адресов из ЕГРН"
 
+msgid "Data download"
+msgstr "Загрузка данных"
+
 msgid "Data processing"
 msgstr "Обработка данных"
 
@@ -73,3 +76,228 @@ msgstr "Расстояние поиска дубликатов адресов, �
 
 msgid "EGRN request user agent string:"
 msgstr "UserAgent запроса ЕГРН:"
+
+msgid "BUILDING"
+msgstr "ЗДАНИЕ"
+
+msgid "PARCEL"
+msgstr "УЧАСТОК"
+
+msgid "EGRN address"
+msgstr "Адрес из ЕГРН"
+
+msgid "Parsed address"
+msgstr "Распознанный адрес"
+
+msgid "Address type"
+msgstr "Тип адреса"
+
+msgid "Disable SSL for EGRN requests"
+msgstr "Отключить SSL при запросах к ЕГРН"
+
+msgid "EGRN address found"
+msgstr "ЕГРН адрес найден"
+
+msgid "EGRN address added to OSM"
+msgstr "ЕГРН адрес добавлен в ОСМ"
+
+msgid "EGRN information for address parsed and added"
+msgstr "Адресная информация из ЕГРН распознана и добавлена в ОСМ"
+
+msgid "EGRN address cannot be parsed"
+msgstr "ЕГРН адрес не распознан"
+
+msgid "EGRN information cannot be fully parsed into address"
+msgstr "Адрес из ЕГРН не удалось корректно распознать"
+
+msgid "EGRN parse error"
+msgstr "ЕГРН ошибка разбора"
+
+msgid "EGRN cant get housenumber"
+msgstr "ЕГРН не распознан номер дома"
+
+msgid "EGRN housenumber too big"
+msgstr "ЕГРН номер дома превышает лимит"
+
+msgid "EGRN cant get street or place name"
+msgstr "ЕГРН не распознана улица или место"
+
+msgid "Assign address to building"
+msgstr "Присвоить зданию адрес"
+
+msgid "Ignore error"
+msgstr "Игнорировать ошибку"
+
+msgid "Address not complete and was not added to building"
+msgstr "Адрес не удовлетворяет условиям и не был присвоен"
+
+msgid "EGRN empty response"
+msgstr "ЕГРН пустой ответ"
+
+msgid "EGRN returned empty response"
+msgstr "ЕГРН вернул пустой ответ"
+
+msgid "EGRN test for empty response from registry"
+msgstr "Валидатор пустого ответа из ЕГРН"
+
+msgid "EGRN address has flats"
+msgstr "ЕГРН содержит номер квартиры"
+
+msgid "EGRN test for addresses with flat numbers in it"
+msgstr "Тест для адресов, содержащих в себе номер квартиры"
+
+msgid "Generate address nodes"
+msgstr "Создать адресные точки"
+
+msgid "Added address nodes from RussiaAddressHelper AddressHasFlats validator"
+msgstr "Добавление адресных точек валидатором ЕГРН AddressHasFlats"
+
+msgid "EGRN fuzzy street match"
+msgstr "ЕГРН нечеткое совпадение улицы"
+
+msgid "EGRN test for parsed street name fuzzy match with OSM"
+msgstr "Тест на нечеткое совпадение наименования улицы из ЕГРН и улицы в ОСМ"
+
+msgid "Added tags from RussiaAddressHelper FuzzyMatch validator"
+msgstr "Добавление тэгов валидатором нечеткого совпадения"
+
+msgid "EGRN initials match"
+msgstr "ЕГРН совпадение по инициалам"
+
+msgid "EGRN test for parsed street name match with OSM without initials or first name"
+msgstr "Тест на совпадение наименования улицы из ЕГРН и улицы в ОСМ без инициалов или имени"
+
+msgid "Added tags from RussiaAddressHelper InitialsMatch validator"
+msgstr "Добавление тэгов валидатором совпадения без инициалов"
+
+msgid "EGRN multiple addresses"
+msgstr "ЕГРН несколько адресов"
+
+msgid "EGRN test for multiple different valid addresses"
+msgstr "Валидация нескольких распознанных адресов"
+
+msgid "Added tags from RussiaAddressHelper MultipleValidAddress validator"
+msgstr "Добавление тэгов валидатором множественных адресов"
+
+msgid "EGRN not found place in OSM"
+msgstr "ЕГРН не найден обьект места"
+
+msgid "EGRN test for address not matched with place object in loaded OSM data"
+msgstr "Валидация адресов для которых не нашелся обьект в данных ОСМ"
+
+msgid "Retry address matching"
+msgstr "Заново сопоставить адреса"
+
+msgid "Added tags from RussiaAddressHelper PlaceNotFound validator"
+msgstr "Добавление тэгов валидатором PlaceNotFound"
+
+msgid "EGRN street not found"
+msgstr "ЕГРН улица не найдена"
+
+msgid "EGRN test for not found OSM street"
+msgstr "ЕГРН улица была распознана, но не найдена в ОСМ"
+
+msgid "Added tags from RussiaAddressHelper StreetNoFound validator"
+msgstr "Добавление тэгов валидатором сопоставления с улицей"
+
+msgid "Assign address by street"
+msgstr "Присвоить адрес по улице"
+
+msgid "EGRN fuzzy or initials place match"
+msgstr "ЕГРН нечеткое совпадение места"
+
+msgid "EGRN fuzzy match"
+msgstr "ЕГРН нечеткое совпадение"
+
+msgid "EGRN test for parsed place name fuzzy or without initials match with OSM"
+msgstr "ЕГРН валидатор на совпадение имени места по нечеткому алгоритму или без инициалов"
+
+msgid "Assign address by place"
+msgstr "Присвоить адрес по месту"
+
+msgid "Retry match with place"
+msgstr "Повторить сопоставление с местом"
+
+msgid "EGRN place fuzzy match"
+msgstr "ЕГРН нечеткое совпадение места"
+
+msgid "EGRN place initials match"
+msgstr "ЕГРН совпадение места без инициалов"
+
+msgid "EGRN test for duplicate addresses received from registry"
+msgstr "ЕГРН тест на дубликаты адресов полученные из реестра"
+
+msgid "EGRN duplicate addresses"
+msgstr "ЕГРН дублирование адресов"
+
+msgid "EGRN double address"
+msgstr "ЕГРН дубликат адреса"
+
+msgid "Request addresses again"
+msgstr "Запросить ЕГРН снова"
+
+msgid "EGRN place not found"
+msgstr "ЕГРН не найдено место"
+
+msgid "Rename street"
+msgstr "Переименовать улицу"
+
+msgid "Too many consecutive failures, your IP maybe banned from EGRN side ("
+msgstr "Слишком много последовательных неудач, возможно ваш IP забанен со стороны сервиса ЕГРН ("
+
+msgid "Selected more than set limit buildings, only first %s will be processed"
+msgstr "Выбрано больше зданий, чем установлено в настройках, будет запрошено только %s объектов из выделения"
+
+msgid "Total requests to EGRN in current session (total/success):"
+msgstr "Всего запросов к ЕГРН в текущей сессии (всего/успех):"
+
+msgid "Request limit for single select action:"
+msgstr "Лимит количества зданий в одном запросе массовой загрузки:"
+
+msgid "Remove address and request again"
+msgstr "Удалить все и перезапросить"
+
+msgid "Remove address from all"
+msgstr "Удалить все"
+
+msgid "Assign same address to all"
+msgstr "Присвоить всем одинаковый"
+
+msgid "Assign to biggest"
+msgstr "Присвоить наибольшему"
+
+msgid "Assign to closest"
+msgstr "Присвоить ближайшему"
+
+msgid "Street way should be closer than, meters:"
+msgstr "Линия улицы должна быть ближе чем, метров:"
+
+msgid "Place node should be closer than, meters:"
+msgstr "Точка места должна быть ближе чем, метров:"
+
+msgid "EGRN street/place too far"
+msgstr "ЕГРН проверка геометрии "
+
+msgid "EGRN street/place way too far from street/place in OSM"
+msgstr "ЕГРН валидация на близость улицы/места к данным ОСМ"
+
+msgid "EGRN street found too far:"
+msgstr "ЕГРН улица слишком далеко:"
+
+msgid "EGRN place found too far:"
+msgstr "ЕГРН место слишком далеко:"
+
+msgid "EGRN outside of place boundary:"
+msgstr "ЕГРН вне границ места:"
+
+msgid "EGRN place boundary incomplete:"
+msgstr "ЕГРН граница места неполная:"
+
+msgid "Shift layer doesnt set in plugin settings. Mass request without shift layer will be invalid. Aborting operation."
+msgstr "В настройках плагина не выбран слой для сдвига. Массовый запрос без сдвига некорректен. Прерывание операции."
+
+msgid "Shift layer doesnt have offset, this is probably an error. Change offset of layer"
+msgstr "Выбранный слой сдвига запроса не откорректирован. Сдвиньте согласно геометрии слой"
+
+
+

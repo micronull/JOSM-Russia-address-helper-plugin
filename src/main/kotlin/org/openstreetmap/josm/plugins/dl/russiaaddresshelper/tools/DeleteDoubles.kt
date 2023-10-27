@@ -1,11 +1,14 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools
 
+import org.apache.commons.lang3.StringUtils
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.OsmDataManager
 import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.gui.Notification
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Buildings
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation.EGRNTestCode
 import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
@@ -16,7 +19,7 @@ import javax.swing.JOptionPane
  * Фильтрует переданный список по имеющимся адресам и оставляет здания с наибольшей площадью.
  */
 class DeleteDoubles {
-    private val osmAddressMap: MutableMap<String, MutableMap<String,EastNorth>> = mutableMapOf()
+    private val osmAddressMap: MutableMap<String, MutableMap<String, EastNorth>> = mutableMapOf()
 
     init {
         // Предварительно загружаем список адресов из OSM, чтоб по нему удалить загруженные из ЕГРН дубли.
@@ -29,22 +32,34 @@ class DeleteDoubles {
     fun clear(items: MutableList<Buildings.Building>): MutableList<Buildings.Building> {
         //удаляем все здания, с пустыми тэгами адреса
         items.removeAll {
-            it.preparedTags["addr:street"] == null || it.preparedTags["addr:housenumber"] == null
+            (it.preparedTags["addr:street"] == null).and(it.preparedTags["addr:place"] == null) || it.preparedTags["addr:housenumber"] == null
         }
-
 
         //удаляем все здания, которые совпадают по данным адреса с уже существующими в ОСМ
         //находящиеся на расстоянии ближе заданного в настройках
         items.removeAll {
-            val street = it.preparedTags["addr:street"]!!
+            val streetOrPlace = if (StringUtils.isNotBlank(it.preparedTags["addr:street"])) {
+                it.preparedTags["addr:street"]
+            } else {
+                it.preparedTags["addr:place"]
+            }
             val house = it.preparedTags["addr:housenumber"]!!
-            val centroid = it.coordinate
-            if(osmAddressMap.containsKey(street) && osmAddressMap[street]!!.contains(house) &&
-                    (centroid?.distance(osmAddressMap[street]?.get(house) ?: centroid) ?: Double.MIN_VALUE) < TagSettingsReader.CLEAR_DOUBLE_DISTANCE.get()) {
-                Logging.info("EGRN PLUGIN remove existing in OSM address $street $house")
-                val msg = I18n.tr("Removed existing in OSM address double")
-                Notification("$msg $street, $house").setIcon(JOptionPane.WARNING_MESSAGE).show()
-                return@removeAll true
+            val itemCentroid = it.coordinate
+            if (osmAddressMap.containsKey(streetOrPlace) && osmAddressMap[streetOrPlace]!!.contains(house)) {
+                if ((itemCentroid?.distance(osmAddressMap[streetOrPlace]?.get(house) ?: itemCentroid)
+                        ?: Double.MIN_VALUE) < TagSettingsReader.CLEAR_DOUBLE_DISTANCE.get()
+                ) {
+                    Logging.info("EGRN PLUGIN remove existing in OSM address $streetOrPlace $house")
+                 /*   val msg = I18n.tr("Removed existing in OSM address double")
+                    Notification("$msg $streetOrPlace, $house").setIcon(JOptionPane.WARNING_MESSAGE).show()*/
+                    //debug code until deduplication through validator will be implemented
+                    RussiaAddressHelperPlugin.markAsProcessed(it.osmPrimitive, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)
+
+                    return@removeAll true
+                } else {
+                    Logging.info("EGRN PLUGIN found double for address, but not mark it for removal, because distance ${(itemCentroid?.distance(osmAddressMap[streetOrPlace]?.get(house) ?: itemCentroid)
+                        ?: Double.MIN_VALUE)} is bigger than ${TagSettingsReader.CLEAR_DOUBLE_DISTANCE.get()}")
+                }
             }
             return@removeAll false
         }
@@ -52,18 +67,22 @@ class DeleteDoubles {
         val counter: MutableMap<String, MutableMap<String, MutableList<Buildings.Building>>> = mutableMapOf()
         //оставшиеся прочесываем на дубликаты, выстраивая по приоритету площади
         items.forEach {
-            val street = it.preparedTags["addr:street"]!!
+            val streetOrPlace = if (StringUtils.isNotBlank(it.preparedTags["addr:street"])) {
+                it.preparedTags["addr:street"]!!
+            } else {
+                it.preparedTags["addr:place"]!!
+            }
             val house = it.preparedTags["addr:housenumber"]!!
 
-            if (!counter.containsKey(street)) {
-                counter[street] = mutableMapOf()
+            if (!counter.containsKey(streetOrPlace)) {
+                counter[streetOrPlace] = mutableMapOf()
             }
 
-            if (!counter[street]!!.containsKey(house)) {
-                counter[street]!![house] = mutableListOf()
+            if (!counter[streetOrPlace]!!.containsKey(house)) {
+                counter[streetOrPlace]!![house] = mutableListOf()
             }
 
-            counter[street]!![house]!!.add(it)
+            counter[streetOrPlace]!![house]!!.add(it)
         }
 
         val newItems: MutableList<Buildings.Building> = mutableListOf()
@@ -72,11 +91,24 @@ class DeleteDoubles {
             houses.forEach { (_, items) ->
                 if (items.size > 1) {
                     items.sortByDescending { Geometry.computeArea(it.osmPrimitive) }
-                    val street = items.first().preparedTags["addr:street"]
+                    val street = if (items.first().preparedTags["addr:street"] != null) {
+                        items.first().preparedTags["addr:street"]
+                    } else {
+                        items.first().preparedTags["addr:place"]
+                    }
                     val house = items.first().preparedTags["addr:housenumber"]
+
                     Logging.info("EGRN PLUGIN remove found double address, leaving biggest building $street $house")
                     val msg = I18n.tr("Removed found in EGRN address doubles, leaving biggest area building")
                     Notification("$msg $street, $house").setIcon(JOptionPane.WARNING_MESSAGE).show()
+                    //debug code until deduplication through validator will be implemented
+                    val otherPrimitives = items.toList().drop(1)
+                    otherPrimitives.forEach {
+                        RussiaAddressHelperPlugin.markAsProcessed(
+                            it.osmPrimitive,
+                            EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND
+                        )
+                    }
                 }
 
                 newItems.add(items.first())
@@ -92,20 +124,28 @@ class DeleteDoubles {
      */
     private fun loadOsmAddress() {
         val primitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives()
-        val buildings = primitives.filter { p -> p.hasKey("building") && p.hasKey("addr:street") && p.hasKey("addr:housenumber") }
-            .filter { it is Way }.map { it as Way }
+        val buildings = primitives.filter { p ->
+            p.hasTag("building") && p.hasTag("addr:housenumber")
+                    && (p.hasTag("addr:street") || p.hasTag("addr:place"))
+        }
+            .filterIsInstance<Way>().map { it }
 
         buildings.forEach {
-            val street = it.get("addr:street")
+            val streetOrPlace = if (StringUtils.isNotBlank(it.get("addr:street"))) {
+                it.get("addr:street")
+            } else {
+                it.get("addr:place")
+            }
+
             val house = it.get("addr:housenumber")
             val centroid = Geometry.getCentroid(it.nodes)
 
-            if (!osmAddressMap.containsKey(street)) {
-                osmAddressMap[street] = mutableMapOf()
+            if (!osmAddressMap.containsKey(streetOrPlace)) {
+                osmAddressMap[streetOrPlace] = mutableMapOf()
             }
 
-            if (!osmAddressMap[street]!!.contains(house)) {
-                osmAddressMap[street]!![house] = centroid
+            if (!osmAddressMap[streetOrPlace]!!.contains(house)) {
+                osmAddressMap[streetOrPlace]!![house] = centroid
             }
         }
     }
