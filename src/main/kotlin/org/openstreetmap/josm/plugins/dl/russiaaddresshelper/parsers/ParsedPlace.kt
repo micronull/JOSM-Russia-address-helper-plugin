@@ -63,7 +63,10 @@ data class ParsedPlace(
                 val osmNameTagValue = osmPlaceEntry.value[0].name
 
                 val filteredOsmPlaceName =
-                    extractPlaceName(parsedPlaceType.osm.asRegExpList(), osmObjectComparisonName.replace('ё', 'е').replace('Ё', 'Е'))
+                    extractPlaceName(
+                        parsedPlaceType.osm.asRegExpList(),
+                        osmObjectComparisonName.replace('ё', 'е').replace('Ё', 'Е')
+                    )
 
 
                 if (filteredOsmPlaceName == "") {
@@ -136,14 +139,17 @@ data class ParsedPlace(
             val namedByRegex = Regex("""им(\.|\s+)|имени\s+""")
 
             val divider = Regex("""\s+""")
-            if (initialsRegexp.find(EGRNStreetName) != null || initialsRegexp.find(osmStreetName) != null || namedByRegex.find(EGRNStreetName)!= null || namedByRegex.find(osmStreetName)!= null) {
-                val EGRNStreetWithoutInitials = EGRNStreetName.replace(namedByRegex,"").replace(initialsRegexp, "")
+            if (initialsRegexp.find(EGRNStreetName) != null || initialsRegexp.find(osmStreetName) != null || namedByRegex.find(
+                    EGRNStreetName
+                ) != null || namedByRegex.find(osmStreetName) != null
+            ) {
+                val EGRNStreetWithoutInitials = EGRNStreetName.replace(namedByRegex, "").replace(initialsRegexp, "")
                 if (EGRNStreetWithoutInitials == osmStreetName) return true
                 if (osmStreetName.split(divider).size > 1) {
                     val filteredOsmNameSurnameOnly = osmStreetName.split(divider).last()
                     if (EGRNStreetWithoutInitials == filteredOsmNameSurnameOnly) return true
                 }
-                val OSMStreetNameWithoutInitials = osmStreetName.replace(namedByRegex,"").replace(initialsRegexp, "")
+                val OSMStreetNameWithoutInitials = osmStreetName.replace(namedByRegex, "").replace(initialsRegexp, "")
                 if (EGRNStreetWithoutInitials == OSMStreetNameWithoutInitials || EGRNStreetName == OSMStreetNameWithoutInitials) return true
                 if (EGRNStreetName.split(divider).size > 1) {
                     val filteredEGRNNameSurnameOnly = EGRNStreetName.split(divider).last()
@@ -153,19 +159,25 @@ data class ParsedPlace(
             return false
         }
 
-        private fun matchedNumberedPlace(egrnPlaceName: String, osmObjectName: String, streetTypePrefix: String): Boolean {
+        private fun matchedNumberedPlace(
+            egrnPlaceName: String,
+            osmObjectName: String,
+            streetTypePrefix: String
+        ): Boolean {
             val numericsRegexp = Regex("""(?<streetNumber>\d{1,2})((\s|-)(й|ий|ый|ой|я|ая|ья|е|ое|ье))?""")
             val numericsMatch = numericsRegexp.find(egrnPlaceName) ?: return false
-            val egrnStreetNumber = numericsMatch.groups["streetNumber"]?:return false
+            val egrnStreetNumber = numericsMatch.groups["streetNumber"] ?: return false
             val osmNumericsMatch = numericsRegexp.find(osmObjectName) ?: return false
-            val osmStreetNumber = osmNumericsMatch.groups["streetNumber"]?:return false
+            val osmStreetNumber = osmNumericsMatch.groups["streetNumber"] ?: return false
 
             if (egrnStreetNumber.value != osmStreetNumber.value) {
                 return false
             }
 
-            val filteredEgrnName = egrnPlaceName.replace(numericsRegexp,"").replace(streetTypePrefix,"").trim().lowercase()
-            val filteredOsmName = osmObjectName.replace(numericsRegexp,"").replace(streetTypePrefix,"").trim().lowercase()
+            val filteredEgrnName =
+                egrnPlaceName.replace(numericsRegexp, "").replace(streetTypePrefix, "").trim().lowercase()
+            val filteredOsmName =
+                osmObjectName.replace(numericsRegexp, "").replace(streetTypePrefix, "").trim().lowercase()
 
             if (filteredEgrnName == filteredOsmName) {
                 return true
@@ -180,7 +192,7 @@ data class ParsedPlace(
             }
 
             for (pattern in regExList) {
-                if ( pattern.containsMatchIn(address)) {
+                if (pattern.containsMatchIn(address)) {
                     val lastMatch = pattern.findAll(address).last() //берем самое правое совпадение
                     val placeName = lastMatch.groups["place"]!!.value
                     //костыли, потому что эта функция обрабатывает и ОСМ имена и ЕГРН.
@@ -213,7 +225,7 @@ data class ParsedPlace(
         val foundPrimitives =
             allLoadedPrimitives.filter { p -> placeType.tags.all { entry -> entry.value.contains(p.get(entry.key)) } }
         return foundPrimitives.filter { p ->
-            placeType.osm.asRegExpList().any { p["name"].matches(it) || p["egrn_name"].matches(it) }
+            placeType.osm.asRegExpList().any { regex -> getOsmObjNames(p).any { it.matches(regex) } }
         }.toSet()
     }
 
@@ -221,8 +233,13 @@ data class ParsedPlace(
         if (extractedType == null || extractedName.isEmpty() || name.isEmpty()) {
             return emptySet()
         }
-        return getOsmObjectsByType(extractedType).filter { name == it["name"] || name == it["egrn_name"] }
+        return getOsmObjectsByType(extractedType).filter { getOsmObjNames(it).contains(name) }
             .toSet()
+    }
+
+    private fun getOsmObjNames(p: OsmPrimitive): Set<String> {
+        val placeNameTags = setOf("name", "egrn_name", "alt_name")
+        return placeNameTags.map { p[it] }.filter { it != null && it != "" }.distinct().toSet()
     }
 
     fun removeEndingWith(address: String): String {
@@ -233,7 +250,7 @@ data class ParsedPlace(
             return address
         }
         val matchEndIndex = matchedPattern.findAll(address).last().groups["place"]?.range?.last ?: 0
-        return address.slice(matchEndIndex+1 until address.length)
+        return address.slice(matchEndIndex + 1 until address.length)
     }
 
 }

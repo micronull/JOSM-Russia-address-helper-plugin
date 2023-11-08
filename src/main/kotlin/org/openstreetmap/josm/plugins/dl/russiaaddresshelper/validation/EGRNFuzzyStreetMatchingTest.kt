@@ -154,7 +154,8 @@ class EGRNFuzzyStreetMatchingTest : Test(
         if (answer == 1) {
             val filteredPrimitives =
                 testError.primitives.filter { RussiaAddressHelperPlugin.egrnResponses[it] != null }.toMutableList()
-            RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
+            val doubled = RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
+            RussiaAddressHelperPlugin.ignoreValidator(doubled, EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)
             filteredPrimitives.forEach {
                 val prefferedAddress = RussiaAddressHelperPlugin.egrnResponses[it]!!.third.getPreferredAddress()
                 var tags = prefferedAddress!!.getOsmAddress().getBaseAddressTagsWithSource()
@@ -164,6 +165,7 @@ class EGRNFuzzyStreetMatchingTest : Test(
         }
 
         if (answer == 2) {
+            //переименование улицы.
             editedOsmStreetName = osmStreetNameEditBox.text
             val highways = testError.primitives.filter { it.hasTag("highway") }
             highways.forEach {

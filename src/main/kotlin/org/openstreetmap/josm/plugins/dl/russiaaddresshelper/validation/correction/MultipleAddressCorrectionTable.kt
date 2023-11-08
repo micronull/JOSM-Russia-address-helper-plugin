@@ -8,6 +8,7 @@ import javax.swing.JList
 import javax.swing.JTable
 import javax.swing.table.TableCellRenderer
 
+
 class MultipleAddressCorrectionTable(corrections: MutableList<AddressCorrection>) :
     CorrectionTable<AddressCorrectionTableModel>(AddressCorrectionTableModel(corrections)) {
 
@@ -38,13 +39,13 @@ class MultipleAddressCorrectionTable(corrections: MutableList<AddressCorrection>
             }
 
             val model = table.model as AddressCorrectionTableModel
-            val f = font
-            font = if (model.isBoldCell(row, column)) {
-                Font(f.name, f.style or Font.BOLD, f.size)
+            val f = this.font
+            this.font = if (model.isBoldCell(row, column)) {
+                Font(f.name, Font.BOLD, f.size)
             } else {
-                Font(f.name, f.style xor Font.BOLD, f.size)
+                Font(f.name, Font.PLAIN, f.size)
             }
-            if (model.isFilled(row, column)) {
+            if (model.isColored(row, column)) {
                 this.background = Color.PINK
             } else {
                 this.background = Color.WHITE
@@ -54,8 +55,8 @@ class MultipleAddressCorrectionTable(corrections: MutableList<AddressCorrection>
     }
 
     override fun getCellRenderer(row: Int, column: Int): TableCellRenderer? {
-        return if (column < 3) {
-            multilineTableCellRenderer
+        return  if (column < 3) {
+         multilineTableCellRenderer
         } else {
             super.getCellRenderer(row, column)
         }

@@ -94,6 +94,10 @@ class EGRNMultipleValidAddressTest : Test(
         p.add(infoLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
 
         val correctionTable = MultipleAddressCorrectionTable(corrections)
+        correctionTable.tableHeader.reorderingAllowed = false
+        correctionTable.rowSelectionAllowed = false
+        correctionTable.columnSelectionAllowed = false
+        correctionTable.cellSelectionEnabled = false
         correctionTable.setValueAt(true, prefferedIndex, correctionTable.correctionTableModel.applyColumn)
         correctionTable.autoResizeMode = JTable.AUTO_RESIZE_OFF
         correctionTable.preferredScrollableViewportSize = Dimension(800, 96)
@@ -127,9 +131,11 @@ class EGRNMultipleValidAddressTest : Test(
         val cmds: MutableList<Command> = mutableListOf()
         if (answer == 1) {
             val selectedCorrectionAddress = correctionTable.correctionTableModel.getSelectedValue().address
+            val hasDouble = correctionTable.correctionTableModel.getSelectedValue().hasDouble
             testError.primitives.forEach {
                 var tags = selectedCorrectionAddress.getOsmAddress().getBaseAddressTagsWithSource()
                 tags = tags.plus(Pair("addr:RU:egrn", selectedCorrectionAddress.egrnAddress))
+                if (hasDouble) RussiaAddressHelperPlugin.markAsProcessed(primitive, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)
                 cmds.add(ChangePropertyCommand(mutableListOf(it), tags))
             }
         }
