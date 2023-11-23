@@ -210,7 +210,10 @@ class EGRNDuplicateAddressesTest : Test(
         if (answer == 4) {
             //Assign to biggest
             val biggestBuilding = affectedPrimitives.maxByOrNull { Geometry.computeArea(it) }!!
-            cmds.add(removeAddressTagsCommand(affectedPrimitives.minus(biggestBuilding)))
+            val needToRemoveTags = affectedPrimitives.minus(biggestBuilding)
+            if (needToRemoveTags.isNotEmpty()) {
+                cmds.add(removeAddressTagsCommand(needToRemoveTags))
+            }
             cmds.add(
                 addAddressToPrimitivesCommand(
                     duplicateAddress.getOsmAddress(),

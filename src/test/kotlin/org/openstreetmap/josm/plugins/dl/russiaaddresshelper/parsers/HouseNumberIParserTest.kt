@@ -109,6 +109,12 @@ internal class HouseNumberIParserTest {
        // assertEquals("", testSample.parse("Калужская область, г. Калуга, проезд Академический 3-й", fakeCoordinateds).houseNumber)
             //"обл. Калужская, р-н Жуковский, д. Верховье,, дом № 6, квартира № 2"
 
+        assertEquals("67 к2", testSample.parse(
+            "Калужская область, г Калуга, ул. Болдина, д. 67, к. 2",
+            fakeCoordinate,
+            ds).houseNumber)
+
+
 
         //обл. Брянская, г. Брянск, пер. Белорусский, дом 30, корпус A - вообще непонятно, валидный ли это номер? для частного здания это явно ненормально
 

@@ -149,7 +149,6 @@ class EGRNInitialsStreetMatchingTest : Test(
             filteredPrimitives.forEach {
                 val prefferedAddress = RussiaAddressHelperPlugin.egrnResponses[it]!!.third.getPreferredAddress()
                 var tags = prefferedAddress!!.getOsmAddress().getBaseAddressTagsWithSource()
-                tags = tags.plus(Pair("addr:street", editedOsmStreetName))
                 tags = tags.plus(Pair("addr:RU:egrn", prefferedAddress.egrnAddress))
                 cmds.add(ChangePropertyCommand(listOf(it), tags))
             }
