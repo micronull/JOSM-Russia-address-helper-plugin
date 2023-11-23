@@ -23,6 +23,8 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsedAddressIn
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.PluginSetting
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.ValidationSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.uploadhooks.EGRNCleanPluginCache
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.uploadhooks.EGRNUploadTagFilter
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation.*
@@ -185,6 +187,80 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             return doubleAddressPrimitives
         }
 
+        fun cleanFromDoublesWithRespectForDistance(primitives: MutableList<OsmPrimitive>): Set<OsmPrimitive> {
+            //этот подход к удалению дубликатов не лучший
+            // цель - не допустить создания дубликатов адресов если они получены для зданий в пределах одного НП,
+            //но при этом мы никак не проверяем наличие НП, его границы или размеры.
+            //получает на вход мутабельный список примитивов, которым хотим присвоить адрес.
+            //удаляем из него все примитивы, для которых есть дубликат предпочитаемого адреса в ОСМ
+            // или среди них самих
+            // с учетом расстояния поиска дублей. Адрес считается дублем,
+            // если есть обьект с таким же адресом на расстоянии меньше заданного в настройках
+            //возвращаем список дублей
+            val needToAssignAddressPrimitives = primitives.filter {
+                egrnResponses[it] != null
+                        && egrnResponses[it]?.third?.getPreferredAddress() != null
+                        && !it.hasKey("addr:housenumber")
+            }
+            val needToAssignAddressPrimitivesMap = needToAssignAddressPrimitives.groupBy { getParsedInlineAddress(it) }
+            val isAddressByPlace =
+                needToAssignAddressPrimitives.associate { Pair(getParsedInlineAddress(it), isPlaceAddress(it)) }
+
+            val doubleAddressPrimitives: MutableSet<OsmPrimitive> = mutableSetOf()
+            val osmBuildingsAddressMap = getOsmAddressesMap()
+
+            needToAssignAddressPrimitivesMap.forEach { (address, listToProcess) ->
+                if (listToProcess.isEmpty()) return@forEach
+                if (osmBuildingsAddressMap.containsKey(address)) {
+                    //уже есть дубль в данных ОСМ
+                    //ищем примитивы которые слишком близко
+                    val realDoubles = getDuplicatesByDistance(
+                        osmBuildingsAddressMap[address], listToProcess,
+                        isAddressByPlace[address]
+                    )
+                    primitives.removeAll(realDoubles)
+                    doubleAddressPrimitives.addAll(realDoubles)
+                    return@forEach
+                }
+
+                val assignToPrimitive = listToProcess.filterIsInstance<Way>().maxByOrNull { Geometry.computeArea(it) }
+                if (assignToPrimitive == null) {
+                    Logging.error("EGRN PLUGIN Something went wrong when finding doubles, building has no area")
+                    primitives.removeAll(listToProcess)
+                    return@forEach
+                }
+                val doubles = listToProcess.minus(assignToPrimitive)
+                primitives.removeAll(doubles)
+                doubleAddressPrimitives.addAll(doubles)
+            }
+            doubleAddressPrimitives.forEach { markAsProcessed(it, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND) }
+            return doubleAddressPrimitives
+        }
+
+        private fun getDuplicatesByDistance(
+            osmPrimitives: List<OsmPrimitive>?,
+            checkList: List<OsmPrimitive>,
+            isPlace: Boolean?
+        ): List<OsmPrimitive> {
+            val distance = getDistanceSetting(isPlace)
+            val result = mutableListOf<OsmPrimitive>()
+            checkList.forEach { primitive ->
+                val closestOSMObject = Geometry.getClosestPrimitive(primitive, osmPrimitives)
+                if (Geometry.getDistance(primitive, closestOSMObject) < distance) {
+                    result.add(primitive)
+                }
+            }
+            return result
+        }
+
+        private fun getDistanceSetting(isPlace: Boolean?): Int {
+            return if (isPlace == true) {
+                2 * ValidationSettingsReader.DISTANCE_FOR_PLACE_NODE_SEARCH.get()
+            } else {
+                return TagSettingsReader.CLEAR_DOUBLE_DISTANCE.get()
+            }
+        }
+
         fun findDoubledAddresses(addresses: MutableList<ParsedAddress>): Set<ParsedAddress> {
             //получает на вход мутабельный список адресов, которым хотим проверить на дубликаты среди данных ОСМ.
             //удаляем из него все примитивы, для которых есть дубликат предпочитаемого адреса в ОСМ
@@ -220,6 +296,12 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             return prefAddress.getOsmAddress().getInlineAddress(",") ?: ""
         }
 
+        private fun isPlaceAddress(primitive: OsmPrimitive): Boolean {
+            val prefAddress = egrnResponses[primitive]?.third?.getPreferredAddress() ?: return false
+            return if (prefAddress.isMatchedByStreet()) {
+                false
+            } else prefAddress.isMatchedByPlace()
+        }
 
         private fun getOsmInlineAddress(p: OsmPrimitive): String {
             return if (p.hasKey("addr:street")) {

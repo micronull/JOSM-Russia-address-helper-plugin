@@ -32,7 +32,7 @@ class SelectAction : JosmAction(
     override fun actionPerformed(e: ActionEvent?) {
         val dataSet: DataSet = OsmDataManager.getInstance().editDataSet ?: return
         var selected = dataSet.selected.toList()
-        val buildingBadValues = setOf<String>("shed", "garage", "roof")
+        val buildingBadValues = setOf<String>("shed", "garage", "roof", "shack")
         //TO DO: вынести тэги фильтрации в настройки
         selected = selected.filter {
             it is Way &&
