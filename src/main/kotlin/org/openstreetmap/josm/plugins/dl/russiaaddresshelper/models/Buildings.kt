@@ -357,12 +357,13 @@ class Buildings(objects: List<OsmPrimitive>) {
         }
     }
 
+    //TO DO: все это по ходу члены ParsedAddressInfo
     private fun canAssignAddress(addressInfo: ParsedAddressInfo): Boolean {
         val validAddresses = addressInfo.getValidAddresses()
         if (validAddresses.size != 1) return false //multiple valid addresses or no valid address
-        if (addressInfo.addresses.size != 1) { //has 1 valid address and more non-valid but potentially fixable
+        if (addressInfo.addresses.size != 1) { //has 1 valid address and more non-valid
             val nonValidAddresses = addressInfo.getNonValidAddresses()
-            if (nonValidAddresses.any { nonValidAddressCanBeFixed(it) }) return false
+            if (nonValidAddresses.any { nonValidAddressCanBeFixed(it) }) return false //do we have any non-valid but potentially fixable?
         }
         val preferredAddress = addressInfo.getPreferredAddress()
         if (preferredAddress != null) {
@@ -382,6 +383,14 @@ class Buildings(objects: List<OsmPrimitive>) {
     }
 
     private fun nonValidAddressCanBeFixed(address: ParsedAddress): Boolean {
-        return address.flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM)
+        return (address.flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM) ||
+                address.flags.contains(ParsingFlags.CANNOT_FIND_PLACE_OBJECT_IN_OSM))
+                && isHouseNumberValid(address)
+    }
+
+    private fun isHouseNumberValid(address: ParsedAddress): Boolean {
+        return !address.flags.contains(ParsingFlags.HOUSENUMBER_CANNOT_BE_PARSED) &&
+                !address.flags.contains(ParsingFlags.HOUSENUMBER_TOO_BIG)
+                && !address.flags.contains(ParsingFlags.HOUSENUMBER_CANNOT_BE_PARSED_BUT_CONTAINS_NUMBERS)
     }
 }

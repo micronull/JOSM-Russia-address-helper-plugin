@@ -114,6 +114,12 @@ internal class HouseNumberIParserTest {
             fakeCoordinate,
             ds).houseNumber)
 
+        assertEquals("38", testSample.parse(
+            "Калужская обл., р-н Медынский, г. Медынь, ул. Митрофанова, д. 38, кв 2",
+            fakeCoordinate,
+            ds).houseNumber)
+
+
 
 
         //обл. Брянская, г. Брянск, пер. Белорусский, дом 30, корпус A - вообще непонятно, валидный ли это номер? для частного здания это явно ненормально
