@@ -299,5 +299,14 @@ msgstr "В настройках плагина не выбран слой для
 msgid "Shift layer doesnt have offset, this is probably an error. Change offset of layer"
 msgstr "Выбранный слой сдвига запроса не откорректирован. Сдвиньте согласно геометрии слой"
 
+msgid "Somehow cannot find street lines with name="
+msgstr "Не удалось найти линию улицы с name="
+
+msgid "operation canceled"
+msgstr "операция прервана"
+
+msgid "Enable extended data request for point"
+msgstr "Запрашивать расширенные данные из ЕГРН для точечного запроса"
+
 
 

@@ -17,11 +17,13 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
     private val egrnTotalRequestsCounter = JosmTextField(9)
     private val egrnRequestDelay = JosmTextField(3)
     private val disableSSLforRequests = JCheckBox(I18n.tr("Disable SSL for EGRN requests"))
+    private val enableExtendParamsRequestForPoint = JCheckBox(I18n.tr("Enable extended data request for point"))
 
     init {
         val panel: JPanel = this
         panel.border = BorderFactory.createEmptyBorder(5, 5, 5, 5)
         panel.add(disableSSLforRequests, GBC.eol())
+        panel.add(enableExtendParamsRequestForPoint, GBC.eol())
 
         panel.add(JLabel(I18n.tr("EGRN request url:")), GBC.std())
         panel.add(egrnUrl, GBC.eop().fill(GBC.HORIZONTAL).insets(5, 0, 0, 5))
@@ -54,6 +56,7 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
         egrnRequestSelectionLimit.text = EgrnSettingsReader.REQUEST_LIMIT_PER_SELECTION.get().toString()
         egrnRequestDelay.text = EgrnSettingsReader.REQUEST_DELAY.get().toString()
         disableSSLforRequests.isSelected = EgrnSettingsReader.EGRN_DISABLE_SSL_FOR_REQUEST.get()
+        enableExtendParamsRequestForPoint.isSelected = EgrnSettingsReader.EGRN_REQUEST_EXTENDED_DATA_FOR_POINT.get()
         egrnTotalRequestsCounter.text = "${RussiaAddressHelperPlugin.totalRequestsPerSession}/${RussiaAddressHelperPlugin.totalSuccessRequestsPerSession}"
         egrnTotalRequestsCounter.isEnabled = false
     }
@@ -65,6 +68,7 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
         EgrnSettingsReader.EGRN_URL_REQUEST.put(egrnUrl.text)
         EgrnSettingsReader.EGRN_REQUEST_USER_AGENT.put(userAgent.text)
         EgrnSettingsReader.EGRN_DISABLE_SSL_FOR_REQUEST.put(disableSSLforRequests.isSelected)
+        EgrnSettingsReader.EGRN_REQUEST_EXTENDED_DATA_FOR_POINT.put(enableExtendParamsRequestForPoint.isSelected)
 
         try {
             var limit = Integer.valueOf(egrnRequestLimit.text)

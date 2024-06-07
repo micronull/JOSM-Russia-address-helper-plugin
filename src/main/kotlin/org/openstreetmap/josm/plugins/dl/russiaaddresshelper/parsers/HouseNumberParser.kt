@@ -21,7 +21,6 @@ class HouseNumberParser : IParser<ParsedHouseNumber> {
                     match.groups["housenumber"]!!.value.filterNot { it == '"' || it == ' ' || it == '-' || it == '«' || it == '»' }
                         .trim().uppercase()
                 if (houseNumber.matches(Regex("""\d{4,}"""))) {
-                    //это пока не работает поскольку регекс для номера дома изменился, надо откат?
                     Logging.error("EGRN-PLUGIN Cant parse housenumber from address: $address, housenumber too big")
                     parsingFlags.add(ParsingFlags.HOUSENUMBER_TOO_BIG)
                     return ParsedHouseNumber("", "", null, parsingFlags)
