@@ -41,5 +41,9 @@ class EgrnSettingsReader {
          * @since 0.8.5.7
          */
         val REQUEST_LIMIT_PER_SELECTION = IntegerProperty("dl.russiaaddresshelper.ppk.requestselection.limit", 100)
+
+        val EGRN_REQUEST_EXTENDED_DATA_FOR_POINT = BooleanProperty( "dl.russiaaddresshelper.ppk.enable.extended.request",
+            false
+        )
     }
 }

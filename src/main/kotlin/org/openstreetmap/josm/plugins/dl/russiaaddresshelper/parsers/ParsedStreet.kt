@@ -245,13 +245,19 @@ class ParsedStreet(
     }
 
     fun removeEndingWith(address: String): String {
-        if (extractedType == null) return address
+        var matchRange = getMatchRange(address)
+        val matchEndIndex = matchRange.last
+        return address.slice(matchEndIndex+1 until address.length)
+    }
+
+    fun getMatchRange (address: String): IntRange {
+        if (extractedType == null) return IntRange.EMPTY
         val matchedPattern = extractedType.egrn.asRegExpList().find { it.containsMatchIn(address) }
         if (matchedPattern == null) {
             Logging.error("EGRN PLUGIN RemoveEndingWith - somehow matched street type ${extractedType.name} doesnt match $address")
-            return address
+            return IntRange.EMPTY
         }
-        val matchEndIndex = matchedPattern.findAll(address).last().groups["street"]?.range?.last ?: 0
-        return address.slice(matchEndIndex+1 until address.length)
+        return matchedPattern.findAll(address).last().groups["street"]!!.range
     }
+
 }

@@ -13,8 +13,10 @@ import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.util.KeyPressReleaseListener
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNFeatureExtDataResponse
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNFeatureType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNResponse
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.ImageProvider
 import org.openstreetmap.josm.tools.Logging
@@ -63,7 +65,7 @@ class ClickAction : MapMode(
             return
         }
         mapView.setNewCursor(Cursor(Cursor.WAIT_CURSOR), this)
-        val defaultTagsForNode: Map<String, String> = mapOf("source:addr" to "ЕГРН", "fixme" to "yes")
+        val defaultTagsForNode: Map<String, String> = mapOf("source:addr" to "ЕГРН", "fixme" to "REMOVE ME!")
         val ds = layerManager.editDataSet
         val cmds: MutableList<Command> = mutableListOf()
         val mouseEN = mapView.getEastNorth(e.x, e.y)
@@ -71,6 +73,7 @@ class ClickAction : MapMode(
         val clickRetries = 5
         val clickDelay = 1000L
         var retries = clickRetries
+
         while (needToRepeat) {
             val (request, response, result) = RussiaAddressHelperPlugin.getEgrnClient()
                 .request(mouseEN, listOf(EGRNFeatureType.PARCEL, EGRNFeatureType.BUILDING))
@@ -83,58 +86,57 @@ class ClickAction : MapMode(
                     if (egrnResponse.total == 0) {
                         Logging.info("EGRN PLUGIN empty response for request ${request.url}")
                         Logging.info("$egrnResponse")
-                    } else if (egrnResponse.results.all { it.attrs?.address?.isBlank() != false }) {
+                    } else if (!EgrnSettingsReader.EGRN_REQUEST_EXTENDED_DATA_FOR_POINT.get() && egrnResponse.results.all { it.attrs?.address?.isBlank() != false }) {
                         Logging.info("EGRN PLUGIN no addresses found for for request ${request.url}")
                         Logging.info("$egrnResponse")
                     } else {
-
-                        val allAddresses = egrnResponse.parseAddresses(mouseEN)
-                        val parsedAddresses = allAddresses.addresses.filter { it.isValidAddress() }
-                        //val parsedAddresses = allAddresses.addresses
-
+                        val features = egrnResponse.results
                         var nodes: List<Node> = listOf()
-                        //генерим "облако" точек вокруг места клика с адресами
-                        parsedAddresses.forEachIndexed { index, addr ->
-                            val n = Node(getNodePlacement(mouseEN, index))
-                            addr.getOsmAddress().getTags().forEach { (tagKey, tagValue) -> n.put(tagKey, tagValue) }
+                        features.forEachIndexed { ind, feature ->
+                            val address = feature.parseAddress(mouseEN)
+
+                            val n = Node(getNodePlacement(mouseEN, ind))
                             defaultTagsForNode.forEach { (tagKey, tagValue) -> n.put(tagKey, tagValue) }
-                            n.put("addr:RU:egrn", addr.egrnAddress)
-                            var addrType = EGRNFeatureType.PARCEL
-                            if (addr.isBuildingAddress()) {
-                                addrType = EGRNFeatureType.BUILDING
+                            if (address != null) {
+                                if (address.isValidAddress()) {
+                                    address.getOsmAddress().getTags()
+                                        .forEach { (tagKey, tagValue) -> n.put(tagKey, tagValue) }
+                                } else {
+                                    n.put("addr:RU:extracted_street_name", address.parsedStreet.extractedName)
+                                    n.put("addr:RU:extracted_street_type", address.parsedStreet.extractedType?.name)
+                                    n.put("addr:RU:extracted_place_name", address.parsedPlace.extractedName)
+                                    n.put("addr:RU:extracted_place_type", address.parsedPlace.extractedType?.name)
+                                    n.put("addr:RU:parsed_housenumber", address.parsedHouseNumber.houseNumber)
+                                    n.put("addr:RU:parsed_flats", address.parsedHouseNumber.flats)
+                                }
+                                n.put("addr:RU:egrn", address.egrnAddress)
+                                n.put("addr:RU:egrn_type", EGRNFeatureType.fromInt(feature.type).name)
                             }
-                            n.put("addr:RU:egrn_type", addrType.name)
+
+                            if (EgrnSettingsReader.EGRN_REQUEST_EXTENDED_DATA_FOR_POINT.get()) {
+                                val pkkId = feature.attrs?.id
+                                val featureType = feature.type
+                                if (pkkId != null) {
+                                    RussiaAddressHelperPlugin.totalRequestsPerSession++
+                                    val (_, responseExt, resultExt) = RussiaAddressHelperPlugin.getEgrnClient()
+                                        .requestExtended(pkkId, featureType)
+                                        .responseObject<EGRNFeatureExtDataResponse>(jacksonDeserializerOf())
+                                    if (responseExt.statusCode == 200) {
+                                        resultExt.success { extEgrnResponse ->
+                                            RussiaAddressHelperPlugin.totalSuccessRequestsPerSession++
+                                            extEgrnResponse.feature?.attrs?.getExtTags()
+                                                ?.forEach { (tagKey, tagValue) ->
+                                                    n.put(
+                                                        tagKey,
+                                                        tagValue
+                                                    )
+                                                }
+                                        }
+                                    }
+                                }
+                            }
                             nodes = nodes.plus(n)
                             cmds.add(AddCommand(ds, n))
-                        }
-
-                        val badAddresses = allAddresses.addresses.filter { !it.isValidAddress() }
-                        badAddresses.forEachIndexed { index, addr ->
-                            val node = Node(getNodePlacement(mouseEN, index + parsedAddresses.size))
-
-                            val defaultTagsForBadNode: Map<String, String> =
-                                mapOf("source:addr" to "ЕГРН", "fixme" to "REMOVE ME!")
-
-                            node.put("addr:RU:extracted_street_name", addr.parsedStreet.extractedName)
-                            node.put("addr:RU:extracted_street_type", addr.parsedStreet.extractedType?.name)
-                            node.put("addr:RU:extracted_place_name", addr.parsedPlace.extractedName)
-                            node.put("addr:RU:extracted_place_type", addr.parsedPlace.extractedType?.name)
-                            node.put("addr:RU:parsed_housenumber", addr.parsedHouseNumber.houseNumber)
-                            node.put("addr:RU:parsed_flats", addr.parsedHouseNumber.flats)
-                            defaultTagsForBadNode.forEach { (tagKey, tagValue) ->
-                                node.put(
-                                    tagKey,
-                                    tagValue
-                                )
-                            }
-                            node.put("addr:RU:egrn", addr.egrnAddress)
-                            var addrType = EGRNFeatureType.PARCEL
-                            if (addr.isBuildingAddress()) {
-                                addrType = EGRNFeatureType.BUILDING
-                            }
-                            node.put("addr:RU:egrn_type", addrType.name)
-                            nodes = nodes.plus(node)
-                            cmds.add(AddCommand(ds, node))
                         }
 
                         if (cmds.isNotEmpty()) {

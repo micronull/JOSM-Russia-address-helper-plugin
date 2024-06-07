@@ -1,17 +1,13 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.kittinunf.fuel.core.*
-import com.github.kittinunf.fuel.core.requests.DefaultBody
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.coor.conversion.DecimalDegreesCoordinateFormat
 import org.openstreetmap.josm.data.projection.Projections
 import org.openstreetmap.josm.io.OsmTransferException
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.LayerShiftSettingsReader
 import org.openstreetmap.josm.tools.Logging
-import java.io.ByteArrayInputStream
 import java.net.MalformedURLException
 import java.net.URL
 import java.security.cert.X509Certificate
@@ -88,6 +84,38 @@ class EgrnApi(private val url: String, private val userAgent: String) {
 
 
     }
+
+    fun requestExtended(pkkId: String, featureType: Int) : Request {
+        val manager: FuelManager
+        if (EgrnSettingsReader.EGRN_DISABLE_SSL_FOR_REQUEST.get()) {
+            manager = FuelManager().apply {
+                val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
+                    override fun getAcceptedIssuers(): Array<X509Certificate>? = null
+                    override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) = Unit
+                    override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) = Unit
+                })
+
+                socketFactory = SSLContext.getInstance("SSL").apply {
+                    init(null, trustAllCerts, java.security.SecureRandom())
+                }.socketFactory
+
+                hostnameVerifier = HostnameVerifier { _, _ -> true }
+
+            }
+        } else {
+            manager = FuelManager()
+        }
+        val extendedUrl = "https://pkk.rosreestr.ru/api/features/{feature_type}/{id}?date_format=%c&_=1707214999844"
+        val extUrl = extendedUrl.replace("{feature_type}", featureType.toString()).replace("{id}", pkkId)
+        return manager.request(Method.GET, extUrl).header(
+            mapOf(
+                Headers.ACCEPT to "application/json",
+                Headers.CONTENT_TYPE to "application/json",
+                Headers.USER_AGENT to userAgent,
+            )
+        ).timeout(3000)
+    }
+
 
     private fun getUrlWithLatLon(coordinate: EastNorth, featureTypes: List<Int>): String {
         val mercator = Projections.getProjectionByCode("EPSG:3857")

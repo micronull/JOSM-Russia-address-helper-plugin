@@ -49,10 +49,10 @@ class EGRNDuplicateAddressesTest : Test(
         val existingPrimitivesMap = allLoadedPrimitives.associateBy({ getOsmInlineAddress(it) }, { setOf(it) })
         Logging.info("EGRN-PLUGIN Finish associating all addressed primitives map, size ${existingPrimitivesMap.size}")
 
-        markedAsDoubles.forEach { primitive ->
+        markedAsDoubles.forEach outer@{ primitive ->
             if (RussiaAddressHelperPlugin.egrnResponses[primitive] == null) {
                 Logging.warn("Doubles check for object not in cache, id={0}", primitive.id)
-                return@forEach
+                return@outer
             }
             val addressInfo = RussiaAddressHelperPlugin.egrnResponses[primitive]!!.third
             val addresses = addressInfo.addresses
@@ -228,6 +228,11 @@ class EGRNDuplicateAddressesTest : Test(
             //assign to closest
             val streets = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives().filter { way ->
                 way is Way && way.hasKey("highway") && way.hasTag("name", duplicateAddress.parsedStreet.name)
+            }
+            if (streets.isEmpty()) {
+                Notification(I18n.tr("Somehow cannot find street lines with name=") + "$duplicateAddress.parsedStreet.name ," + I18n.tr("operation canceled"))
+                    .setIcon(JOptionPane.WARNING_MESSAGE).show()
+                return null
             }
             val centroids = affectedPrimitives.map { Node(Geometry.getCentroid((it as Way).nodes)) }
             val centroidOfBuildings = Node(Geometry.getCentroid(centroids))

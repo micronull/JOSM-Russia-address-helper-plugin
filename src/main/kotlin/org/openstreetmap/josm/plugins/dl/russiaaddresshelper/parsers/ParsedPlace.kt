@@ -249,8 +249,19 @@ data class ParsedPlace(
             Logging.error("EGRN PLUGIN RemoveEndingWith - somehow matched place type ${extractedType.name} doesnt match $address")
             return address
         }
-        val matchEndIndex = matchedPattern.findAll(address).last().groups["place"]?.range?.last ?: 0
+        val matchRange = getMatchRange(address)
+        val matchEndIndex = matchRange.last
         return address.slice(matchEndIndex + 1 until address.length)
+    }
+
+    fun getMatchRange(address: String): IntRange {
+        if (extractedType == null) return IntRange.EMPTY
+        val matchedPattern = extractedType.egrn.asRegExpList().find { it.containsMatchIn(address) }
+        if (matchedPattern == null) {
+            Logging.error("EGRN PLUGIN RemoveEndingWith - somehow matched place type ${extractedType.name} doesnt match $address")
+            return IntRange.EMPTY
+        }
+        return matchedPattern.findAll(address).last().groups["place"]!!.range
     }
 
 }
