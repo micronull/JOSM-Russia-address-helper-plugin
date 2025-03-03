@@ -1,21 +1,23 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models
 
-enum class AddressPartLevel(val description: String) {
-    POST_INDEX("Индекс"),
-    COUNTRY("Страна"),
-    REGION("Край, область"),
-    DISTRICT("Район"),
-    MUNICIPALITY("Городское/сельское поселение"),
-    CITY("Город"),
-    PLACE("Населенный пункт"),
-    CITY_REGION("Район населенного пункта"),
-    TERRITORY("Элемент площадной сети"),
-    STREET("Элемент дорожной сети"),
-    LOT("Участок"),
-    BUILDING("Здание"),
-    CONSTRUCTION("Сооружение"),
-    LETTER("Литера"),
-    BUILDING_PART("Часть здания"),
-    ROOM("Помещение"),
-    FLAT("Квартира")
+import javafx.scene.layout.Priority
+
+enum class AddressPartLevel(val description: String, val priority: Int) {
+    POST_INDEX("Индекс", 10),
+    COUNTRY("Страна",10),
+    REGION("Край, область",20),
+    DISTRICT("Район",30),
+    MUNICIPALITY("Городское/сельское поселение",40),
+    CITY("Город", 50),
+    PLACE("Населенный пункт",50),
+    CITY_REGION("Район населенного пункта",60),
+    TERRITORY("Элемент площадной сети", 70),
+    STREET("Элемент дорожной сети", 70),
+    LOT("Участок", 80),
+    BUILDING("Здание", 80),
+    CONSTRUCTION("Сооружение", 90),
+    LETTER("Литера", 100),
+    BUILDING_PART("Часть здания",110),
+    ROOM("Помещение",110),
+    FLAT("Квартира",110)
 }

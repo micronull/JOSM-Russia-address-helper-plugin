@@ -12,6 +12,7 @@ class ValidationSettingsPanel : JPanel(GridBagLayout()) {
 
     private val distanceForStreetSearch = JosmTextField(4)
     private val distanceForPlaceNodeSearch = JosmTextField(4)
+    private val stopWordsTablePanel = StopWordsTablePanel()
 
     init {
         val panel: JPanel = this
@@ -21,8 +22,9 @@ class ValidationSettingsPanel : JPanel(GridBagLayout()) {
         panel.add(distanceForStreetSearch, GBC.eop().insets(5, 0, 0, 5))
 
         panel.add(JLabel(I18n.tr("Place node should be closer than, meters:")), GBC.std())
-        panel.add(distanceForPlaceNodeSearch, GBC.eop().insets(5, 0, 0, 5))
+        panel.add(distanceForPlaceNodeSearch, GBC.eop().insets(5, 0, 0, 10))
 
+        panel.add(stopWordsTablePanel, GBC.eol())
         panel.add(Box.createVerticalGlue(), GBC.eol().fill())
     }
 
@@ -69,6 +71,7 @@ class ValidationSettingsPanel : JPanel(GridBagLayout()) {
             Logging.warn(e.message + "(need numeric)")
             ValidationSettingsReader.DISTANCE_FOR_PLACE_NODE_SEARCH.put(1000)
         }
+        stopWordsTablePanel.saveToPreferences()
     }
 
 }

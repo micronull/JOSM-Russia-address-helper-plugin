@@ -5,6 +5,8 @@ import org.openstreetmap.josm.command.Command
 import org.openstreetmap.josm.command.SequenceCommand
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.Node
+import org.openstreetmap.josm.data.osm.OsmPrimitive
+import org.openstreetmap.josm.data.osm.Relation
 import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.data.validation.Severity
 import org.openstreetmap.josm.data.validation.Test
@@ -15,8 +17,8 @@ import org.openstreetmap.josm.gui.widgets.JMultilineLabel
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
 import org.openstreetmap.josm.tools.GBC
-import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagLayout
 import javax.swing.JPanel
@@ -28,32 +30,40 @@ class EGRNFlatsInAddressTest : Test(
 ) {
 
     override fun visit(w: Way) {
-        if (!w.isUsable) return
-        if (RussiaAddressHelperPlugin.isIgnored(w, EGRNTestCode.EGRN_ADDRESS_HAS_FLATS)) {
-           return
+        visitForPrimitive(w)
+    }
+
+    override fun visit(r: Relation) {
+        visitForPrimitive(r)
+    }
+
+    private fun visitForPrimitive(p: OsmPrimitive) {
+        if (!p.isUsable) return
+        if (RussiaAddressHelperPlugin.cache.isIgnored(p, EGRNTestCode.EGRN_ADDRESS_HAS_FLATS)) {
+            return
         }
 
-        val egrnResponse = RussiaAddressHelperPlugin.egrnResponses[w]
+        val egrnResponse = RussiaAddressHelperPlugin.cache.get(p)
 
         if (egrnResponse != null) {
-            val addressInfo = egrnResponse.third
+            val addressInfo = egrnResponse.addressInfo!!
             val validAddressesWithFlats =
                 addressInfo.getValidAddresses().filter { it.flags.contains(ParsingFlags.HOUSENUMBER_HAS_FLATS) }
             if (validAddressesWithFlats.isNotEmpty()) {
-                validAddressesWithFlats.forEach {
-                    RussiaAddressHelperPlugin.markAsProcessed(w, EGRNTestCode.EGRN_ADDRESS_HAS_FLATS)
-                    val inlineAddress = it.getOsmAddress().getInlineAddress(",")
-                    errors.add(
-                        TestError.builder(
-                            this, Severity.WARNING,
-                            EGRNTestCode.EGRN_ADDRESS_HAS_FLATS.code
-                        )
-                            .message(I18n.tr("EGRN address has flats") + ": $inlineAddress")
-                            .primitives(w)
-                            .highlight(w)
-                            .build()
+                RussiaAddressHelperPlugin.cache.markProcessed(p, EGRNTestCode.EGRN_ADDRESS_HAS_FLATS)
+                val inlineAddress: String = validAddressesWithFlats.first().getOsmAddress().getInlineAddress(",", true)!!
+                val flats : String = validAddressesWithFlats.map { it.getOsmAddress().flatnumber }.sorted().joinToString(", ")
+                val highlightPrimitive = GeometryHelper.getBiggestPoly(p)
+                errors.add(
+                    TestError.builder(
+                        this, Severity.WARNING,
+                        EGRNTestCode.EGRN_ADDRESS_HAS_FLATS.code
                     )
-                }
+                        .message(I18n.tr(EGRNTestCode.EGRN_ADDRESS_HAS_FLATS.message) + ": $inlineAddress: $flats")
+                        .primitives(p)
+                        .highlight(highlightPrimitive)
+                        .build()
+                )
             }
         }
     }
@@ -62,17 +72,21 @@ class EGRNFlatsInAddressTest : Test(
         //для этого валидатора в списке всегда 1 примитив
         val primitive = testError.primitives.iterator().next()
         val affectedAddresses = mutableListOf<ParsedAddress>()
-        if (primitive !is Way) {
-            return null
-        }
-        var coordinate: EastNorth = Geometry.getCentroid(primitive.nodes)
 
-        if (RussiaAddressHelperPlugin.egrnResponses[primitive] != null) {
-            val addressInfo = RussiaAddressHelperPlugin.egrnResponses[primitive]?.third
-            coordinate = RussiaAddressHelperPlugin.egrnResponses[primitive]?.first!!
+        val createNodeAt: EastNorth
+        //TODO: реализовать алгоритм расстановки точек в соответствии с их реальным положением
+        //для каждого участка, где есть адрес с номером квартиры, найти пересечение границ участка с контуром здания, и взять точку центра полигона пересечения
+        if (RussiaAddressHelperPlugin.cache.contains(primitive)) {
+            val addressInfo = RussiaAddressHelperPlugin.cache.get(primitive)?.addressInfo
+            createNodeAt =
+                RussiaAddressHelperPlugin.cache.get(primitive)?.coordinate ?: GeometryHelper.getPrimitiveCentroid(
+                    primitive
+                )
             affectedAddresses.addAll(
                 addressInfo!!.getValidAddresses().filter { it.flags.contains(ParsingFlags.HOUSENUMBER_HAS_FLATS) })
 
+        } else {
+            return null
         }
         val p = JPanel(GridBagLayout())
         val label1 = JMultilineLabel(description)
@@ -82,6 +96,7 @@ class EGRNFlatsInAddressTest : Test(
         val infoLabel = JMultilineLabel(
             "В одном или более распознанном адресе из ЕГРН содержатся номера квартир." +
                     "<br>Можно проигнорировать их или создать адресные точки с номерами." +
+                    "<br>Внимание: положение создаваемых адресных точек не связано с реальным положением квартир!" +
                     "<br>(Хинт: рядом могут быть части здания с тем же номером дома, но другими квартирами." +
                     "<br>(Запросите данные для них отдельно или объедините в общий контур здания.)"
         )
@@ -114,8 +129,8 @@ class EGRNFlatsInAddressTest : Test(
         if (answer == 1) {
             val ds = MainApplication.getLayerManager().editDataSet
             affectedAddresses.forEachIndexed { index, element ->
-                val node = Node(getNodePlacement(coordinate, index))
-                element.getOsmAddress().getTags().forEach { node.put(it.key, it.value) }
+                val node = Node(getNodePlacement(createNodeAt, index))
+                node.putAll(element.getOsmAddress().getTags())
                 node.put("addr:RU:egrn", element.egrnAddress)
                 cmds.add(AddCommand(ds, node))
             }
@@ -123,14 +138,14 @@ class EGRNFlatsInAddressTest : Test(
         }
 
         if (answer == 2) {
-            RussiaAddressHelperPlugin.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
+            RussiaAddressHelperPlugin.cache.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
             return null
         }
 
         if (cmds.isNotEmpty()) {
             val c: Command =
                 SequenceCommand(I18n.tr("Added address nodes from RussiaAddressHelper AddressHasFlats validator"), cmds)
-                RussiaAddressHelperPlugin.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
+            RussiaAddressHelperPlugin.cache.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
 
             return c
         }

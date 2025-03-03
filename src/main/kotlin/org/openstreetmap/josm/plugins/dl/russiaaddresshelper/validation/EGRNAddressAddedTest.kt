@@ -4,6 +4,8 @@ import org.apache.commons.lang3.StringUtils
 import org.openstreetmap.josm.command.ChangePropertyCommand
 import org.openstreetmap.josm.command.Command
 import org.openstreetmap.josm.command.SequenceCommand
+import org.openstreetmap.josm.data.osm.OsmPrimitive
+import org.openstreetmap.josm.data.osm.Relation
 import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.data.validation.Severity
 import org.openstreetmap.josm.data.validation.Test
@@ -29,20 +31,29 @@ class EGRNAddressAddedTest : Test(
     private val osmStreetNameEditBox = JosmTextField("")
     private val osmPlaceNameEditBox = JosmTextField("")
     private val osmNumberEditBox = JosmTextField("")
+
     override fun visit(w: Way) {
-        if (!w.isUsable) return
-        val egrnResult = RussiaAddressHelperPlugin.egrnResponses[w]
-        if (egrnResult != null && egrnResult.third.getPreferredAddress() != null) {
-            val preferredAddress = egrnResult.third.getPreferredAddress()!!
-            if (preferredAddress.getOsmAddress().getBaseAddressTagsWithSource().all { w.hasTag(it.key, it.value) }) {
-                RussiaAddressHelperPlugin.markAsProcessed(w, EGRNTestCode.EGRN_VALID_ADDRESS_ADDED)
+        visitForPrimitive(w)
+    }
+
+    override fun visit(r: Relation) {
+        visitForPrimitive(r)
+    }
+
+    private fun visitForPrimitive(p: OsmPrimitive) {
+        if (!p.isUsable) return
+        val egrnResult = RussiaAddressHelperPlugin.cache.get(p)
+        if (egrnResult != null && egrnResult.addressInfo?.getPreferredAddress() != null) {
+            val preferredAddress = egrnResult.addressInfo.getPreferredAddress()!!
+            if (preferredAddress.getOsmAddress().getBaseAddressTagsWithSource().all { p.hasTag(it.key, it.value) }) {
+                RussiaAddressHelperPlugin.cache.markProcessed(p, EGRNTestCode.EGRN_VALID_ADDRESS_ADDED)
                 errors.add(
                     TestError.builder(
                         this, Severity.WARNING,
                         EGRNTestCode.EGRN_VALID_ADDRESS_ADDED.code
                     )
-                        .message(I18n.tr("EGRN address found"), preferredAddress.egrnAddress)
-                        .primitives(w)
+                        .message(I18n.tr( EGRNTestCode.EGRN_VALID_ADDRESS_ADDED.message), preferredAddress.egrnAddress)
+                        .primitives(p)
                         .build()
                 )
             }
@@ -52,7 +63,7 @@ class EGRNAddressAddedTest : Test(
     override fun fixError(testError: TestError): Command? {
         val primitive = testError.primitives.iterator().next()
 
-        val prefferedAddress = RussiaAddressHelperPlugin.egrnResponses[primitive]?.third!!.getPreferredAddress()!!
+        val preferredAddress = RussiaAddressHelperPlugin.cache.get(primitive)?.addressInfo!!.getPreferredAddress()!!
 
         val p = JPanel(GridBagLayout())
         val label1 = JMultilineLabel(description)
@@ -60,7 +71,7 @@ class EGRNAddressAddedTest : Test(
         p.add(label1, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
         val infoLabel = JMultilineLabel(
             "Запрос в ЕГРН вернул адрес" +
-                    "<br>${prefferedAddress.egrnAddress}, <br><b> тип: ${if (prefferedAddress.isBuildingAddress()) "здание" else "участок"}</b>" +
+                    "<br>${preferredAddress.egrnAddress}, <br><b> тип: ${if (preferredAddress.isBuildingAddress()) "здание" else "участок"}</b>" +
                     "<br> который был распознан и добавлен в ОСМ.<br>" +
                     "Если адрес был распознан некорректно, вы можете попытаться разобрать адрес вручную, или удалить некорректные тэги.<br>" +
                     "<b>Не вносите в ОСМ данные основанные на интерполяции!" +
@@ -76,14 +87,14 @@ class EGRNAddressAddedTest : Test(
         osmPlaceNameEditBox.text = ""
         osmNumberEditBox.text = ""
 
-        if (StringUtils.isNotBlank(prefferedAddress.parsedStreet.name)) {
-            osmStreetNameEditBox.text = prefferedAddress.parsedStreet.name
+        if (StringUtils.isNotBlank(preferredAddress.parsedStreet.name)) {
+            osmStreetNameEditBox.text = preferredAddress.parsedStreet.name
         }
-        if (StringUtils.isNotBlank(prefferedAddress.parsedPlace.name)) {
-            osmPlaceNameEditBox.text = prefferedAddress.parsedPlace.name
+        if (StringUtils.isNotBlank(preferredAddress.parsedPlace.name)) {
+            osmPlaceNameEditBox.text = preferredAddress.parsedPlace.name
         }
-        if (StringUtils.isNotBlank(prefferedAddress.parsedHouseNumber.houseNumber)) {
-            osmNumberEditBox.text = prefferedAddress.parsedHouseNumber.houseNumber
+        if (StringUtils.isNotBlank(preferredAddress.parsedHouseNumber.houseNumber)) {
+            osmNumberEditBox.text = preferredAddress.parsedHouseNumber.houseNumber
         }
 
         p.add(JLabel("addr:street"), GBC.std())
@@ -122,15 +133,15 @@ class EGRNAddressAddedTest : Test(
                     "addr:housenumber" to number,
                     "source:addr" to "ЕГРН",
                     "note" to "адрес из ЕГРН разобран вручную",
-                    "addr:RU:egrn" to prefferedAddress.egrnAddress
+                    "addr:RU:egrn" to preferredAddress.egrnAddress
                 )
                 if (StringUtils.isNotBlank(streetName)) {
-                    tags.put("addr:street", streetName)
+                    tags["addr:street"] = streetName
                 } else {
-                    tags.put("addr:place", placeName)
+                    tags["addr:place"] = placeName
                 }
                 cmds.add(ChangePropertyCommand(listOf(primitive), tags))
-                RussiaAddressHelperPlugin.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
+                RussiaAddressHelperPlugin.cache.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
             } else {
                 Notification(I18n.tr("Address not complete and was not added to building")).setIcon(JOptionPane.WARNING_MESSAGE)
                     .show()
@@ -142,13 +153,11 @@ class EGRNAddressAddedTest : Test(
             val tagsToRemove = mutableMapOf<String, String?>("addr:place" to null,"addr:street" to null,
                 "addr:housenumber" to null ,"source:addr" to null, "addr:RU:egrn" to null)
             cmds.add(ChangePropertyCommand(listOf(primitive), tagsToRemove))
-            RussiaAddressHelperPlugin.ignoreAllValidators(primitive)
+            RussiaAddressHelperPlugin.cache.ignoreAllValidators(primitive)
         }
 
         if (cmds.isNotEmpty()) {
-            val c: Command =
-                SequenceCommand(I18n.tr("Modified tags from RussiaAddressHelper AddressAdded validator"), cmds)
-            return c
+            return SequenceCommand(I18n.tr("Modified tags from RussiaAddressHelper AddressAdded validator"), cmds)
         }
 
         return null

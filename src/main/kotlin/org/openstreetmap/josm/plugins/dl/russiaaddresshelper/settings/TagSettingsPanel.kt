@@ -1,7 +1,10 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings
 
 import org.openstreetmap.josm.gui.widgets.JosmTextField
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.CommonSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.CommonSettingsReader.Companion.EXPORT_PARSED_DATA_TO_CSV
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.FileHelper
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
@@ -11,6 +14,7 @@ import javax.swing.*
 class TagSettingsPanel : JPanel(GridBagLayout()) {
     private val egrnAddrRecord = JCheckBox(I18n.tr("Record address from egrn to addr:RU:egrn tag."))
     private val doubleClearDistance = JosmTextField(4)
+    private val exportToCSV = JCheckBox(I18n.tr("Export parsed address data to CSV file"))
 
     init {
         val panel: JPanel = this
@@ -20,8 +24,12 @@ class TagSettingsPanel : JPanel(GridBagLayout()) {
         panel.add(egrnAddrRecord, GBC.eol().insets(0, 0, 0, 0))
 
         panel.add(JLabel(I18n.tr("Duplicates search distance in meters")), GBC.std())
-        doubleClearDistance.text = TagSettingsReader.CLEAR_DOUBLE_DISTANCE.get().toString()
+        doubleClearDistance.text = CommonSettingsReader.CLEAR_DOUBLE_DISTANCE.get().toString()
         panel.add(doubleClearDistance, GBC.eop().insets(5, 0, 0, 5))
+        exportToCSV.isSelected = EXPORT_PARSED_DATA_TO_CSV.get()
+        exportToCSV.toolTipText =
+            "Данные сохраняются в момент выгрузки в ОСМ в файл ${FileHelper.getCurrentExportFilename()} находящийся в папке редактора."
+        panel.add(exportToCSV, GBC.std())
 
         panel.add(Box.createVerticalGlue(), GBC.eol().fill())
     }
@@ -31,6 +39,7 @@ class TagSettingsPanel : JPanel(GridBagLayout()) {
      */
     fun saveToPreferences() {
         TagSettingsReader.EGRN_ADDR_RECORD.put(egrnAddrRecord.isSelected)
+        EXPORT_PARSED_DATA_TO_CSV.put(exportToCSV.isSelected)
         val distanceText = doubleClearDistance.getText()
         try {
             var distance = Integer.valueOf(distanceText)
@@ -38,10 +47,10 @@ class TagSettingsPanel : JPanel(GridBagLayout()) {
             if (distance <= 0) {
                 distance = 100
             }
-            TagSettingsReader.CLEAR_DOUBLE_DISTANCE.put(distance)
+            CommonSettingsReader.CLEAR_DOUBLE_DISTANCE.put(distance)
         } catch (e: NumberFormatException) {
             Logging.warn(e.message + "(need numeric)")
-            TagSettingsReader.CLEAR_DOUBLE_DISTANCE.put(100)
+            CommonSettingsReader.CLEAR_DOUBLE_DISTANCE.put(100)
         }
     }
 

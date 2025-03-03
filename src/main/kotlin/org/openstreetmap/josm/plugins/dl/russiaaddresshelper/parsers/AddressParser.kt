@@ -4,8 +4,8 @@ import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.DataSet
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.AddressPart
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.AddressParts
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
 import org.openstreetmap.josm.tools.Logging
 
 private val addressParts: AddressParts = AddressParts.byYml("/references/address_parts.yml")
@@ -32,7 +32,7 @@ class AddressParser : IParser<ParsedAddress> {
         //Калужская область, Боровский район, деревня Кабицыно, улица А. Кабаевой, дом 25 (Двадцать пять)
         filteredEgrnAddress = filteredEgrnAddress.replace(Regex("""\(([А-Яа-я ])+\)"""), "")
 
-         //     var fullParseResult = fullParse(filteredEgrnAddress)
+        // var fullParseResult = fullParse(filteredEgrnAddress)
 
         var placeParseResult = placeParser.parse(filteredEgrnAddress, requestCoordinate, editDataSet)
         var streetParseResult = streetParser.parse(filteredEgrnAddress, requestCoordinate, editDataSet)
@@ -89,6 +89,11 @@ class AddressParser : IParser<ParsedAddress> {
         allParsingFlags.addAll(placeParseResult.flags)
         allParsingFlags.addAll(streetParseResult.flags)
         allParsingFlags.addAll(houseNumberParse.flags)
+
+        if (TagSettingsReader.ADDRESS_STOP_WORDS.get().any { filteredEgrnAddress.contains(it,true) }) {
+            allParsingFlags.add(ParsingFlags.STOP_LIST_WORDS)
+        }
+
         return ParsedAddress(
             placeParseResult,
             streetParseResult,
@@ -143,7 +148,7 @@ class AddressParser : IParser<ParsedAddress> {
         return streetRange.first <= placeRange.last
     }
 
-    private fun fullParse(address: String) : List<String> {
+    private fun fullParse(address: String) : MutableList<MutableList<String>> {
         //сверхазадача - разобрать произвольный адрес на составляющие
         //составить список всех возможных вариантов разбиения и выбрать из них валидные
         //для дальнейшего сопоставления с адресными данными из ОСМ
@@ -153,21 +158,31 @@ class AddressParser : IParser<ParsedAddress> {
         //3.1
         val numerator = """(?<numerator>\d{1,2}(\s|-)(й|ий|ый|ой|я|ая|ья|е|ое|ье)\s)?"""
         val namedBy ="(имени|им.)?"
-        val result : List<String>
+       // val result : List<String> = mutableListOf()
         val addrSubstrings = address.split(",").filterNot { a -> a.isBlank() }
-        val results : MutableList<MutableList<String>>
-    /*    addrSubstrings.forEach{ part ->
-            addressParts.parts.forEach{addressPart ->
+        val results : MutableList<MutableList<String>> = mutableListOf()
+       addrSubstrings.forEach { substring ->
+           val trimmedSubstring = substring.trim()
+            addressParts.parts.forEach{ addressPart ->
+
+                val resultsForSubstring = mutableListOf<String>()
                 val allRegexes = addressPart.getAllRegexes()
                 allRegexes.forEach{
-                    if (it.find(part)) {
-                        results.add
+                    val match = it.find(trimmedSubstring)
+                    if (match !=null) {
+                        //на самом деле тут надо добавлять не стринг, а результат сопоставления - с чем совпало, и как.
+                        resultsForSubstring.add (match.value)
                     }
 
                 }
+                if (resultsForSubstring.isNotEmpty()) {
+                    results.add(resultsForSubstring)
+                } else {
+                    Logging.warn("EGRN-PLUGIN Cannot parse address part $trimmedSubstring")
+                }
             }
-        }*/
-        return listOf()
+        }
+        return results
     }
 
 

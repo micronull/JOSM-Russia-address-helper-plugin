@@ -41,8 +41,119 @@ msgstr "Лимит одновременных запросов (от 1 до 10):
 msgid "Delay between requests in seconds:"
 msgstr "Задержка между запросами в секундах:"
 
+msgid "Click action settings"
+msgstr "Запрос по клику"
+
+msgid "Mass action settings"
+msgstr "Запрос выделения"
+
+msgid "Export parsed address data to CSV file"
+msgstr "Выгружать разобранные адресные данные в файл CSV"
+
+msgid "Take all existing"
+msgstr "Взять все существующие"
+
+msgid "Take selected existing"
+msgstr "Взять выбранное существующее"
+
+msgid "Take all loaded"
+msgstr "Взять все импортированные"
+
+msgid "Take selected loaded"
+msgstr "Взять выбранное импортированное"
+
+msgid "Clear decisions"
+msgstr "Очистить результаты"
+
+msgid "Add merged data"
+msgstr "Присвоить объединенные"
+
+msgid "OSM value"
+msgstr "Значение в ОСМ"
+
+msgid "Result value"
+msgstr "Результат"
+
+msgid "EGRN value"
+msgstr "Значение из ЕГРН"
+
+msgid "EGRN conflicted data"
+msgstr "ЕГРН конфликт данных"
+
+msgid "Tag"
+msgstr "Тэг"
+
+msgid "Values"
+msgstr "Значения"
+
+msgid "Yes"
+msgstr "Да"
+
+msgid "No"
+msgstr "Нет"
+
+msgid "Move up"
+msgstr "Переместить вверх"
+
+msgid "Move down"
+msgstr "Переместить вниз"
+
+msgid "Remove row"
+msgstr "Удалить строку"
+
+msgid "Reset to defaults"
+msgstr "Сбросить по умолчанию"
+
+msgid "Reset to defaults?"
+msgstr "Сбросить по умолчанию?"
+
+msgid "Reset building tag settings to defaults?"
+msgstr "Сбросить настройки маппинга типов зданий по умолчанию?"
+
+msgid "EGRN terms"
+msgstr "Подстроки ЕГРН"
+
+msgid "Buildings ext info"
+msgstr "Типы зданий"
+
+msgid "Validation settings"
+msgstr "Валидация"
+
+msgid "Enable geometry import"
+msgstr "Импортировать геометрию из ПКК"
+
+msgid "Remove polygons smaller than"
+msgstr "Фильтровать полигоны менее чем, м. кв."
+
+msgid "Simplify geometry after import"
+msgstr "Упрощать импортированную геометрию"
+
+msgid "Simplify ways threshold"
+msgstr "Предел сдвига точек при упрощении, м"
+
+msgid "Simplify imported geometry"
+msgstr "Упрощение импортированной геометрии"
+
+msgid "Imported geometry was simplified, nodes removed"
+msgstr "Импортированная геометрия упрощена, удалено вершин"
+
+msgid "Merge features tags to single node"
+msgstr "Объединять данные слоев на одной точке"
+
 msgid "Record address from egrn to addr:RU:egrn tag."
 msgstr "Записывать сырой адрес из ЕГРН в тег addr:RU:egrn."
+
+msgid "Query layers settings"
+msgstr "Настройка слоев запроса"
+
+msgid "Layer shift settings"
+msgstr "Слой коррекции запроса"
+
+msgid "Miscellaneous"
+msgstr "Разное"
+
+msgid "Common settings"
+msgstr "Общие"
 
 msgid "Enable duplicate cleaning."
 msgstr "Включить удаление дублей."
@@ -53,14 +164,35 @@ msgstr "Для выделенных объектов"
 msgid "By click"
 msgstr "На месте клика"
 
-msgid "Buildings without number must be selected!"
-msgstr "Необходимо выделить здания без номера!"
+msgid "Add PKK WMS imagery layers"
+msgstr "Добавить слои WMS ПКК"
+
+msgid "Layer type"
+msgstr "Тип"
+
+msgid "Description"
+msgstr "Описание"
+
+msgid "Click action"
+msgstr "По клику"
+
+msgid "Mass request"
+msgstr "Массовый"
+
+msgid "Select query layers for action:"
+msgstr "Выберите слои, которые будут запрошены для действий:"
+
+msgid "All selected buildings are not eligible for request!"
+msgstr "Все выделенные здания не подходят для запроса!"
 
 msgid "Enable requested coordinates shift for requests according to the layer:"
 msgstr "Сдвигать координаты запросов cогласно сдвигу выбранного слоя:"
 
 msgid "Create address nodes for other found addresses"
 msgstr "Создавать адресные точки для всех найденных адресов"
+
+msgid "Data downloading failed, reason:"
+msgstr "Сбой загрузки данных, причина:"
 
 msgid "Create address nodes for unparsed addresses (for debug)"
 msgstr "Создавать адресные точки для нераспознанных адресов (для отладки)"
@@ -95,6 +227,15 @@ msgstr "Тип адреса"
 msgid "Disable SSL for EGRN requests"
 msgstr "Отключить SSL при запросах к ЕГРН"
 
+msgid "Resolution of request, pixel per meter:"
+msgstr "Разрешение окна запроса, пикселей на метр:"
+
+msgid "Boundary margin extension, meters:"
+msgstr "Расширение окна запроса вокруг объекта, метры:"
+
+msgid "Boundaries of request, meters"
+msgstr "Запрашивать по клику в радиусе, метры"
+
 msgid "EGRN address found"
 msgstr "ЕГРН адрес найден"
 
@@ -127,6 +268,9 @@ msgstr "Присвоить зданию адрес"
 
 msgid "Ignore error"
 msgstr "Игнорировать ошибку"
+
+msgid "Ignore"
+msgstr "Игнорировать"
 
 msgid "Address not complete and was not added to building"
 msgstr "Адрес не удовлетворяет условиям и не был присвоен"
@@ -281,17 +425,17 @@ msgstr "ЕГРН проверка геометрии "
 msgid "EGRN street/place way too far from street/place in OSM"
 msgstr "ЕГРН валидация на близость улицы/места к данным ОСМ"
 
-msgid "EGRN street found too far:"
-msgstr "ЕГРН улица слишком далеко:"
+msgid "EGRN street found too far"
+msgstr "ЕГРН улица слишком далеко"
 
-msgid "EGRN place found too far:"
-msgstr "ЕГРН место слишком далеко:"
+msgid "EGRN place found too far"
+msgstr "ЕГРН место слишком далеко"
 
-msgid "EGRN outside of place boundary:"
-msgstr "ЕГРН вне границ места:"
+msgid "EGRN outside of place boundary"
+msgstr "ЕГРН вне границ места"
 
-msgid "EGRN place boundary incomplete:"
-msgstr "ЕГРН граница места неполная:"
+msgid "EGRN place boundary incomplete"
+msgstr "ЕГРН граница места неполная"
 
 msgid "Shift layer doesnt set in plugin settings. Mass request without shift layer will be invalid. Aborting operation."
 msgstr "В настройках плагина не выбран слой для сдвига. Массовый запрос без сдвига некорректен. Прерывание операции."
@@ -307,6 +451,18 @@ msgstr "операция прервана"
 
 msgid "Enable extended data request for point"
 msgstr "Запрашивать расширенные данные из ЕГРН для точечного запроса"
+
+msgid "Cancel"
+msgstr "Отмена"
+
+msgid "EGRN address contains stop words"
+msgstr "ЕГРН адрес содержит стоп-слова"
+
+msgid "Addresses containing words from this table will trigger Adress is not recognized error"
+msgstr "Адреса, в которых содержатся слова из этого списка, будут распознаны как ошибочные"
+
+msgid "Key words"
+msgstr "Ключевые слова"
 
 
 

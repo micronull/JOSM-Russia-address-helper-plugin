@@ -4,20 +4,24 @@ import org.openstreetmap.josm.command.ChangePropertyCommand
 import org.openstreetmap.josm.command.Command
 import org.openstreetmap.josm.command.SequenceCommand
 import org.openstreetmap.josm.data.osm.OsmPrimitive
+import org.openstreetmap.josm.data.osm.Relation
 import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.data.validation.Severity
 import org.openstreetmap.josm.data.validation.Test
 import org.openstreetmap.josm.data.validation.TestError
 import org.openstreetmap.josm.gui.ExtendedDialog
 import org.openstreetmap.josm.gui.MainApplication
+import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel
 import org.openstreetmap.josm.gui.widgets.JosmTextField
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagLayout
 import javax.swing.JLabel
+import javax.swing.JOptionPane
 import javax.swing.JPanel
 
 
@@ -31,16 +35,28 @@ class EGRNInitialsStreetMatchingTest : Test(
     private val osmStreetNameEditBox = JosmTextField("")
 
     override fun visit(w: Way) {
+        visitForPrimitive(w)
+    }
+
+    override fun visit(r: Relation) {
+        visitForPrimitive(r)
+    }
+
+    fun visitForPrimitive(w: OsmPrimitive) {
         if (!w.isUsable) return
         if (parsedStreetToPrimitiveMap.isNotEmpty()) return
-        RussiaAddressHelperPlugin.egrnResponses.forEach { entry ->
+        RussiaAddressHelperPlugin.cache.responses.forEach { entry ->
             val primitive = entry.key
-            val addressInfo = entry.value.third
-            val addresses = addressInfo.addresses
+            val addressInfo = entry.value.addressInfo
+            val addresses = addressInfo?.addresses ?: listOf()
             addresses.forEach {
-                if (addressInfo.getPreferredAddress() == it) {
+                if (addressInfo?.getPreferredAddress() == it) {
                     if (it.flags.contains(ParsingFlags.STREET_NAME_INITIALS_MATCH) && !primitive.hasTag("addr:street")
-                        && !RussiaAddressHelperPlugin.isIgnored(primitive, EGRNTestCode.EGRN_PLACE_MATCH_WITHOUT_INITIALS)                            ) {
+                        && !RussiaAddressHelperPlugin.cache.isIgnored(
+                            primitive,
+                            EGRNTestCode.EGRN_STREET_MATCH_WITHOUT_INITIALS
+                        )
+                    ) {
                         val parsedStreetName = it.parsedStreet.extractedType?.name + " " + it.parsedStreet.extractedName
                         val osmObjName = it.parsedStreet.name
                         var affectedPrimitives =
@@ -63,15 +79,21 @@ class EGRNInitialsStreetMatchingTest : Test(
 
         parsedStreetToPrimitiveMap.forEach { entry ->
             val errorPrimitives = entry.value.first
-            errorPrimitives.forEach{RussiaAddressHelperPlugin.markAsProcessed(it, EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)}
+            RussiaAddressHelperPlugin.cache.markProcessed(
+                errorPrimitives,
+                EGRNTestCode.EGRN_STREET_MATCH_WITHOUT_INITIALS
+            )
+            val highlightPrimitives: List<OsmPrimitive> = errorPrimitives.mapNotNull { p ->
+                GeometryHelper.getBiggestPoly(p)
+            }
             errors.add(
                 TestError.builder(
                     this, Severity.ERROR,
                     EGRNTestCode.EGRN_STREET_MATCH_WITHOUT_INITIALS.code
                 )
-                    .message(I18n.tr("EGRN initials match") + ": ${entry.key} " + " -> " + entry.value.second)
+                    .message(I18n.tr(EGRNTestCode.EGRN_STREET_MATCH_WITHOUT_INITIALS.message) + ": ${entry.key} " + " -> " + entry.value.second)
                     .primitives(errorPrimitives)
-                    .highlight(errorPrimitives)
+                    .highlight(highlightPrimitives)
                     .build()
             )
         }
@@ -84,8 +106,8 @@ class EGRNInitialsStreetMatchingTest : Test(
         var egrnStreetName = ""
         var osmStreetName = ""
         testError.primitives.forEach {
-            if (RussiaAddressHelperPlugin.egrnResponses[it] != null) {
-                val addressInfo = RussiaAddressHelperPlugin.egrnResponses[it]?.third
+            if (RussiaAddressHelperPlugin.cache.contains(it)) {
+                val addressInfo = RussiaAddressHelperPlugin.cache.get(it)?.addressInfo
                 val prefferedAddress = addressInfo?.getPreferredAddress()
                 egrnStreetName =
                     "${prefferedAddress!!.parsedStreet.extractedType?.name} ${prefferedAddress.parsedStreet.extractedName}"
@@ -122,7 +144,7 @@ class EGRNInitialsStreetMatchingTest : Test(
         editedOsmStreetName = osmStreetNameEditBox.text
 
         val buttonTexts = arrayOf(
-            I18n.tr("Assign address by street")+ ": $osmStreetName",
+            I18n.tr("Assign address by street") + ": $osmStreetName",
             I18n.tr("Rename street"),
             I18n.tr("Cancel")
         )
@@ -143,11 +165,20 @@ class EGRNInitialsStreetMatchingTest : Test(
         if (answer == 1) {
 
             val filteredPrimitives =
-                testError.primitives.filter { RussiaAddressHelperPlugin.egrnResponses[it] != null }.toMutableList()
+                testError.primitives.filter { RussiaAddressHelperPlugin.cache.contains(it) }.toMutableList()
             val doubles = RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
-            RussiaAddressHelperPlugin.ignoreValidator(doubles, EGRNTestCode.EGRN_STREET_MATCH_WITHOUT_INITIALS)
+            if (doubles.isNotEmpty()) {
+                val msg = I18n.tr("Duplicate addresses was not assigned")
+                val doublesAddresses =
+                    osmStreetName + doubles.map { RussiaAddressHelperPlugin.cache.get(it)!!.addressInfo!!.getPreferredAddress()!!.parsedHouseNumber }
+                        .joinToString { ", " }
+                val notification = Notification(msg + ": $doublesAddresses").setIcon(JOptionPane.INFORMATION_MESSAGE)
+                notification.duration = Notification.TIME_LONG
+                notification.show()
+            }
+            RussiaAddressHelperPlugin.cache.ignoreValidator(doubles, EGRNTestCode.EGRN_STREET_MATCH_WITHOUT_INITIALS)
             filteredPrimitives.forEach {
-                val prefferedAddress = RussiaAddressHelperPlugin.egrnResponses[it]!!.third.getPreferredAddress()
+                val prefferedAddress = RussiaAddressHelperPlugin.cache.get(it)!!.addressInfo?.getPreferredAddress()
                 var tags = prefferedAddress!!.getOsmAddress().getBaseAddressTagsWithSource()
                 tags = tags.plus(Pair("addr:RU:egrn", prefferedAddress.egrnAddress))
                 cmds.add(ChangePropertyCommand(listOf(it), tags))
@@ -163,18 +194,21 @@ class EGRNInitialsStreetMatchingTest : Test(
             }
             val buildings = testError.primitives.filter { !it.hasTag("highway") }
             buildings.forEach {
-                val egrnResult = RussiaAddressHelperPlugin.egrnResponses[it]
-                if (egrnResult != null) {
-                    var tags = egrnResult.third.getPreferredAddress()!!.getOsmAddress().getBaseAddressTagsWithSource()
+
+                if (RussiaAddressHelperPlugin.cache.contains(it)) {
+                    val preferredAddress =
+                        RussiaAddressHelperPlugin.cache.get(it)!!.addressInfo!!.getPreferredAddress()!!
+                    var tags = preferredAddress.getOsmAddress().getBaseAddressTagsWithSource()
                     tags = tags.plus(Pair("addr:street", editedOsmStreetName))
-                    tags = tags.plus(Pair("addr:RU:egrn", egrnResult.third.getPreferredAddress()!!.egrnAddress))
+                    tags = tags.plus(Pair("addr:RU:egrn", preferredAddress.egrnAddress))
                     cmds.add(ChangePropertyCommand(mutableListOf(it), tags))
                 }
             }
         }
 
         if (cmds.isNotEmpty()) {
-            val c: Command = SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper InitialsMatch validator"), cmds)
+            val c: Command =
+                SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper InitialsMatch validator"), cmds)
             return c
         }
 

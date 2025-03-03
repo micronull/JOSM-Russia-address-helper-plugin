@@ -2,10 +2,7 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation
 
 import org.apache.commons.lang3.StringUtils
 import org.openstreetmap.josm.command.Command
-import org.openstreetmap.josm.data.osm.DataSet
-import org.openstreetmap.josm.data.osm.OsmDataManager
-import org.openstreetmap.josm.data.osm.OsmPrimitive
-import org.openstreetmap.josm.data.osm.Way
+import org.openstreetmap.josm.data.osm.*
 import org.openstreetmap.josm.data.validation.Severity
 import org.openstreetmap.josm.data.validation.Test
 import org.openstreetmap.josm.data.validation.TestError
@@ -15,6 +12,7 @@ import org.openstreetmap.josm.gui.widgets.JMultilineLabel
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagLayout
@@ -30,17 +28,25 @@ class EGRNStreetNotFoundTest : Test(
     private var parsedStreetToPrimitiveMap: Map<String, Set<OsmPrimitive>> = mutableMapOf()
 
     override fun visit(w: Way) {
-        if (!w.isUsable) return
+        visitForPrimitive(w)
+    }
+
+    override fun visit(r: Relation) {
+        visitForPrimitive(r)
+    }
+
+    private fun visitForPrimitive(p: OsmPrimitive) {
+        if (!p.isUsable) return
         if (parsedStreetToPrimitiveMap.isNotEmpty()) return
         //собираем в мапу домики которые не сопоставились, ключ - распознанное имя улицы
-        RussiaAddressHelperPlugin.egrnResponses.forEach { entry ->
+        RussiaAddressHelperPlugin.cache.responses.forEach { entry ->
             val primitive = entry.key
-            val addressInfo = entry.value.third
+            val addressInfo = entry.value.addressInfo!!
             val addresses = addressInfo.addresses
             addresses.forEach {
                 if (it.flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM)
                     && (StringUtils.isNotBlank(it.parsedHouseNumber.houseNumber))
-                    && (!RussiaAddressHelperPlugin.isIgnored(primitive,EGRNTestCode.EGRN_NOT_MATCHED_OSM_STREET))
+                    && (!entry.value.isIgnored(EGRNTestCode.EGRN_NOT_MATCHED_OSM_STREET))
                     && !primitive.hasTag("addr:street")
                 ) {
                     val parsedStreetName = it.parsedStreet.extractedType?.name + " " + it.parsedStreet.extractedName
@@ -53,16 +59,19 @@ class EGRNStreetNotFoundTest : Test(
             }
         }
 
-        parsedStreetToPrimitiveMap.forEach { parsedName, primitives ->
-            primitives.forEach{RussiaAddressHelperPlugin.markAsProcessed(it, EGRNTestCode.EGRN_NOT_MATCHED_OSM_PLACE)}
+        parsedStreetToPrimitiveMap.forEach { (parsedName, primitives) ->
+            RussiaAddressHelperPlugin.cache.markProcessed(primitives, EGRNTestCode.EGRN_NOT_MATCHED_OSM_PLACE)
+            val highlightPrimitives: List<OsmPrimitive> = primitives.mapNotNull { p ->
+                GeometryHelper.getBiggestPoly(p)
+            }
             errors.add(
                 TestError.builder(
                     this, Severity.ERROR,
                     EGRNTestCode.EGRN_NOT_MATCHED_OSM_STREET.code
                 )
-                    .message(I18n.tr("EGRN street not found") + ": $parsedName")
+                    .message(I18n.tr(EGRNTestCode.EGRN_NOT_MATCHED_OSM_STREET.message) + ": $parsedName")
                     .primitives(primitives)
-                    .highlight(primitives)
+                    .highlight(highlightPrimitives)
                     .build()
             )
         }
@@ -73,8 +82,8 @@ class EGRNStreetNotFoundTest : Test(
         val affectedHousenumbers = mutableListOf<String>()
         val affectedAddresses = mutableListOf<ParsedAddress>()
         testError.primitives.forEach {
-            if (RussiaAddressHelperPlugin.egrnResponses[it] != null) {
-                val addressInfo = RussiaAddressHelperPlugin.egrnResponses[it]?.third
+            if (RussiaAddressHelperPlugin.cache.contains(it)) {
+                val addressInfo = RussiaAddressHelperPlugin.cache.get(it)?.addressInfo
                 val addresses =
                     addressInfo?.addresses!!.filter { it.flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM) }
                 val prefferedAddress: ParsedAddress = addresses.first()
@@ -132,13 +141,7 @@ class EGRNStreetNotFoundTest : Test(
             return null
         }
         if (answer == 2) {
-            testError.primitives.forEach {
-                RussiaAddressHelperPlugin.ignoreValidator(
-                    it,
-                    EGRNTestCode.getByCode(testError.code)!!
-                )
-            }
-
+            RussiaAddressHelperPlugin.cache.ignoreValidator(testError.primitives, EGRNTestCode.getByCode(testError.code)!!)
             return null
         }
 
