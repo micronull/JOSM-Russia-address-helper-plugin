@@ -1,6 +1,7 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io
 
 import org.openstreetmap.josm.data.preferences.BooleanProperty
+import org.openstreetmap.josm.data.preferences.DoubleProperty
 import org.openstreetmap.josm.data.preferences.IntegerProperty
 import org.openstreetmap.josm.data.preferences.StringProperty
 
@@ -42,8 +43,37 @@ class EgrnSettingsReader {
          */
         val REQUEST_LIMIT_PER_SELECTION = IntegerProperty("dl.russiaaddresshelper.ppk.requestselection.limit", 100)
 
-        val EGRN_REQUEST_EXTENDED_DATA_FOR_POINT = BooleanProperty( "dl.russiaaddresshelper.ppk.enable.extended.request",
-            false
+        val NSPD_GET_FEATURE_REQUEST_URL = StringProperty(
+            "dl.russiaaddresshelper.nspd.getfeature.url",
+            "https://nspd.gov.ru/api/aeggis/v3/{layer}/wms?REQUEST=GetFeatureInfo&QUERY_LAYERS={layer}&SERVICE=WMS&VERSION=1.3.0&FORMAT=image/png&STYLES=&TRANSPARENT=true&LAYERS={layer}&INFO_FORMAT=application/json&FEATURE_COUNT=10&I={x}&J={y}&WIDTH={width}&HEIGHT={height}&CRS=EPSG:3857&BBOX={minx},{miny},{maxx},{maxy}"
         )
+
+        val NSPD_GET_MAP_REQUEST_URL = StringProperty(
+            "dl.russiaaddresshelper.nspd.getfeature.url",
+            "wms:{site}/api/aeggis/v3/{layer}/wms?REQUEST=GetMap&SERVICE=WMS&VERSION=1.3.0&FORMAT=image/png&STYLES=&TRANSPARENT=true&LAYERS={layer}&WIDTH={width}&HEIGHT={height}&CRS={proj}&BBOX={bbox}"
+        )
+
+        val NSPD_SITE_URL = StringProperty(
+            "dl.russiaaddresshelper.nspd.getfeature.site_url",
+            "https://nspd.gov.ru"
+        )
+
+        val LOCALHOST_PROXY_URL = StringProperty(
+            "dl.russiaaddresshelper.nspd.getfeature.localhost_proxy",
+            "http://localhost:8081"
+        )
+
+        /**
+         * @since 0.9.4
+         * Coefficient to calculate request pixel resolution from boundaries. Pixels per meter
+         */
+
+        val REQUEST_PIXEL_RESOLUTION = DoubleProperty("dl.russiaaddresshelper.nspd.request_pixel_resolution", 5.0)
+
+        /**
+         * @since 0.9.4
+         * When request is made with boundary of object known, add these margins
+         */
+        val REQUEST_BOUNDS_MARGIN = IntegerProperty("dl.russiaaddresshelper.nspd.request_boundary_margin", 30)
     }
 }

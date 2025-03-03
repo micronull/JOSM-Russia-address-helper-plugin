@@ -24,7 +24,7 @@ class AddressCorrectionTableModel(corrections: List<AddressCorrection>) :
         return when (colIndex) {
             0 -> formatAddress(correction.address.egrnAddress, 40)
             1 -> correction.address.getOsmAddress().getInlineAddress(",")
-            2 -> if (correction.address.isBuildingAddress()) {
+            2 -> correction.address.layer?.description ?: if (correction.address.isBuildingAddress()) {
                 I18n.tr("BUILDING")
             } else {
                 I18n.tr("PARCEL")

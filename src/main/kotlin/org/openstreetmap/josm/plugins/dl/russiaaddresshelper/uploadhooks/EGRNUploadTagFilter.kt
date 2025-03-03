@@ -6,7 +6,6 @@ import org.openstreetmap.josm.command.DeleteCommand
 import org.openstreetmap.josm.command.SequenceCommand
 import org.openstreetmap.josm.data.APIDataSet
 import org.openstreetmap.josm.data.UndoRedoHandler
-import org.openstreetmap.josm.data.osm.Node
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
@@ -16,12 +15,12 @@ class EGRNUploadTagFilter : UploadHook {
     override fun checkUpload(apiDataSet: APIDataSet): Boolean {
 
         val needsToRemove = apiDataSet.primitivesToAdd.filter {
-            it is Node && (it.hasTag("fixme", "REMOVE_ME!") || it.hasTag("fixme", "REMOVE ME!") ||
-                    (it.hasTag("fixme", "yes") && it.hasTag("source:addr", "ЕГРН")))
+            /*it is Node && */(it.hasTag("fixme", "REMOVE_ME!") || it.hasTag("fixme", "REMOVE ME!") ||
+                (it.hasTag("fixme", "yes") && it.hasTag("source:addr", "ЕГРН")))
         }
         if (needsToRemove.isNotEmpty()) {
             val removeObjects = SequenceCommand(
-                I18n.tr("Removed EGRN generated nodes"),
+                I18n.tr("Removed EGRN generated geometry"),
                 DeleteCommand(needsToRemove)
             )
 

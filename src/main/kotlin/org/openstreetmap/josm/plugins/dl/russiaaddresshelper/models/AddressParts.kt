@@ -3,7 +3,7 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models
 import com.charleskorn.kaml.Yaml
 import kotlinx.serialization.Serializable
 
-@Serializable data class AddressParts(val parts: List<AddressPart>) {
+@Serializable data class AddressParts(val parts: List<AddressPartMatcher>) {
     companion object {
         /**
          * Парсим yml файл и возвращаем экземпляр класса AddressParts

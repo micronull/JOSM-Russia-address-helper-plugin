@@ -2,6 +2,7 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers
 
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.params.provider.Arguments
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.StreetTypes
@@ -49,6 +50,8 @@ internal class StreetNameParserTest {
             "Центральная аллея" to "Российская Федерация, Калужская область, Ферзиковский муниципальный район, с.п. \"Село Грабцево\", с. Воскресенское, Центральная аллея, д. 5",
             "Центральная аллея" to "Российская Федерация, Калужская область, Ферзиковский муниципальный район, с.п. \"Село Грабцево\", с. Воскресенское, аллея Центральная, д. 5",
             "улица 8 Марта" to "Калужская область, р-н Износковский, с. Износки, ул. 8-ое Марта, д. 10",
+            "1-я Рябиновая улица" to "Калужская обл., р-н Малоярославецкий, с. Маклино, ул. 1-я Рябиновая, уч. № 5",
+            "1-я Рябиновая улица" to "Российская Федерация, Калужская область, р-н Малоярославецкий, с. Маклино, ул. 1-ая Рябиновая, дом 11"
 
         )
 
@@ -67,5 +70,12 @@ internal class StreetNameParserTest {
         assertEquals("2-й Родниковый проезд", parsedNumeredStreet.name)
         assertFalse(parsedNumeredStreet.flags.contains(ParsingFlags.STREET_NAME_FUZZY_MATCH))
 
+    }
+
+
+    companion object {
+        @JvmStatic
+        fun addresses() = listOf(
+            Arguments.of("Российская Федерация, Калужская область, р-н Малоярославецкий, с. Маклино, ул. 1-ая Рябиновая, дом 11",  "1-я Рябиновая улица"))
     }
 }

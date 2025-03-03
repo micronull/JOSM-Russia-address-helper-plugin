@@ -1,5 +1,6 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io
 
+import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.preferences.StringProperty
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.Notification
@@ -34,6 +35,19 @@ class LayerShiftSettingsReader {
                 return null
             }
             return shiftLayer
+        }
+
+
+        fun correctCoordinate(coordinate: EastNorth): EastNorth {
+            val shiftLayerSetting = LAYER_SHIFT_SOURCE
+            val shiftLayer = getValidShiftLayer(shiftLayerSetting) ?: return coordinate
+            return coordinate.subtract(shiftLayer.displaySettings.displacement)
+        }
+
+        fun reverseCorrection(coordinate: EastNorth): EastNorth {
+            val shiftLayerSetting = LAYER_SHIFT_SOURCE
+            val shiftLayer = getValidShiftLayer(shiftLayerSetting) ?: return coordinate
+            return coordinate.add(shiftLayer.displaySettings.displacement)
         }
     }
 }

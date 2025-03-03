@@ -4,6 +4,8 @@ import org.apache.commons.lang3.StringUtils
 import org.openstreetmap.josm.command.ChangePropertyCommand
 import org.openstreetmap.josm.command.Command
 import org.openstreetmap.josm.command.SequenceCommand
+import org.openstreetmap.josm.data.osm.OsmPrimitive
+import org.openstreetmap.josm.data.osm.Relation
 import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.data.validation.Severity
 import org.openstreetmap.josm.data.validation.Test
@@ -16,6 +18,7 @@ import org.openstreetmap.josm.gui.widgets.JosmTextField
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagLayout
@@ -33,18 +36,27 @@ class EGRNCantParseAddressTest : Test(
     private val osmNumberEditBox = JosmTextField("")
 
     override fun visit(w: Way) {
-        if (!w.isUsable) return
-        val egrnResult = RussiaAddressHelperPlugin.egrnResponses[w]
+        visitForPrimitive(w)
+    }
 
-        if (egrnResult != null && egrnResult.third.getNonValidAddresses().isNotEmpty()) {
-            val addressInfo = egrnResult.third
+    override fun visit(r: Relation) {
+        visitForPrimitive(r)
+    }
+
+    private fun visitForPrimitive(p: OsmPrimitive) {
+        if (!p.isUsable) return
+        val egrnResult = RussiaAddressHelperPlugin.cache.get(p)
+
+        if (egrnResult != null && (egrnResult.addressInfo?.getNonValidAddresses()?.isNotEmpty() == true)) {
+            val addressInfo = egrnResult.addressInfo
             val severity = if (addressInfo.getValidAddresses().isNotEmpty()) Severity.OTHER else Severity.WARNING
 
-            addressInfo.getNonValidAddresses().forEach {
-                val flags = it.flags
+            addressInfo.getNonValidAddresses().forEach { address ->
+                val flags = address.flags
                 var code: EGRNTestCode? = null
                 var message = "EGRN parse error"
-                var message2 = it.egrnAddress
+                val egrnAddress = address.egrnAddress
+                var message2 = egrnAddress
                 var finalSeverity = severity
                 if (flags.contains(ParsingFlags.HOUSENUMBER_CANNOT_BE_PARSED_BUT_CONTAINS_NUMBERS)) {
                     code = EGRNTestCode.EGRN_NOT_PARSED_HOUSENUMBER
@@ -63,15 +75,20 @@ class EGRNCantParseAddressTest : Test(
                                     .and(flags.contains(ParsingFlags.CANNOT_EXTRACT_STREET_NAME))
                             ) {
                                 code = EGRNTestCode.EGRN_NOT_PARSED_STREET_AND_PLACE
-                                message = "EGRN cant get street or place name"
-                            }
+                                message = code.message
+                            } else
+                                if (flags.contains(ParsingFlags.STOP_LIST_WORDS)) {
+                                    code = EGRNTestCode.EGRN_CONTAINS_STOP_WORD
+                                    message = code.message
+                                    message2 = TagSettingsReader.ADDRESS_STOP_WORDS.get().filter { address.egrnAddress.contains(it)}.joinToString(",")
+                                }
 
-                if (code != null && !RussiaAddressHelperPlugin.isIgnored(w, code)) {
-                    RussiaAddressHelperPlugin.markAsProcessed(w, code)
+                if (code != null && !egrnResult.isIgnored(code)) {
+                    RussiaAddressHelperPlugin.cache.markProcessed(p, code)
                     errors.add(
                         TestError.builder(this, finalSeverity, code.code)
                             .message(I18n.tr(message), message2)
-                            .primitives(w)
+                            .primitives(p)
                             .build()
                     )
                 }
@@ -84,8 +101,8 @@ class EGRNCantParseAddressTest : Test(
         val primitive = testError.primitives.iterator().next()
         val affectedAddresses = mutableListOf<ParsedAddress>()
 
-        if (RussiaAddressHelperPlugin.egrnResponses[primitive] != null) {
-            val addressInfo = RussiaAddressHelperPlugin.egrnResponses[primitive]?.third
+        if (RussiaAddressHelperPlugin.cache.contains(primitive)) {
+            val addressInfo = RussiaAddressHelperPlugin.cache.get(primitive)?.addressInfo
             affectedAddresses.addAll(addressInfo!!.getNonValidAddresses())
         }
 
@@ -109,7 +126,7 @@ class EGRNCantParseAddressTest : Test(
         var labelText = ""
         affectedAddresses.forEach {
             labelText += "${it.egrnAddress},<b> тип: ${if (it.isBuildingAddress()) "здание" else "участок"}</b><br>"
-            if (StringUtils.isNotBlank(it.parsedStreet.name) ) {
+            if (StringUtils.isNotBlank(it.parsedStreet.name)) {
                 osmStreetNameEditBox.text = it.parsedStreet.name
             }
             if (StringUtils.isNotBlank(it.parsedPlace.name)) {
@@ -138,7 +155,7 @@ class EGRNCantParseAddressTest : Test(
         )
         val dialog = ExtendedDialog(
             MainApplication.getMainFrame(),
-            I18n.tr("Исправление ошибки нераспознанного адреса"),
+            testError.message,
             *buttonTexts
         )
         dialog.setContent(p, false)
@@ -147,7 +164,7 @@ class EGRNCantParseAddressTest : Test(
 
         val answer = dialog.value
         if (answer == 1) {
-            RussiaAddressHelperPlugin.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
+            RussiaAddressHelperPlugin.cache.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
             return null
         }
 
@@ -161,7 +178,7 @@ class EGRNCantParseAddressTest : Test(
             val placeName = osmPlaceNameEditBox.text
             val number = osmNumberEditBox.text
 
-            if (StringUtils.isNotBlank(number) && StringUtils.isNotBlank(streetName) || StringUtils.isNotBlank(placeName)) {
+            if (StringUtils.isNotBlank(number) && (StringUtils.isNotBlank(streetName) || StringUtils.isNotBlank(placeName))) {
                 val tags: MutableMap<String, String> = mutableMapOf(
                     "addr:housenumber" to number,
                     "source:addr" to "ЕГРН",
@@ -185,7 +202,7 @@ class EGRNCantParseAddressTest : Test(
         if (cmds.isNotEmpty()) {
             val c: Command =
                 SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper CantParseAddress validator"), cmds)
-            RussiaAddressHelperPlugin.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
+            RussiaAddressHelperPlugin.cache.ignoreValidator(primitive, EGRNTestCode.getByCode(testError.code)!!)
             return c
         }
 

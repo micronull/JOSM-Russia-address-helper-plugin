@@ -3,30 +3,32 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings
 import org.openstreetmap.josm.gui.widgets.JosmTextField
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.SettingsSaver.Companion.saveDouble
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.SettingsSaver.Companion.saveInteger
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
-import org.openstreetmap.josm.tools.Logging
 import java.awt.GridBagLayout
 import javax.swing.*
 
 class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
     private val egrnUrl = JosmTextField()
+    private val nspdUrl = JosmTextField()
     private val userAgent = JosmTextField()
     private val egrnRequestLimit = JosmTextField(3)
     private val egrnRequestSelectionLimit = JosmTextField(3)
     private val egrnTotalRequestsCounter = JosmTextField(9)
     private val egrnRequestDelay = JosmTextField(3)
     private val disableSSLforRequests = JCheckBox(I18n.tr("Disable SSL for EGRN requests"))
-    private val enableExtendParamsRequestForPoint = JCheckBox(I18n.tr("Enable extended data request for point"))
+    private val requestPixelResolution = JosmTextField(3)
+    private val requestBoundaryMargin = JosmTextField(3)
 
     init {
         val panel: JPanel = this
         panel.border = BorderFactory.createEmptyBorder(5, 5, 5, 5)
         panel.add(disableSSLforRequests, GBC.eol())
-        panel.add(enableExtendParamsRequestForPoint, GBC.eol())
 
         panel.add(JLabel(I18n.tr("EGRN request url:")), GBC.std())
-        panel.add(egrnUrl, GBC.eop().fill(GBC.HORIZONTAL).insets(5, 0, 0, 5))
+        panel.add(nspdUrl, GBC.eop().fill(GBC.HORIZONTAL).insets(5, 0, 0, 5))
 
         panel.add(JLabel(I18n.tr("EGRN request user agent string:")), GBC.std())
         panel.add(userAgent, GBC.eop().fill(GBC.HORIZONTAL).insets(5, 0, 0, 5))
@@ -43,6 +45,12 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
         panel.add(JLabel(I18n.tr("Total requests to EGRN in current session (total/success):")), GBC.std())
         panel.add(egrnTotalRequestsCounter, GBC.eop().insets(5, 0, 0, 5))
 
+        panel.add(JLabel(I18n.tr("Resolution of request, pixel per meter:")), GBC.std())
+        panel.add(requestPixelResolution, GBC.eop().insets(5, 0, 0, 5))
+
+        panel.add(JLabel(I18n.tr("Boundary margin extension, meters:")), GBC.std())
+        panel.add(requestBoundaryMargin, GBC.eop().insets(5, 0, 0, 5))
+
         panel.add(Box.createVerticalGlue(), GBC.eol().fill())
     }
 
@@ -51,14 +59,17 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
      */
     fun initFromPreferences() {
         egrnUrl.text = EgrnSettingsReader.EGRN_URL_REQUEST.get()
+        nspdUrl.text = EgrnSettingsReader.NSPD_GET_FEATURE_REQUEST_URL.get()
         userAgent.text = EgrnSettingsReader.EGRN_REQUEST_USER_AGENT.get()
         egrnRequestLimit.text = EgrnSettingsReader.REQUEST_LIMIT.get().toString()
         egrnRequestSelectionLimit.text = EgrnSettingsReader.REQUEST_LIMIT_PER_SELECTION.get().toString()
         egrnRequestDelay.text = EgrnSettingsReader.REQUEST_DELAY.get().toString()
         disableSSLforRequests.isSelected = EgrnSettingsReader.EGRN_DISABLE_SSL_FOR_REQUEST.get()
-        enableExtendParamsRequestForPoint.isSelected = EgrnSettingsReader.EGRN_REQUEST_EXTENDED_DATA_FOR_POINT.get()
-        egrnTotalRequestsCounter.text = "${RussiaAddressHelperPlugin.totalRequestsPerSession}/${RussiaAddressHelperPlugin.totalSuccessRequestsPerSession}"
+        egrnTotalRequestsCounter.text =
+            "${RussiaAddressHelperPlugin.totalRequestsPerSession}/${RussiaAddressHelperPlugin.totalSuccessRequestsPerSession}"
         egrnTotalRequestsCounter.isEnabled = false
+        requestPixelResolution.text = EgrnSettingsReader.REQUEST_PIXEL_RESOLUTION.get().toString()
+        requestBoundaryMargin.text = EgrnSettingsReader.REQUEST_BOUNDS_MARGIN.get().toString()
     }
 
     /**
@@ -66,57 +77,19 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
      */
     fun saveToPreferences() {
         EgrnSettingsReader.EGRN_URL_REQUEST.put(egrnUrl.text)
+        EgrnSettingsReader.NSPD_GET_FEATURE_REQUEST_URL.put(nspdUrl.text)
         EgrnSettingsReader.EGRN_REQUEST_USER_AGENT.put(userAgent.text)
         EgrnSettingsReader.EGRN_DISABLE_SSL_FOR_REQUEST.put(disableSSLforRequests.isSelected)
-        EgrnSettingsReader.EGRN_REQUEST_EXTENDED_DATA_FOR_POINT.put(enableExtendParamsRequestForPoint.isSelected)
 
-        try {
-            var limit = Integer.valueOf(egrnRequestLimit.text)
 
-            if (limit <= 0) {
-                limit = 1
-            }
+        saveInteger(EgrnSettingsReader.REQUEST_LIMIT, egrnRequestLimit.text, 1, 10)
+        saveInteger(EgrnSettingsReader.REQUEST_LIMIT_PER_SELECTION, egrnRequestSelectionLimit.text, 10, 500)
+        saveInteger(EgrnSettingsReader.REQUEST_DELAY,egrnRequestDelay.text, 0, 30)
+        saveInteger(EgrnSettingsReader.REQUEST_BOUNDS_MARGIN, requestBoundaryMargin.text, 0, 200)
+        saveDouble(EgrnSettingsReader.REQUEST_PIXEL_RESOLUTION, requestPixelResolution.text, 1.0, 10.0)
 
-            if (limit > 10) {
-                limit = 10
-            }
-
-            EgrnSettingsReader.REQUEST_LIMIT.put(limit)
-        } catch (e: NumberFormatException) {
-            Logging.warn(e.message + "(need numeric)")
-            EgrnSettingsReader.REQUEST_LIMIT.put(2)
-        }
-
-        try {
-            var limit = Integer.valueOf(egrnRequestSelectionLimit.text)
-
-            if (limit <= 10) {
-                limit = 10
-            }
-
-            if (limit > 500) {
-                limit = 500
-            }
-
-            EgrnSettingsReader.REQUEST_LIMIT_PER_SELECTION.put(limit)
-        } catch (e: NumberFormatException) {
-            Logging.warn(e.message + "(need numeric)")
-            EgrnSettingsReader.REQUEST_LIMIT_PER_SELECTION.put(100)
-        }
-
-        try {
-            var delay = Integer.valueOf(egrnRequestDelay.text)
-
-            if (delay < 0) {
-                delay = 0
-            }
-
-            EgrnSettingsReader.REQUEST_DELAY.put(delay)
-        } catch (e: NumberFormatException) {
-            Logging.warn(e.message + "(need numeric)")
-            EgrnSettingsReader.REQUEST_DELAY.put(1)
-        }
         //debug call
-        RussiaAddressHelperPlugin.getUnprocessedEntities()
+        RussiaAddressHelperPlugin.cache.getUnprocessed()
     }
+
 }

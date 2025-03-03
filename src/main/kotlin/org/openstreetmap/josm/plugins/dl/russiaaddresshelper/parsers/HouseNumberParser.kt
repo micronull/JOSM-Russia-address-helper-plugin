@@ -25,7 +25,7 @@ class HouseNumberParser : IParser<ParsedHouseNumber> {
                     parsingFlags.add(ParsingFlags.HOUSENUMBER_TOO_BIG)
                     return ParsedHouseNumber("", "", null, parsingFlags)
                 }
-                val letter = match.groups["letter"]?.value?.trim()?:""
+                val letter = match.groups["letter"]?.value?.trim()?.uppercase()?:""
                 houseNumber += letter
                 val buildingNumber =
                     match.groups["building"]?.value?.filterNot { it == '"' || it == ' ' }?.trim()?.uppercase()

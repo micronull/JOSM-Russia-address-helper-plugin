@@ -4,14 +4,15 @@ import kotlinx.coroutines.cancel
 import org.openstreetmap.josm.actions.JosmAction
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.DataSet
+import org.openstreetmap.josm.data.osm.Node
 import org.openstreetmap.josm.data.osm.OsmDataManager
-import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Buildings
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.LayerShiftSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.MassActionSettingsReader
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
 import org.openstreetmap.josm.tools.Shortcut
@@ -32,14 +33,24 @@ class SelectAction : JosmAction(
     override fun actionPerformed(e: ActionEvent?) {
         val dataSet: DataSet = OsmDataManager.getInstance().editDataSet ?: return
         var selected = dataSet.selected.toList()
-        val buildingBadValues = setOf<String>("shed", "garage", "roof", "shack")
-        //TO DO: вынести тэги фильтрации в настройки
+        val buildingBadValues = MassActionSettingsReader.EGRN_MASS_ACTION_FILTER_LIST.get()
         selected = selected.filter {
-            it is Way &&
-                    it.hasTag("building") &&
-                    !it.hasKey("fixme") &&
-                    !it.hasKey("addr:housenumber") &&
-                    !buildingBadValues.contains(it.get("building"))
+            it !is Node &&
+                    it.hasTag("building")
+                    && buildingBadValues.all { (key, values) ->
+                values.none { tagValue ->
+                    it.hasTag(
+                        key,
+                        tagValue
+                    ) || (it.hasKey(key) && tagValue == "*")
+                }
+            }
+        }
+
+        if (selected.isEmpty()) {
+            val msg = I18n.tr("All selected buildings are not eligible for request!")
+            Notification(msg).setIcon(JOptionPane.WARNING_MESSAGE).show()
+            return
         }
 
         if (selected.size > EgrnSettingsReader.REQUEST_LIMIT_PER_SELECTION.get()) {
@@ -54,7 +65,7 @@ class SelectAction : JosmAction(
             val msg =
                 "Shift layer doesnt set in plugin settings. Mass request without shift layer will be invalid. Aborting operation."
             val msgLoc = I18n.tr(msg)
-            Notification(msgLoc ).setIcon(JOptionPane.ERROR_MESSAGE).show()
+            Notification(msgLoc).setIcon(JOptionPane.ERROR_MESSAGE).show()
             return
         } else {
             if (shiftLayer.displaySettings.displacement == EastNorth.ZERO) {
@@ -65,15 +76,7 @@ class SelectAction : JosmAction(
         }
 
         val buildings = Buildings(selected)
-
-        if (!buildings.isNotEmpty()) {
-            val msg = I18n.tr("Buildings without number must be selected!")
-            Notification(msg).setIcon(JOptionPane.WARNING_MESSAGE).show()
-
-            return
-        } else {
-            Logging.info("EGRN-PLUGIN After filtering buildings to process: ${buildings.size}")
-        }
+        Logging.info("EGRN-PLUGIN After filtering buildings to process: ${buildings.size}")
 
         val listener = Buildings.LoadListener()
         val progressDialog = PleaseWaitProgressMonitor()
@@ -116,19 +119,8 @@ class SelectAction : JosmAction(
             layerManager.editDataSet.setSelected(*changeBuildings)
             progressDialog.close()
 
-            /*if (notFoundStreet.size > 0) {
-                var messageNotFoundStreets = "<html>Не найдены улицы:<ul>"
-
-                notFoundStreet.forEach { messageNotFoundStreets += "<li>$it</li>" }
-
-                messageNotFoundStreets += "</ul>Для перечисленных улиц адреса не загружены из ЕГРН.<br/>Необходимо отметить улицы на карте OSM.</html>"
-
-            }*/
-            //валидируем все, а не только выбранное в данном запросе, чтобы не терять в окне валидации результат предыдущих проверок
-            //верно ли это?
-
-            val primitivesToValidate =
-                layerManager.activeDataSet.allNonDeletedPrimitives().filter { it is Way && it.hasTag("building") }
+            //валидируем все, все что у нас в кэше на данный момент и не удалено (может быть ситуация с удалением слоя в котором были уже закэшированные данные)
+            val primitivesToValidate = RussiaAddressHelperPlugin.cache.responses.keys.filter { !it.isDeleted }
             RussiaAddressHelperPlugin.runEgrnValidation(primitivesToValidate)
         }
 

@@ -4,6 +4,7 @@ import org.openstreetmap.josm.command.ChangePropertyCommand
 import org.openstreetmap.josm.command.Command
 import org.openstreetmap.josm.command.SequenceCommand
 import org.openstreetmap.josm.data.osm.OsmPrimitive
+import org.openstreetmap.josm.data.osm.Relation
 import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.data.validation.Severity
 import org.openstreetmap.josm.data.validation.Test
@@ -15,6 +16,7 @@ import org.openstreetmap.josm.gui.widgets.JosmTextField
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagLayout
@@ -32,16 +34,24 @@ class EGRNFuzzyStreetMatchingTest : Test(
     private val osmStreetNameEditBox = JosmTextField("")
 
     override fun visit(w: Way) {
-        if (!w.isUsable) return
+        visitForPrimitive(w)
+    }
+
+    override fun visit(r: Relation) {
+        visitForPrimitive(r)
+    }
+
+    fun visitForPrimitive(p: OsmPrimitive) {
+        if (!p.isUsable) return
         if (parsedStreetToPrimitiveMap.isNotEmpty()) return
-        RussiaAddressHelperPlugin.egrnResponses.forEach { entry ->
+        RussiaAddressHelperPlugin.cache.responses.forEach { entry ->
             val primitive = entry.key
-            val addressInfo = entry.value.third
-            val addresses = addressInfo.addresses
+            val addressInfo = entry.value.addressInfo
+            val addresses = addressInfo?.addresses ?: listOf()
             addresses.forEach {
-                if (addressInfo.getPreferredAddress() == it) {
+                if (addressInfo?.getPreferredAddress() == it) {
                     if (it.flags.contains(ParsingFlags.STREET_NAME_FUZZY_MATCH) && !primitive.hasTag("addr:street")
-                        && !RussiaAddressHelperPlugin.isIgnored(primitive, EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)) {
+                        && !entry.value.isIgnored(EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)) {
                         val parsedStreetName = it.parsedStreet.extractedType?.name + " " + it.parsedStreet.extractedName
                         val osmObjName = it.parsedStreet.name
                         var affectedPrimitives =
@@ -64,15 +74,18 @@ class EGRNFuzzyStreetMatchingTest : Test(
 
         parsedStreetToPrimitiveMap.forEach { entry ->
             val errorPrimitives = entry.value.first
-            errorPrimitives.forEach{RussiaAddressHelperPlugin.markAsProcessed(it, EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)}
+            errorPrimitives.forEach{RussiaAddressHelperPlugin.cache.markProcessed(it, EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)}
+            val highlightPrimitives: List<OsmPrimitive> = errorPrimitives.mapNotNull { p ->
+                GeometryHelper.getBiggestPoly(p)
+            }
             errors.add(
                 TestError.builder(
                     this, Severity.ERROR,
                     EGRNTestCode.EGRN_STREET_FUZZY_MATCHING.code
                 )
-                    .message(I18n.tr("EGRN fuzzy match") + ": ${entry.key} " + " -> " + entry.value.second)
+                    .message(I18n.tr(EGRNTestCode.EGRN_STREET_FUZZY_MATCHING.message) + ": ${entry.key} " + " -> " + entry.value.second)
                     .primitives(errorPrimitives)
-                    .highlight(errorPrimitives)
+                    .highlight(highlightPrimitives)
                     .build()
             )
         }
@@ -86,8 +99,8 @@ class EGRNFuzzyStreetMatchingTest : Test(
         var osmStreetName = ""
         val affectedAddresses = mutableListOf<ParsedAddress>()
         testError.primitives.forEach {
-            if (RussiaAddressHelperPlugin.egrnResponses[it] != null) {
-                val addressInfo = RussiaAddressHelperPlugin.egrnResponses[it]?.third
+            if (RussiaAddressHelperPlugin.cache.contains(it)) {
+                val addressInfo = RussiaAddressHelperPlugin.cache.get(it)?.addressInfo
                 val prefferedAddress = addressInfo?.getPreferredAddress()
                 affectedAddresses.add(prefferedAddress!!)
                 egrnStreetName =
@@ -153,11 +166,11 @@ class EGRNFuzzyStreetMatchingTest : Test(
         val cmds: MutableList<Command> = mutableListOf()
         if (answer == 1) {
             val filteredPrimitives =
-                testError.primitives.filter { RussiaAddressHelperPlugin.egrnResponses[it] != null }.toMutableList()
+                testError.primitives.filter { RussiaAddressHelperPlugin.cache.contains(it) }.toMutableList()
             val doubled = RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
-            RussiaAddressHelperPlugin.ignoreValidator(doubled, EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)
+            RussiaAddressHelperPlugin.cache.ignoreValidator(doubled, EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)
             filteredPrimitives.forEach {
-                val prefferedAddress = RussiaAddressHelperPlugin.egrnResponses[it]!!.third.getPreferredAddress()
+                val prefferedAddress = RussiaAddressHelperPlugin.cache.get(it)!!.addressInfo?.getPreferredAddress()
                 var tags = prefferedAddress!!.getOsmAddress().getBaseAddressTagsWithSource()
                 tags = tags.plus(Pair("addr:RU:egrn", prefferedAddress.egrnAddress))
                 cmds.add(ChangePropertyCommand(listOf(it), tags))
@@ -174,14 +187,14 @@ class EGRNFuzzyStreetMatchingTest : Test(
             }
 
             val filteredPrimitives =
-                testError.primitives.filter { RussiaAddressHelperPlugin.egrnResponses[it] != null }.toMutableList()
+                testError.primitives.filter { RussiaAddressHelperPlugin.cache.contains(it) }.toMutableList()
             val doubled = RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
-            RussiaAddressHelperPlugin.ignoreValidator(doubled, EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)
+            RussiaAddressHelperPlugin.cache.ignoreValidator(doubled, EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)
             filteredPrimitives.forEach {
-                val prefferedAddress = RussiaAddressHelperPlugin.egrnResponses[it]!!.third.getPreferredAddress()
-                var tags = prefferedAddress!!.getOsmAddress().getBaseAddressTagsWithSource()
+                val preferredAddress = RussiaAddressHelperPlugin.cache.get(it)!!.addressInfo?.getPreferredAddress()
+                var tags = preferredAddress!!.getOsmAddress().getBaseAddressTagsWithSource()
                 tags = tags.plus(Pair("addr:street", editedOsmStreetName))
-                tags = tags.plus(Pair("addr:RU:egrn", prefferedAddress.egrnAddress))
+                tags = tags.plus(Pair("addr:RU:egrn", preferredAddress.egrnAddress))
                 cmds.add(ChangePropertyCommand(listOf(it), tags))
             }
         }

@@ -1,6 +1,9 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper
 
 import org.openstreetmap.josm.actions.UploadAction
+import org.openstreetmap.josm.command.AddCommand
+import org.openstreetmap.josm.command.SequenceCommand
+import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.Version
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.Node
@@ -11,20 +14,20 @@ import org.openstreetmap.josm.data.validation.OsmValidator
 import org.openstreetmap.josm.data.validation.ValidationTask
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.MapFrame
-import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.preferences.PreferenceSetting
 import org.openstreetmap.josm.plugins.Plugin
 import org.openstreetmap.josm.plugins.PluginInformation
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions.AddNSPDLayersAction
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions.ClickAction
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions.SelectAction
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EGRNResponse
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnApi
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsedAddressInfo
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NspdApi
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.PluginSetting
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.CommonSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.ValidationSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.uploadhooks.EGRNCleanPluginCache
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.uploadhooks.EGRNUploadTagFilter
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation.*
@@ -33,7 +36,6 @@ import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.ImageProvider
 import org.openstreetmap.josm.tools.Logging
 import javax.swing.JMenu
-import javax.swing.JOptionPane
 
 class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
     init {
@@ -48,21 +50,18 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
 
         lateinit var versionInfo: String
 
-        var egrnResponses: MutableMap<OsmPrimitive, Triple<EastNorth?, EGRNResponse, ParsedAddressInfo>> =
-            mutableMapOf()
-        var ignoredValidators: MutableMap<OsmPrimitive, MutableSet<EGRNTestCode>> = mutableMapOf()
+        val cache: ValidatorCache = ValidatorCache()
+        //  val addressRegistry: AddressRegistryCache = AddressRegistryCache()
 
         val egrnUploadTagFilterHook: EGRNUploadTagFilter = EGRNUploadTagFilter()
         val cleanPluginCacheHook: EGRNCleanPluginCache = EGRNCleanPluginCache()
-
-        //debug tool, to get any buildings which were processed by plugin but not validated
-        var processedByValidators: MutableMap<OsmPrimitive, MutableSet<EGRNTestCode>> = mutableMapOf()
 
         var totalRequestsPerSession = 0L
         var totalSuccessRequestsPerSession = 0L
 
         val selectAction: SelectAction = SelectAction()
         val clickAction: ClickAction = ClickAction()
+        val addLayersAction: AddNSPDLayersAction = AddNSPDLayersAction()
 
         fun getEgrnClient(): EgrnApi {
             val userAgent = String.format(
@@ -74,66 +73,18 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             return EgrnApi(EgrnSettingsReader.EGRN_URL_REQUEST.get(), userAgent)
         }
 
-        fun ignoreValidator(primitive: OsmPrimitive, code: EGRNTestCode) {
-            val ignoredValidators = ignoredValidators[primitive]
-            if (ignoredValidators == null || ignoredValidators.isEmpty()) {
-                RussiaAddressHelperPlugin.ignoredValidators[primitive] = mutableSetOf(code)
-            } else {
-                ignoredValidators.add(code)
-                RussiaAddressHelperPlugin.ignoredValidators[primitive] = ignoredValidators
-            }
-        }
+        fun getNSPDClient(): NspdApi {
+            val userAgent = String.format(
+                EgrnSettingsReader.EGRN_REQUEST_USER_AGENT.get(),
+                Version.getInstance().versionString,
+                versionInfo
+            )
 
-        fun ignoreValidator(primitives: Collection<OsmPrimitive>, code: EGRNTestCode) {
-            primitives.forEach { ignoreValidator(it, code) }
-        }
-
-        fun ignoreAllValidators(primitive: OsmPrimitive) {
-            ignoredValidators[primitive] = EGRNTestCode.values().toMutableSet()
-        }
-
-
-        fun isIgnored(primitive: OsmPrimitive, code: EGRNTestCode): Boolean {
-            val ignoredValidators = ignoredValidators[primitive]
-            return ignoredValidators != null && ignoredValidators.contains(code)
-        }
-
-        fun markAsProcessed(primitive: OsmPrimitive, code: EGRNTestCode) {
-            val processedByValidators = RussiaAddressHelperPlugin.processedByValidators[primitive]
-            if (processedByValidators == null || processedByValidators.isEmpty()) {
-                RussiaAddressHelperPlugin.processedByValidators[primitive] = mutableSetOf(code)
-            } else {
-                processedByValidators.add(code)
-                RussiaAddressHelperPlugin.processedByValidators[primitive] = processedByValidators
-            }
-        }
-
-        fun removeFromAllCaches(primitive: OsmPrimitive) {
-            if (egrnResponses[primitive] != null) {
-                egrnResponses.remove(primitive)
-            }
-            if (ignoredValidators[primitive] != null) {
-                ignoredValidators.remove(primitive)
-            }
-            if (processedByValidators[primitive] != null) {
-                processedByValidators.remove(primitive)
-            }
-        }
-
-        fun emptyAllCaches() {
-            egrnResponses.clear()
-            ignoredValidators.clear()
-            processedByValidators.clear()
-        }
-
-        fun getUnprocessedEntities() {
-            val unprocessed = egrnResponses.keys.minus(processedByValidators.keys).minus(ignoredValidators.keys)
-            if (unprocessed.isNotEmpty()) {
-                val egrnResponses = egrnResponses.filter { unprocessed.contains(it.key) }
-                Notification("Не обработано ни одним валидатором ${unprocessed.size} обьектов").setIcon(JOptionPane.WARNING_MESSAGE)
-                    .show()
-
-            }
+            return NspdApi(
+                EgrnSettingsReader.NSPD_GET_FEATURE_REQUEST_URL.get(),
+                userAgent,
+                EgrnSettingsReader.NSPD_SITE_URL.get()
+            )
         }
 
         fun runEgrnValidation(selection: Collection<OsmPrimitive?>) {
@@ -142,7 +93,8 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
 
             OsmValidator.initializeTests()
 
-            //лучше бы фильтровать более надежным методом, но я его не придумал
+            //лучше бы фильтровать более надежным методом, но я его не придумал, код теста Test не возвращает.
+            //возможно надо унаследовать его
             val egrnTests = OsmValidator.getEnabledTests(false)
                 .filter { test -> test.name.contains("ЕГРН") || test.name.contains("EGRN") }
             if (egrnTests.isEmpty()) return
@@ -155,8 +107,8 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             //удаляем из него все примитивы, для которых есть дубликат предпочитаемого адреса в ОСМ или среди них самих
             //возвращаем список дублей
             val needToAssignAddressPrimitives = primitives.filter {
-                egrnResponses[it] != null
-                        && egrnResponses[it]?.third?.getPreferredAddress() != null
+                cache.contains(it)
+                        && cache.get(it)?.addressInfo?.getPreferredAddress() != null
                         && !it.hasKey("addr:housenumber")
             }
             val needToAssignAddressPrimitivesMap = needToAssignAddressPrimitives.groupBy { getParsedInlineAddress(it) }
@@ -183,7 +135,8 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
                 primitives.removeAll(doubles)
                 doubleAddressPrimitives.addAll(doubles)
             }
-            doubleAddressPrimitives.forEach { markAsProcessed(it, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND) }
+
+            cache.markProcessed(doubleAddressPrimitives, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)
             return doubleAddressPrimitives
         }
 
@@ -198,8 +151,8 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             // если есть обьект с таким же адресом на расстоянии меньше заданного в настройках
             //возвращаем список дублей
             val needToAssignAddressPrimitives = primitives.filter {
-                egrnResponses[it] != null
-                        && egrnResponses[it]?.third?.getPreferredAddress() != null
+                cache.contains(it)
+                        && cache.get(it)?.addressInfo?.getPreferredAddress() != null
                         && !it.hasKey("addr:housenumber")
             }
             val needToAssignAddressPrimitivesMap = needToAssignAddressPrimitives.groupBy { getParsedInlineAddress(it) }
@@ -233,7 +186,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
                 primitives.removeAll(doubles)
                 doubleAddressPrimitives.addAll(doubles)
             }
-            doubleAddressPrimitives.forEach { markAsProcessed(it, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND) }
+            cache.markProcessed(doubleAddressPrimitives, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)
             return doubleAddressPrimitives
         }
 
@@ -257,7 +210,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             return if (isPlace == true) {
                 2 * ValidationSettingsReader.DISTANCE_FOR_PLACE_NODE_SEARCH.get()
             } else {
-                return TagSettingsReader.CLEAR_DOUBLE_DISTANCE.get()
+                return CommonSettingsReader.CLEAR_DOUBLE_DISTANCE.get()
             }
         }
 
@@ -270,7 +223,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             val osmBuildingsAddressMap = getOsmAddressesMap()
 
             addresses.forEach {
-                val inlineAddress = it.getOsmAddress().getInlineAddress(",")
+                val inlineAddress = it.getOsmAddress().getInlineAddress(",", true)
                 if (osmBuildingsAddressMap.containsKey(inlineAddress)) {
                     //уже есть дубль в данных ОСМ
                     doubleAddresses.add(it)
@@ -292,12 +245,12 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
 
 
         private fun getParsedInlineAddress(primitive: OsmPrimitive): String {
-            val prefAddress = egrnResponses[primitive]?.third?.getPreferredAddress() ?: return ""
+            val prefAddress = cache.get(primitive)?.addressInfo?.getPreferredAddress() ?: return ""
             return prefAddress.getOsmAddress().getInlineAddress(",") ?: ""
         }
 
         private fun isPlaceAddress(primitive: OsmPrimitive): Boolean {
-            val prefAddress = egrnResponses[primitive]?.third?.getPreferredAddress() ?: return false
+            val prefAddress = cache.get(primitive)?.addressInfo?.getPreferredAddress() ?: return false
             return if (prefAddress.isMatchedByStreet()) {
                 false
             } else prefAddress.isMatchedByPlace()
@@ -311,6 +264,14 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             }
         }
 
+        fun createDebugObject(coords: ArrayList<ArrayList<Double>>, requestCoord: EastNorth) {
+            val map = MainApplication.getMap()
+            val ds = map.mapView.layerManager.editDataSet
+            val cmds = GeometryHelper.createPolygon(ds, coords, false).first
+            cmds.add(AddCommand(ds, Node(requestCoord)))
+            UndoRedoHandler.getInstance().add(SequenceCommand("Add debug geometry", cmds))
+        }
+
     }
 
     override fun getPreferenceSetting(): PreferenceSetting {
@@ -318,7 +279,6 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
     }
 
     override fun mapFrameInitialized(oldFrame: MapFrame?, newFrame: MapFrame?) {
-
         OsmValidator.addTest(EGRNEmptyResponseTest::class.java)
         OsmValidator.addTest(EGRNFuzzyStreetMatchingTest::class.java)
         OsmValidator.addTest(EGRNInitialsStreetMatchingTest::class.java)
@@ -331,10 +291,13 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         OsmValidator.addTest(EGRNFuzzyOrInitialsPlaceMatchTest::class.java)
         OsmValidator.addTest(EGRNDuplicateAddressesTest::class.java)
         OsmValidator.addTest(EGRNStreetOrPlaceTooFarTest::class.java)
+        OsmValidator.addTest(EGRNConflictedDataTest::class.java)
 
         UploadAction.registerUploadHook(cleanPluginCacheHook, true)
         UploadAction.registerUploadHook(egrnUploadTagFilterHook, true)
 
+        cache.initListener()
+        //    addressRegistry.initListener()
     }
 
     private fun menuInit(menu: JMenu) {
@@ -350,6 +313,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
 
         subMenu.add(selectAction)
         subMenu.add(clickAction)
+        subMenu.add(addLayersAction)
 
         menu.add(subMenu)
     }

@@ -27,12 +27,20 @@ data class OSMAddress(val place: String, val street: String, val housenumber: St
         return tags
     }
 
-    fun getInlineAddress(separator: String=""): String? {
+    fun getInlineAddress(separator: String = "", ignoreFlats: Boolean = false): String? {
         if (isFilled()) {
             return if (StringUtils.isNotBlank(street)) {
-                "$street$separator $housenumber" + if (StringUtils.isNotBlank(flatnumber)) {"$separator $flatnumber"} else { "" }
+                "$street$separator $housenumber" + if (StringUtils.isNotBlank(flatnumber) && !ignoreFlats) {
+                    "$separator $flatnumber"
+                } else {
+                    ""
+                }
             } else {
-                "$place$separator $housenumber" + if (StringUtils.isNotBlank(flatnumber)) {"$separator $flatnumber"} else { "" }
+                "$place$separator $housenumber" + if (StringUtils.isNotBlank(flatnumber) && !ignoreFlats) {
+                    "$separator $flatnumber"
+                } else {
+                    ""
+                }
             }
         }
         return null

@@ -2,10 +2,7 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation
 
 import org.apache.commons.lang3.StringUtils
 import org.openstreetmap.josm.command.Command
-import org.openstreetmap.josm.data.osm.DataSet
-import org.openstreetmap.josm.data.osm.OsmDataManager
-import org.openstreetmap.josm.data.osm.OsmPrimitive
-import org.openstreetmap.josm.data.osm.Way
+import org.openstreetmap.josm.data.osm.*
 import org.openstreetmap.josm.data.validation.Severity
 import org.openstreetmap.josm.data.validation.Test
 import org.openstreetmap.josm.data.validation.TestError
@@ -15,6 +12,7 @@ import org.openstreetmap.josm.gui.widgets.JMultilineLabel
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagLayout
@@ -30,23 +28,32 @@ class EGRNPlaceNotFoundTest : Test(
     private var parsedPlaceToPrimitiveMap: Map<String, Set<OsmPrimitive>> = mutableMapOf()
 
     override fun visit(w: Way) {
-        if (!w.isUsable) return
+        visitForPrimitive(w)
+    }
+
+    override fun visit(r: Relation) {
+        visitForPrimitive(r)
+    }
+
+    private fun visitForPrimitive(p: OsmPrimitive) {
+        if (!p.isUsable) return
         if (parsedPlaceToPrimitiveMap.isNotEmpty()) return
         //собираем в мапу домики которые не сопоставились, ключ - распознанное имя места
-        RussiaAddressHelperPlugin.egrnResponses.forEach { entry ->
+        RussiaAddressHelperPlugin.cache.responses.forEach { entry ->
             val primitive = entry.key
-            val addressInfo = entry.value.third
-            val addresses = addressInfo.addresses
-            if (RussiaAddressHelperPlugin.processedByValidators[primitive]?.contains(EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND) == true) {
+            val record = entry.value
+            val addressInfo = record.addressInfo
+            val addresses = addressInfo?.addresses
+            if (record.isProcessed(EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)) {
                 return@forEach
             }
-            addresses.forEach {
+            addresses?.forEach {
                 if (it.flags.contains(ParsingFlags.CANNOT_FIND_PLACE_OBJECT_IN_OSM)
                     && (StringUtils.isNotBlank(it.parsedHouseNumber.houseNumber)
-                            && !RussiaAddressHelperPlugin.isIgnored(primitive, EGRNTestCode.EGRN_NOT_MATCHED_OSM_PLACE))
+                            && !record.isIgnored(EGRNTestCode.EGRN_NOT_MATCHED_OSM_PLACE))
                     &&(!it.flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM))
                     &&(!it.flags.contains(ParsingFlags.STREET_NAME_FUZZY_MATCH))
-                    && !it.isValidAddress()
+                    && !it.isMatchedByStreetOrPlace()
                 ) {
                     val parsedPlaceName = it.parsedPlace.extractedType?.name + " " + it.parsedPlace.extractedName
                     var affectedPrimitives = parsedPlaceToPrimitiveMap.getOrDefault(parsedPlaceName, mutableSetOf())
@@ -59,20 +66,18 @@ class EGRNPlaceNotFoundTest : Test(
         }
 
         parsedPlaceToPrimitiveMap.forEach { (parsedName, primitives) ->
-            primitives.forEach {
-                RussiaAddressHelperPlugin.markAsProcessed(
-                    it,
-                    EGRNTestCode.EGRN_NOT_MATCHED_OSM_PLACE
-                )
+            RussiaAddressHelperPlugin.cache.markProcessed(primitives, EGRNTestCode.EGRN_NOT_MATCHED_OSM_PLACE)
+            val highlightPrimitives: List<OsmPrimitive> = primitives.mapNotNull { p ->
+                GeometryHelper.getBiggestPoly(p)
             }
             errors.add(
                 TestError.builder(
                     this, Severity.ERROR,
                     EGRNTestCode.EGRN_NOT_MATCHED_OSM_PLACE.code
                 )
-                    .message(I18n.tr("EGRN place not found") + ": $parsedName")
+                    .message(I18n.tr(EGRNTestCode.EGRN_NOT_MATCHED_OSM_PLACE.message) + ": $parsedName")
                     .primitives(primitives)
-                    .highlight(primitives)
+                    .highlight(highlightPrimitives)
                     .build()
             )
         }
@@ -83,8 +88,8 @@ class EGRNPlaceNotFoundTest : Test(
         val affectedHousenumbers = mutableListOf<String>()
         val affectedAddresses = mutableListOf<ParsedAddress>()
         testError.primitives.forEach { primitive ->
-            if (RussiaAddressHelperPlugin.egrnResponses[primitive] != null) {
-                val addressInfo = RussiaAddressHelperPlugin.egrnResponses[primitive]?.third
+            if (RussiaAddressHelperPlugin.cache.contains(primitive)) {
+                val addressInfo = RussiaAddressHelperPlugin.cache.get(primitive)?.addressInfo
                 val addresses =
                     addressInfo?.addresses!!.filter { it.flags.contains(ParsingFlags.CANNOT_FIND_PLACE_OBJECT_IN_OSM) }
                 affectedAddresses.addAll(addresses)
@@ -142,13 +147,7 @@ class EGRNPlaceNotFoundTest : Test(
             return null
         }
         if (answer == 2) {
-            testError.primitives.forEach {
-                RussiaAddressHelperPlugin.ignoreValidator(
-                    it,
-                    EGRNTestCode.getByCode(testError.code)!!
-                )
-            }
-
+            RussiaAddressHelperPlugin.cache.ignoreValidator(testError.primitives, EGRNTestCode.getByCode(testError.code)!!)
             return null
         }
         if (answer == 1) {
