@@ -60,10 +60,12 @@ class NspdApi(private val url: String, private val userAgent: String, private va
         val boundsMargin: Int = EgrnSettingsReader.REQUEST_BOUNDS_MARGIN.get()
         val boundsExtension = ClickActionSettingsReader.EGRN_CLICK_BOUNDS_EXTENSION.get()
         val pixelPerMeter = EgrnSettingsReader.REQUEST_PIXEL_RESOLUTION.get()
+        //click actions boundaries
         var minx = coordinate.east() - boundsExtension
         var miny = coordinate.north() - boundsExtension
         var maxx = coordinate.east() + boundsExtension
         var maxy = coordinate.north() + boundsExtension
+        //mass request boundaries
         if (boundary != null) {
             val mercator = Projections.getProjectionByCode("EPSG:3857")
             val topLeftEN = getLayerShift(boundary.topLeft.getEastNorth(mercator))
@@ -89,8 +91,11 @@ class NspdApi(private val url: String, private val userAgent: String, private va
 
         val pixelWidth: Int = ((maxx - minx) * pixelPerMeter).toInt()
         val pixelHeight: Int = ((maxy - miny) * pixelPerMeter).toInt()
-        val x: Int = pixelWidth / 2
-        val y: Int = pixelHeight / 2
+        //неверно для случаев когда точка запроса не находится в центре рамки запроса
+        //val x: Int = pixelWidth / 2
+        //val y: Int = pixelHeight / 2
+        val x: Int = ((coordinate.east() - minx) * pixelPerMeter).toInt()
+        val y: Int = ((maxy - coordinate.north()) * pixelPerMeter).toInt()
         val url = url.replace("{layer}", layer)
             .replace("{minx}", minx.toString()).replace("{miny}", miny.toString())
             .replace("{maxx}", maxx.toString()).replace("{maxy}", maxy.toString())

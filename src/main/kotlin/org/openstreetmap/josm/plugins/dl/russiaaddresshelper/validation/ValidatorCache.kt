@@ -3,10 +3,7 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.coor.conversion.DecimalDegreesCoordinateFormat
 import org.openstreetmap.josm.data.osm.OsmPrimitive
-import org.openstreetmap.josm.data.osm.event.AbstractDatasetChangedEvent
-import org.openstreetmap.josm.data.osm.event.DataSetListenerAdapter
-import org.openstreetmap.josm.data.osm.event.DatasetEventManager
-import org.openstreetmap.josm.data.osm.event.PrimitivesRemovedEvent
+import org.openstreetmap.josm.data.osm.event.*
 import org.openstreetmap.josm.data.projection.Projections
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.layer.LayerManager
@@ -148,9 +145,11 @@ class ValidatorCache : DataSetListenerAdapter.Listener, LayerChangeListener {
     }
 
     override fun processDatasetEvent(event: AbstractDatasetChangedEvent?) {
-        if (event is PrimitivesRemovedEvent) {
-            primitivesRemoved(event)
+        when (event) {
+            is PrimitivesRemovedEvent -> primitivesRemoved(event)
+            is DataChangedEvent -> dataChangedEvent(event)
         }
+
     }
 
     override fun layerAdded(e: LayerManager.LayerAddEvent?) {
@@ -169,7 +168,15 @@ class ValidatorCache : DataSetListenerAdapter.Listener, LayerChangeListener {
 
     private fun primitivesRemoved(event: PrimitivesRemovedEvent?) {
         val primitivesRemoved = event?.primitives ?: emptyList()
-        primitivesRemoved.forEach { responses.remove(it) }
+        primitivesRemoved.forEach {
+            responses.remove(it)
+        }
+    }
+
+    private fun dataChangedEvent(event: DataChangedEvent?) {
+        val events = event?.events ?: emptyList()
+        events.filter { it is PrimitivesRemovedEvent }
+            .forEach { primitivesRemoved(it as PrimitivesRemovedEvent) }
     }
 
     fun initListener() {
