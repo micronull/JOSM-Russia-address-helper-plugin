@@ -5,6 +5,8 @@ import org.openstreetmap.josm.command.Command
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.*
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.MultipolygonCache
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.CommonSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.LayerShiftSettingsReader
 import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.Logging
@@ -12,11 +14,13 @@ import org.openstreetmap.josm.tools.Logging
 class GeometryHelper {
     companion object {
         fun getPrimitiveCentroid(p: OsmPrimitive): EastNorth {
-            return if (p is Way) Geometry.getCentroid(p.nodes)
-            else if (p is Node) p.eastNorth
-            else Geometry.getCentroid(
-                getBiggestClosedOuter(p as Relation)?.nodes ?: p.members.first { it.isWay }.way.nodes
-            )
+            return when (p) {
+                is Node -> p.eastNorth
+                is Way -> Geometry.getCentroid(p.nodes)
+                else -> Geometry.getCentroid(
+                    getBiggestClosedOuter(p as Relation)?.nodes ?: p.members.first { it.isWay }.way.nodes
+                )
+            }
         }
 
         fun getBiggestPoly(p: OsmPrimitive): Way? {
@@ -76,6 +80,53 @@ class GeometryHelper {
 
         fun getCentroidDistance(p1: OsmPrimitive, p2: OsmPrimitive): Double {
             return Geometry.getDistance(Node(getPrimitiveCentroid(p1)), Node(getPrimitiveCentroid(p2)))
+        }
+
+        /**
+        проблема актуальна - для сложных зданий центроид находится вне здания и вне участка
+        запрос по точке вне контура здания не возвращает данные здания
+        актуальный пример, Красноярский край, Минусинск, улица Трегубенко 66А. (53.6878732, 91.6799617)
+        реализован алгоритм - полигон бьется на треугольники, находим их центроид,
+        если он внутри полигона здания, возвращаем его
+        */
+
+        fun getPointIntoPolygon(osmPrimitive: OsmPrimitive): EastNorth {
+            return when (osmPrimitive) {
+                is Way -> {
+                    val centroid = Geometry.getCentroid(osmPrimitive.nodes)
+                    return if (Geometry.nodeInsidePolygon(Node(centroid), osmPrimitive.nodes)) {
+                        centroid
+                    } else {
+                        val nodes = osmPrimitive.nodes
+                        for (i in 0 until nodes.size - 1) {
+                            val node1 = nodes[i]
+                            var j = i + 1
+                            if (j > nodes.size - 1) j = j - nodes.size
+                            val node2 = nodes[j]
+                            var k = i + 2
+                            if (j > nodes.size - 1) k = k - nodes.size
+                            val node3 = nodes[k]
+                            val triangleCentroid = Geometry.getCentroid(listOf(node1, node2, node3))
+                            if (Geometry.nodeInsidePolygon(Node(triangleCentroid), osmPrimitive.nodes)) {
+                                if (CommonSettingsReader.ENABLE_DEBUG_GEOMETRY_CREATION.get()) {
+                                    val coords: ArrayList<ArrayList<Double>> = arrayListOf(
+                                        arrayListOf(node1.eastNorth.east(), node1.eastNorth.north()),
+                                        arrayListOf(node2.eastNorth.east(), node2.eastNorth.north()),
+                                        arrayListOf(node3.eastNorth.east(), node3.eastNorth.north()),
+                                    )
+                                    RussiaAddressHelperPlugin.createDebugObject(coords, triangleCentroid)
+                                }
+                                return triangleCentroid
+                            }
+                        }
+                        Geometry.getClosestPrimitive(Node(centroid), osmPrimitive.nodes).eastNorth
+                    }
+                }
+                else -> {
+                    //TODO реализация алгоритма поиска точки для мультиполигона
+                    getPrimitiveCentroid(osmPrimitive)
+                }
+            }
         }
     }
 }

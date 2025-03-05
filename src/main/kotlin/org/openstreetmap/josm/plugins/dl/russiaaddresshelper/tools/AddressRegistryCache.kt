@@ -22,6 +22,11 @@ class AddressRegistryCache : AddressRegistry(), DataSetListenerAdapter.Listener,
             this.remove(event.primitives?.toSet() ?: emptySet())
         }
 
+        if (event is DataChangedEvent) {
+            val removeEvents = event.events.filter { it is PrimitivesRemovedEvent }
+            removeEvents.forEach { this.remove(it.primitives?.toSet() ?: emptySet())}
+        }
+
         if (event is TagsChangedEvent) {
             val newKeys = event.primitive.keys
             val oldKeys = event.originalKeys.toMap()
