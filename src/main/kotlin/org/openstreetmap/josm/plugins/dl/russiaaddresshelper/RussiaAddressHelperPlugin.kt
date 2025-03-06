@@ -42,6 +42,9 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         menuInit(MainApplication.getMenu().dataMenu)
 
         versionInfo = info.version
+
+        cache.initListener()
+        //    addressRegistry.initListener()
     }
 
     companion object {
@@ -279,6 +282,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
     }
 
     override fun mapFrameInitialized(oldFrame: MapFrame?, newFrame: MapFrame?) {
+        //this callback fired also everytime last layer is removed, cannot run layer listeners init here
         OsmValidator.addTest(EGRNEmptyResponseTest::class.java)
         OsmValidator.addTest(EGRNFuzzyStreetMatchingTest::class.java)
         OsmValidator.addTest(EGRNInitialsStreetMatchingTest::class.java)
@@ -295,9 +299,6 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
 
         UploadAction.registerUploadHook(cleanPluginCacheHook, true)
         UploadAction.registerUploadHook(egrnUploadTagFilterHook, true)
-
-        cache.initListener()
-        //    addressRegistry.initListener()
     }
 
     private fun menuInit(menu: JMenu) {
