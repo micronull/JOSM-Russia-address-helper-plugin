@@ -78,7 +78,7 @@ class AddressRegistryCache : AddressRegistry(), DataSetListenerAdapter.Listener,
     fun initListener() {
         DatasetEventManager.getInstance()
             .addDatasetListener(dataChangedAdapter, DatasetEventManager.FireMode.IMMEDIATELY)
-        MainApplication.getLayerManager().addLayerChangeListener(this)
+        MainApplication.getLayerManager().addAndFireLayerChangeListener(this)
     }
 
     private fun getInlineAddress(tags: Map<String, String>): String {

@@ -30,6 +30,7 @@ class DeleteDoubles {
      * Очистка переданного списка от дублей.
      */
     fun clear(items: MutableList<Buildings.Building>): MutableList<Buildings.Building> {
+        try {
         //удаляем все здания, с пустыми тэгами адреса
         items.removeAll {
             (it.preparedTags["addr:street"] == null).and(it.preparedTags["addr:place"] == null) || it.preparedTags["addr:housenumber"] == null
@@ -122,6 +123,10 @@ class DeleteDoubles {
         }
 
         return newItems
+        } catch (ex :Exception) {
+            Logging.error(ex)
+        }
+        return mutableListOf()
     }
 
     /**

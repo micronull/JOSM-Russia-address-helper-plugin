@@ -116,12 +116,13 @@ class SelectAction : JosmAction(
         }
 
         listener.onComplete = { changeBuildings ->
-            layerManager.editDataSet.setSelected(*changeBuildings)
-            progressDialog.close()
-
+            //получаем зависание, если то, что хотим выделить, попадает под фильтрацию фильтрами редактора
+            //layerManager.editDataSet.setSelected(*changeBuildings)
+            layerManager.editDataSet.clearSelection()
             //валидируем все, все что у нас в кэше на данный момент и не удалено (может быть ситуация с удалением слоя в котором были уже закэшированные данные)
             val primitivesToValidate = RussiaAddressHelperPlugin.cache.responses.keys.filter { !it.isDeleted }
             RussiaAddressHelperPlugin.runEgrnValidation(primitivesToValidate)
+            progressDialog.close()
         }
 
         val scope = buildings.load(listener)

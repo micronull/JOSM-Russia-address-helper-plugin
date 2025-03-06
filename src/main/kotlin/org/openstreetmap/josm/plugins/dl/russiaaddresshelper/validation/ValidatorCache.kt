@@ -182,6 +182,7 @@ class ValidatorCache : DataSetListenerAdapter.Listener, LayerChangeListener {
     fun initListener() {
         DatasetEventManager.getInstance()
             .addDatasetListener(dataChangedAdapter, DatasetEventManager.FireMode.IMMEDIATELY)
-        MainApplication.getLayerManager().addLayerChangeListener(this)
+        //can get IllegalArgumentException if called twice. Seems its planned by JOSM devs
+        MainApplication.getLayerManager().addAndFireLayerChangeListener(this)
     }
 }
