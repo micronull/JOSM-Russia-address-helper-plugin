@@ -83,13 +83,13 @@
       2. Скачайте с [сайта Госуслуг](https://www.gosuslugi.ru/crt) сертификаты Минцифры (раздел "Сертификаты для Windows", кнопки "Скачать корневой сертификат" и "Скачать выпускающие сертификаты"). Распакуйте архив с выпускающими сертификатами в удобное для вас место, и скопируйте туда же скачанный корневой сертификат. Например, это папка "D:\certs"
       3. Создайте на всякий случай резервную копию файла cacerts
       4. Выполните в командной строке следующие команды (пути к cacerts и файлам сертификатов заменить на ваши): 
-        ```
-        keytool -v -importcert -alias RuRootCert -keystore "C:\JDK\jdk-11.0.2\lib\security\cacerts" -file "D:\certs\russian_trusted_root_ca.cer" -storepass changeit -trustcacerts
-        keytool -v -importcert -alias Ru2cert -keystore "C:\JDK\jdk-11.0.2\lib\security\cacerts" -file "D:\certs\russian_trusted_sub_ca.cer" -storepass changeit -trustcacerts
-        keytool -v -importcert -alias Ru3cert -keystore "C:\JDK\jdk-11.0.2\lib\security\cacerts" -file "D:\certs\russian_trusted_sub_ca_2024.cer" -storepass changeit -trustcacerts
-        ```
-        Если программа выдаст запрос "**Trust this certificate?**", нужно ввести 'Y' и нажать 'Enter'.<br>
-        Если вы все делаете правильно, после выполнения каждой из команд система должна написать **Certificate was added to keystore**
+         ```
+         keytool -v -importcert -alias RuRootCert -keystore "C:\JDK\jdk-11.0.2\lib\security\cacerts" -file "D:\certs\russian_trusted_root_ca.cer" -storepass changeit -trustcacerts
+         keytool -v -importcert -alias Ru2cert -keystore "C:\JDK\jdk-11.0.2\lib\security\cacerts" -file "D:\certs\russian_trusted_sub_ca.cer" -storepass changeit -trustcacerts
+         keytool -v -importcert -alias Ru3cert -keystore "C:\JDK\jdk-11.0.2\lib\security\cacerts" -file "D:\certs\russian_trusted_sub_ca_2024.cer" -storepass changeit -trustcacerts
+         ```
+         Если программа выдаст запрос "**Trust this certificate?**", нужно ввести 'Y' и нажать 'Enter'.<br>
+         Если вы все делаете правильно, после выполнения каждой из команд система должна написать **Certificate was added to keystore**
       5. Запустите (или перезапустите, если был запущен) редактор, нажмите F12, и в открывшемся меню настроек выберите слева «Настройки плагина ЕГРН \ Настройки сети». **Снимите** галочку "Отключить SSL при запросах ЕГРН" и нажмите ОК.
       6. Выберите в JOSM пункт меню «Данные» — «Загрузка адресов из ЕГРН» - «Добавить слои WMS ПКК». В настройках слоев добавятся 4 новых слоя, с данными ЕГРН.
       7. Добавьте нужные вам слои в отображаемые через меню **«Слои»**
