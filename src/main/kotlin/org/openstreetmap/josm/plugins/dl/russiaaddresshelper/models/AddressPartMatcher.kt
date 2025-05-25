@@ -23,16 +23,26 @@ data class AddressPartMatcher(
         val templatePrefix = """^\s?(?<tag>)\s?(?<body>)\s$"""
         val templatePostfix = """^\s?<body>\s<tag>\s$"""
         val result = mutableListOf<Regex>()
-        prefixes.forEach{ pref ->
-            filters.forEach { body ->
-                result.add(Regex("""^\s?(?<tag>$pref)\s?(?<body>$body)\s?$"""))
+        filters.forEach{ body ->
+            if (prefixes.isNotEmpty()) {
+                prefixes.forEach { pref ->
+                    result.add(Regex("""^\s?(?<tag>$pref)\s?(?<body>$body)\s?$"""))
+                }
+            } else {
+                result.add(Regex("""^\s?(?<body>$body)\s?$"""))
             }
         }
-        postfixes.forEach{ post ->
-            filters.forEach { body ->
-                result.add(Regex("""^\s?(?<body>$body)\s{1,2}(?<tag>$post)\s?$"""))
+
+        filters.forEach{ body ->
+            if ( postfixes.isNotEmpty()) {
+                postfixes.forEach { post ->
+                    result.add(Regex("""^\s?(?<body>$body)\s{1,2}(?<tag>$post)\s?$"""))
+                }
+            } else {
+                result.add(Regex("""^\s?(?<body>$body)\s?$"""))
             }
         }
+
         return result.distinct()
     }
 

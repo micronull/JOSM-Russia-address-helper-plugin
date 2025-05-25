@@ -32,7 +32,7 @@ class AddressParser : IParser<ParsedAddress> {
         //Калужская область, Боровский район, деревня Кабицыно, улица А. Кабаевой, дом 25 (Двадцать пять)
         filteredEgrnAddress = filteredEgrnAddress.replace(Regex("""\(([А-Яа-я ])+\)"""), "")
 
-        // var fullParseResult = fullParse(filteredEgrnAddress)
+//        var fullParseResult = fullParse(filteredEgrnAddress)
 
         var placeParseResult = placeParser.parse(filteredEgrnAddress, requestCoordinate, editDataSet)
         var streetParseResult = streetParser.parse(filteredEgrnAddress, requestCoordinate, editDataSet)

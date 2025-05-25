@@ -42,7 +42,10 @@ class EGRNConflictedDataTest : Test(
                         this, Severity.WARNING,
                         EGRNTestCode.EGRN_CONFLICTED_DATA.code
                     )
-                        .message(I18n.tr(EGRNTestCode.EGRN_CONFLICTED_DATA.message), conflictedTags.keys.joinToString(", "))
+                        .message(
+                            I18n.tr(EGRNTestCode.EGRN_CONFLICTED_DATA.message),
+                            conflictedTags.keys.joinToString(", ")
+                        )
                         .primitives(p)
                         .build()
                 )
@@ -61,11 +64,16 @@ class EGRNConflictedDataTest : Test(
         if (preferredAddress != null) {
             tagsFromEgrn.putAll(preferredAddress.getOsmAddress().getBaseAddressTagsWithSource())
         }
-        val buildingFeature = egrnResult.data.responses[NSPDLayer.BUILDING]?.features?.firstOrNull()
+        var buildingFeature = egrnResult.data.responses[NSPDLayer.BUILDING]?.features?.firstOrNull()
         if (buildingFeature != null) {
-            tagsFromEgrn.putAll(TagHelper.getBuildingTags(buildingFeature))
+            tagsFromEgrn.putAll(TagHelper.getBuildingTags(buildingFeature, NSPDLayer.BUILDING))
+        } else {
+            buildingFeature = egrnResult.data.responses[NSPDLayer.UNFINISHED]?.features?.firstOrNull()
+            if (buildingFeature != null) {
+                tagsFromEgrn.putAll(TagHelper.getBuildingTags(buildingFeature, NSPDLayer.UNFINISHED))
+            }
         }
-        return tagsFromEgrn.filter { p.hasTag(it.key) && p[it.key] != it.value && !(it.key == "building" && it.value == "yes")}
+        return tagsFromEgrn.filter { p.hasTag(it.key) && p[it.key] != it.value && !(it.key == "building" && it.value == "yes") }
     }
 
     override fun fixError(testError: TestError): Command? {

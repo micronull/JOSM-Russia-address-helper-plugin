@@ -1,14 +1,24 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools
 
+import org.openstreetmap.josm.actions.CreateMultipolygonAction
+import org.openstreetmap.josm.actions.SimplifyWayAction
 import org.openstreetmap.josm.command.AddCommand
+import org.openstreetmap.josm.command.ChangePropertyCommand
 import org.openstreetmap.josm.command.Command
+import org.openstreetmap.josm.command.SequenceCommand
+import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.*
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.MultipolygonCache
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NSPDFeature
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NSPDMultiPolygon
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NSPDPolygon
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.ClickActionSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.CommonSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.LayerShiftSettingsReader
 import org.openstreetmap.josm.tools.Geometry
+import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
 
 class GeometryHelper {
@@ -16,7 +26,7 @@ class GeometryHelper {
         fun getPrimitiveCentroid(p: OsmPrimitive): EastNorth {
             return when (p) {
                 is Node -> p.eastNorth
-                is Way -> Geometry.getCentroid(p.nodes)
+                is Way -> Geometry.getCentroid(p.nodes) //can return null, if no nodes in Way
                 else -> Geometry.getCentroid(
                     getBiggestClosedOuter(p as Relation)?.nodes ?: p.members.first { it.isWay }.way.nodes
                 )
@@ -24,7 +34,12 @@ class GeometryHelper {
         }
 
         fun getBiggestPoly(p: OsmPrimitive): Way? {
+            if (p is Node) return null
             return if (p is Way) p else getBiggestClosedOuter(p as Relation)
+        }
+
+        fun getBiggestPoly(ways: List<Way>): Way {
+            return ways.maxByOrNull { Geometry.computeArea(it) ?: 0.0 } ?: ways.first()
         }
 
         private fun getBiggestClosedOuter(r: Relation): Way? {
@@ -125,6 +140,90 @@ class GeometryHelper {
                 else -> {
                     //TODO реализация алгоритма поиска точки для мультиполигона
                     getPrimitiveCentroid(osmPrimitive)
+                }
+            }
+        }
+
+        fun simplifyWays(primitive: OsmPrimitive?): List<Command> {
+            if (!ClickActionSettingsReader.EGRN_CLICK_ENABLE_GEOMETRY_SIMPLIFY.get() || primitive == null) return emptyList()
+            val threshold: Double = ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_SIMPLIFY_THRESHOLD.get()
+
+            if (primitive is Way) {
+                val simplifyCommands = SimplifyWayAction.createSimplifyCommand(
+                    primitive,
+                    threshold
+                )
+                if (simplifyCommands != null) {
+                    return listOf(simplifyCommands)
+                }
+            } else {
+                return (primitive as Relation).memberPrimitives.mapNotNull { way ->
+                    SimplifyWayAction.createSimplifyCommand(way as Way, threshold)
+                }
+            }
+            return emptyList()
+        }
+
+        fun generateBuildingMultiPolygon(
+            geometry: NSPDFeature.NSPDGeometry,
+            ds: DataSet,
+            tags: Map<String, String>,
+            tagsForMultiWays: Map<String, String> = mutableMapOf<String,String>()
+        ): Pair<List<Command>, OsmPrimitive> {
+            val res: MutableList<Command> = mutableListOf()
+            val ways: MutableList<Way> = mutableListOf()
+            var biggestAreaPoly: Pair<Way?, Double> = Pair(null, 0.0)
+            var removedPolys = 0
+            val polygons: ArrayList<ArrayList<ArrayList<ArrayList<Double>>>> = arrayListOf()
+            if (geometry is NSPDPolygon) {
+                polygons.add(geometry.coordinates)
+            } else {
+                polygons.addAll((geometry as NSPDMultiPolygon).coordinates)
+            }
+            polygons.forEach { polygon -> //предполагаем, что тип мультиполи состоит из набора наборов полигонов, который в итоге вырождается в один огромный мультик в ОСМе
+                polygon.forEach { coords ->
+                    val polyPair = createPolygon(ds, coords, true)
+                    val way = polyPair.second
+                    val area = Geometry.closedWayArea(way)
+                    if (area.compareTo(ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_IMPORT_THRESHOLD.get()) > 0) {
+                        if (area.compareTo(biggestAreaPoly.second) > 0) {
+                            biggestAreaPoly = Pair(way, area)
+                        }
+                        res.addAll(polyPair.first)
+                        ways.add(way)
+                    } else {
+                        removedPolys++
+                    }
+                }
+            }
+
+            if (removedPolys > 0) {
+                Logging.warn("EGRN PLUGIN : Filtered $removedPolys from imported geometry, threshold setting ${ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_IMPORT_THRESHOLD.get()}")
+            }
+
+            if (ways.size == 1) {
+                res.plusAssign(ChangePropertyCommand(ds, listOf(ways[0]), tags))
+                return Pair(res, ways[0])
+            } else {
+                UndoRedoHandler.getInstance().add(SequenceCommand(I18n.tr("Add polygons from EGRN"), res), true)
+                val relationCommand = CreateMultipolygonAction.createMultipolygonCommand(ways, null)
+                if (relationCommand != null) {
+                    if (tagsForMultiWays.isNotEmpty()) {
+                        return Pair(
+                            listOf(relationCommand.a, ChangePropertyCommand(ds, listOf(relationCommand.b), tags),
+                                ChangePropertyCommand(ds, ways, tagsForMultiWays)
+                            ),
+                            relationCommand.b
+                        )
+                    }
+                    return Pair(
+                        listOf(relationCommand.a, ChangePropertyCommand(ds, listOf(relationCommand.b), tags)),
+                        relationCommand.b
+                    )
+                } else {
+                    Logging.error("EGRN PLUGIN: Cannot create proper multipolygon from imported data")
+                    val biggestWay = getBiggestPoly(ways)
+                    return Pair(listOf(ChangePropertyCommand(ds, listOf(biggestWay), tags)), biggestWay)
                 }
             }
         }

@@ -57,9 +57,9 @@ class EGRNDuplicateAddressesTest : Test(
         Logging.info("EGRN-PLUGIN Start form all addressed primitives map")
         val allLoadedPrimitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives()
             .filter { p ->
-                p !is Node && p.hasKey("building") && p.hasKey("addr:housenumber") && (p.hasKey("addr:street") || p.hasKey(
-                    "addr:place"
-                ))
+                p.hasKey("building") && p.hasKey("addr:housenumber")
+                        && (p.hasKey("addr:street") || p.hasKey("addr:place")) &&
+                        ((p is Way &&  p.nodes.isNotEmpty()) || (p is Relation && p.memberPrimitives.isNotEmpty()))
             }.map { p -> Pair(p, GeometryHelper.getPrimitiveCentroid(p)) }
         Logging.info("EGRN-PLUGIN Finish filtering all addressed primitives map, size ${allLoadedPrimitives.size}")
         val existingPrimitivesMap = allLoadedPrimitives.groupBy { getOsmInlineAddress(it.first) }

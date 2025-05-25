@@ -28,6 +28,12 @@ class EgrnSettingsReader {
          */
         val REQUEST_DELAY = IntegerProperty("dl.russiaaddresshelper.ppk.request.delay", 1)
 
+        /**
+         * Property for request timeout in milliseconds
+         * @since 0.9.6.4
+         */
+        val REQUEST_TIMEOUT = IntegerProperty("dl.russiaaddresshelper.ppk.request.timeout", 3000)
+
         val EGRN_REQUEST_USER_AGENT = StringProperty(
             "dl.russiaaddresshelper.ppk.useragent",
             "JOSM/%s JOSM-RussiaAddressHelper/%s"

@@ -1,5 +1,6 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api
 
+import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonProperty
 import kotlinx.serialization.Serializable
 
@@ -65,15 +66,25 @@ data class NSPDOptions(
     @JsonProperty("building_name") val buildingName: String? = null,
     @JsonProperty("cultural_heritage_val") val culturalHeritageVal: String? = null,
     @JsonProperty("floors") val floors: String? = null,
-    @JsonProperty("intersected_cad_numbers") val intersectedCadNumbers: String? = null,
+    @JsonProperty("intersected_cad_numbers")
+    @JsonFormat(with = [JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY])
+    val intersectedCadNumbers: ArrayList<String>? = null, //точный тип неизвестен
     @JsonProperty("materials") val materials: String? = null,
     @JsonProperty("permitted_use_name") val permittedUseName: String? = null,
     @JsonProperty("purpose") val purpose: String? = null,
     @JsonProperty("underground_floors") val undergroundFloors: String? = null,
-    @JsonProperty("united_cad_numbers") val unitedCadNumbers: String? = null,
+    @JsonProperty("united_cad_numbers")
+    @JsonFormat(with = [JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY])
+    val unitedCadNumbers: ArrayList<String>? = null, //может быть как String, так и Array<String>
     @JsonProperty("year_built") val yearBuilt: String? = null,
     @JsonProperty("year_commisioning") val yearCommissioning: String? = null,
-    @JsonProperty("right_type") val rightType: String? = null
+    @JsonProperty("right_type") val rightType: String? = null,
+    //options for place_boundaries
+    @JsonProperty("name") val name: String? = null,
+    @JsonProperty("description") val description: String? = null,
+    @JsonProperty("loc") val loc: String? = null,
+    @JsonProperty("document_date") val documentDate: String? = null,
+    @JsonProperty("document_name") val documentName: String? = null
 
 ) {
     fun getExtTags(prefix: String = "nspd:", filter: Set<String> = setOf()): MutableMap<String, String> {
@@ -125,7 +136,7 @@ data class NSPDOptions(
     }
 }
 
-@kotlinx.serialization.Serializable
+@Serializable
 data class NSPDSystemInfo(
     @JsonProperty("inserted") var inserted: String? = null,
     @JsonProperty("insertedBy") var insertedBy: String? = null,
