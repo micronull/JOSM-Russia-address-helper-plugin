@@ -110,13 +110,13 @@ class Buildings(objects: List<OsmPrimitive>) {
                         if (!building.osmPrimitive.hasTag(key)) {
                             cmds.add(ChangePropertyCommand(building.osmPrimitive, key, value))
                         } else {
-                            if (key == "building" && building.osmPrimitive.hasTag("building", "yes")) {
+                            if (TagHelper.overwriteValue(key, building.osmPrimitive[key], value)) {
                                 cmds.add(ChangePropertyCommand(building.osmPrimitive, key, value))
                             }
                         }
-                        if (!changedBuildings.contains(building.osmPrimitive)) {
-                            changedBuildings.add(building.osmPrimitive)
-                        }
+                    }
+                    if (!changedBuildings.contains(building.osmPrimitive)) {
+                        changedBuildings.add(building.osmPrimitive)
                     }
                 }
             }
@@ -146,6 +146,7 @@ class Buildings(objects: List<OsmPrimitive>) {
         var noRetriesLeft = 0L
         var processedItems = 0
         var consecutiveFailures = 0
+        var isBanned = false
         items.mapIndexed { index, building ->
             scope.launch {
                 try {
@@ -153,7 +154,14 @@ class Buildings(objects: List<OsmPrimitive>) {
                     val layersToRequest = LayerFilterSettingsReader.getMassRequestActionEnabledLayers()
                     val nspdResponse = NSPDResponse(mutableMapOf())
                     layersToRequest.forEach { layer ->
-                        var retries = 5
+                        if (isBanned) {
+                            val msg =
+                                I18n.tr("Too many consecutive failures, your IP maybe banned from EGRN side 8(")
+                            Notification(msg).setIcon(JOptionPane.WARNING_MESSAGE).show()
+                            return@forEach
+                        }
+                        //TODO вынести в настройки
+                        var retries = 2
                         var needToRepeat = true
                         while (needToRepeat) {
                             try {
@@ -175,6 +183,9 @@ class Buildings(objects: List<OsmPrimitive>) {
                                         if (retries > 0) {
                                             needToRepeat = true
                                             retriesTotal++
+                                            val msg =
+                                                I18n.tr("Data request error, retries left $retries")
+                                            Notification(msg).setIcon(JOptionPane.WARNING_MESSAGE).show()
                                         } else {
                                             loadListener?.onResponse?.invoke(response)
                                             noRetriesLeft++
@@ -184,7 +195,7 @@ class Buildings(objects: List<OsmPrimitive>) {
                                         Logging.info("EGRN-PLUGIN Request failure, retries $retries")
                                         Logging.warn(result.getException().message)
                                         retries--
-                                        val isBanned = consecutiveFailures > CONSECUTIVE_FAILURE_LIMIT
+                                        isBanned = consecutiveFailures > CONSECUTIVE_FAILURE_LIMIT
                                         if (processedItems == items.size || isBanned) {
                                             val finishTime = LocalDateTime.now()
                                             printReport(
@@ -195,11 +206,6 @@ class Buildings(objects: List<OsmPrimitive>) {
                                                 startTime,
                                                 finishTime
                                             )
-                                            if (isBanned) {
-                                                val msg =
-                                                    I18n.tr("Too many consecutive failures, your IP maybe banned from EGRN side (")
-                                                Notification(msg).setIcon(JOptionPane.WARNING_MESSAGE).show()
-                                            }
                                             loadListener?.onResponseContinue?.invoke()
                                             channel.close()
                                         }
@@ -291,7 +297,21 @@ class Buildings(objects: List<OsmPrimitive>) {
                         egrnResponse,
                         ParsedAddressInfo(listOf())
                     )
-                } else if (!egrnResponse.hasReadableAddress()) {
+                } else {
+                    //можем добавить расширенное инфо даже если нет адреса
+                    if (MassActionSettingsReader.EGRN_MASS_ACTION_USE_EXT_ATTRIBUTES.get()) {
+                        if (egrnResponse.responses[NSPDLayer.BUILDING] != null) {
+                            val egrnBuildingTags =
+                                TagHelper.getBuildingTags(egrnResponse.responses[NSPDLayer.BUILDING]?.features?.firstOrNull(), NSPDLayer.BUILDING)
+                            d.building.preparedTags.plusAssign(egrnBuildingTags)
+                        } else if (egrnResponse.responses[NSPDLayer.UNFINISHED] != null) {
+                            val egrnBuildingTags =
+                                TagHelper.getBuildingTags(egrnResponse.responses[NSPDLayer.UNFINISHED]?.features?.firstOrNull(), NSPDLayer.UNFINISHED)
+                            d.building.preparedTags.plusAssign(egrnBuildingTags)
+                        }
+                    }
+
+                    if (!egrnResponse.hasReadableAddress()) {
                     Logging.info("EGRN PLUGIN no addresses found for for request $egrnResponse")
                     RussiaAddressHelperPlugin.cache.add(
                         d.building.osmPrimitive,
@@ -302,14 +322,6 @@ class Buildings(objects: List<OsmPrimitive>) {
                 } else {
                     RussiaAddressHelperPlugin.cache.remove(d.building.osmPrimitive)
                     val parsedAddressInfo = egrnResponse.parseAddresses(d.building.coordinate)
-
-                    if (MassActionSettingsReader.EGRN_MASS_ACTION_USE_EXT_ATTRIBUTES.get()) {
-                        if (egrnResponse.responses[NSPDLayer.BUILDING] != null) {
-                            val egrnBuildingTags =
-                                TagHelper.getBuildingTags(egrnResponse.responses[NSPDLayer.BUILDING]?.features?.firstOrNull())
-                            d.building.preparedTags.plusAssign(egrnBuildingTags)
-                        }
-                    }
 
                     RussiaAddressHelperPlugin.cache.add(
                         d.building.osmPrimitive,
@@ -326,14 +338,12 @@ class Buildings(objects: List<OsmPrimitive>) {
                             }
                             //спорное решение - добавляем зданию адрес БЕЗ номеров квартир
                             d.building.preparedTags.plusAssign(
-                                preferredOsmAddress.getOsmAddress().getBaseAddressTags()
+                                preferredOsmAddress.getOsmAddress().getBaseAddressTagsWithSource()
                             )
-                            //if (!osmPrimitive.hasTag("addr:housenumber")) {
-                            d.building.preparedTags["source:addr"] = "ЕГРН"
-                            //  }
                         }
 
                     }
+                }
                 }
                 null
             }

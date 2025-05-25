@@ -1,6 +1,7 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings
 
 import org.openstreetmap.josm.gui.widgets.JosmTextField
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.ValidationSettingsReader
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
@@ -13,6 +14,7 @@ class ValidationSettingsPanel : JPanel(GridBagLayout()) {
     private val distanceForStreetSearch = JosmTextField(4)
     private val distanceForPlaceNodeSearch = JosmTextField(4)
     private val stopWordsTablePanel = StopWordsTablePanel()
+    private val overwriteAddress = JCheckBox(I18n.tr("Force overwrite address tags, else resolve through conflict"))
 
     init {
         val panel: JPanel = this
@@ -24,6 +26,8 @@ class ValidationSettingsPanel : JPanel(GridBagLayout()) {
         panel.add(JLabel(I18n.tr("Place node should be closer than, meters:")), GBC.std())
         panel.add(distanceForPlaceNodeSearch, GBC.eop().insets(5, 0, 0, 10))
 
+        panel.add(overwriteAddress,GBC.eol().insets(0, 0, 0, 10))
+
         panel.add(stopWordsTablePanel, GBC.eol())
         panel.add(Box.createVerticalGlue(), GBC.eol().fill())
     }
@@ -31,8 +35,8 @@ class ValidationSettingsPanel : JPanel(GridBagLayout()) {
     fun initFromPreferences() {
         distanceForStreetSearch.text = ValidationSettingsReader.DISTANCE_FOR_STREET_WAY_SEARCH.get().toString()
         distanceForPlaceNodeSearch.text = ValidationSettingsReader.DISTANCE_FOR_PLACE_NODE_SEARCH.get().toString()
+        overwriteAddress.isSelected = TagSettingsReader.OVERWRITE_ADDRESS.get()
     }
-
 
     /**
      * Saves the current values to the preferences
@@ -71,6 +75,9 @@ class ValidationSettingsPanel : JPanel(GridBagLayout()) {
             Logging.warn(e.message + "(need numeric)")
             ValidationSettingsReader.DISTANCE_FOR_PLACE_NODE_SEARCH.put(1000)
         }
+
+        TagSettingsReader.OVERWRITE_ADDRESS.put(overwriteAddress.isSelected)
+
         stopWordsTablePanel.saveToPreferences()
     }
 

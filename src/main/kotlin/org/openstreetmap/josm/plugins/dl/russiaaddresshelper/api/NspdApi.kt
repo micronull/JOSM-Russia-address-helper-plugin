@@ -53,7 +53,7 @@ class NspdApi(private val url: String, private val userAgent: String, private va
                 Headers.USER_AGENT to userAgent,
                 "Referer" to referer
             )
-        ).timeout(3000)
+        ).timeoutRead(EgrnSettingsReader.REQUEST_TIMEOUT.get())
     }
 
     private fun getFullUrl(coordinate: EastNorth, layer: String, boundary: BBox?): String {

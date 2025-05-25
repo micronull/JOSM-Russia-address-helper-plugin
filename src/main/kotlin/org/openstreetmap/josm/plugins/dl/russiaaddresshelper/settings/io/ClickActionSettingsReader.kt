@@ -22,7 +22,7 @@ class ClickActionSettingsReader {
          */
         val EGRN_CLICK_GEOMETRY_IMPORT_THRESHOLD = DoubleProperty(
             "dl.russiaaddresshelper.click.geometry_import_threshold",
-            1.0
+            3.0
         )
 
         /**

@@ -4,8 +4,6 @@ import com.github.kittinunf.fuel.jackson.jacksonDeserializerOf
 import com.github.kittinunf.result.Result
 import com.github.kittinunf.result.failure
 import com.github.kittinunf.result.success
-import org.openstreetmap.josm.actions.CreateMultipolygonAction
-import org.openstreetmap.josm.actions.SimplifyWayAction
 import org.openstreetmap.josm.actions.mapmode.MapMode
 import org.openstreetmap.josm.command.AddCommand
 import org.openstreetmap.josm.command.ChangePropertyCommand
@@ -19,12 +17,13 @@ import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.util.KeyPressReleaseListener
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.*
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.ClickActionSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.LayerFilterSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper.Companion.generateBuildingMultiPolygon
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.getAddressTagsForClickAction
 import org.openstreetmap.josm.tools.*
 import java.awt.Cursor
 import java.awt.event.KeyEvent
@@ -58,6 +57,10 @@ class ClickAction : MapMode(
         map.keyDetector.removeKeyListener(this)
     }
 
+    override fun updateEnabledState() {
+        isEnabled = MainApplication.isDisplayingMapView() && MainApplication.getMap().mapView.isActiveLayerDrawable
+    }
+
     override fun mouseClicked(e: MouseEvent) {
         if (!SwingUtilities.isLeftMouseButton(e)) {
             return
@@ -71,6 +74,7 @@ class ClickAction : MapMode(
         if (!mapView.isActiveLayerDrawable) {
             return
         }
+        val placeBoundariesMode = e.isAltDown
         mapView.setNewCursor(Cursor(Cursor.WAIT_CURSOR), this)
         val defaultTagsForNode: Map<String, String> = mapOf("source:addr" to "ЕГРН", "fixme" to "REMOVE ME!")
         val ds = layerManager.editDataSet
@@ -78,21 +82,32 @@ class ClickAction : MapMode(
         val mouseEN = mapView.getEastNorth(e.x, e.y)
         var index = 0
         var nodes: Set<Node> = setOf()
-        val layersToRequest = LayerFilterSettingsReader.getClickActionEnabledLayers()
+        val layersToRequest =
+            if (placeBoundariesMode) setOf(NSPDLayer.PLACES_BOUNDARIES) else LayerFilterSettingsReader.getClickActionEnabledLayers()
+        val projectionBounds = MainApplication.getMap().mapView.state.viewClipRectangle.cornerBounds
+        val requestBBox = if (placeBoundariesMode) projectionBounds.toBBox() else null
         val errorMessages: MutableSet<String> = mutableSetOf()
         var buildingPrimitive: OsmPrimitive? = null
         val fullResponse = NSPDResponse()
         val primitivesToValidate = mutableListOf<OsmPrimitive>()
         val mergeDataOnSingleNode = ClickActionSettingsReader.EGRN_CLICK_MERGE_FEATURES.get()
         val nodeTags: MutableMap<Pair<NSPDLayer, Int>, MutableMap<String, String>> = mutableMapOf()
+        var repeatsExhausted = false
         layersToRequest.forEach { requestLayer ->
+            if (repeatsExhausted) {
+                val msg = I18n.tr("Data downloading failed, reason: too much request errors, interrupting")
+                val notification = Notification("$msg").setIcon(JOptionPane.WARNING_MESSAGE)
+                notification.duration = Notification.TIME_LONG
+                notification.show()
+                return@forEach
+            }
             var needToRepeat = true
-            val clickRetries = 2
+            val clickRetries = 1
             val clickDelay = 1000L
             var retries = clickRetries
             while (needToRepeat) {
                 val (request, response, result) = RussiaAddressHelperPlugin.getNSPDClient()
-                    .request(mouseEN, requestLayer, null)
+                    .request(mouseEN, requestLayer, requestBBox)
                     .responseObject<GetFeatureInfoResponse>(jacksonDeserializerOf())
                 RussiaAddressHelperPlugin.totalRequestsPerSession++
                 if (response.statusCode == 200) {
@@ -110,12 +125,15 @@ class ClickAction : MapMode(
                                 tagsForNode.putAll(defaultTagsForNode)
                                 val address = feature.parseAddress(mouseEN)
 
-                                tagsForNode.putAll(getAddressTags(address))
+                                tagsForNode.putAll(getAddressTagsForClickAction(address))
                                 tagsForNode.putAll(feature.getTags())
-                                nodeTags[Pair(requestLayer, localIndex)] = tagsForNode
+                                if (!placeBoundariesMode) {
+                                    nodeTags[Pair(requestLayer, localIndex)] = tagsForNode
+                                }
                                 if (feature.geometry != null) {
-                                    if (exportGeometry && requestLayer == NSPDLayer.BUILDING) {
-                                        val buildTags: MutableMap<String, String> = TagHelper.getBuildingTagsWithEgrnAddress(feature, address)
+                                    if (exportGeometry && (requestLayer == NSPDLayer.BUILDING || requestLayer == NSPDLayer.UNFINISHED)) {
+                                        val buildTags: MutableMap<String, String> =
+                                            TagHelper.getBuildingTags(feature, requestLayer)
                                         val generatedBuilding =
                                             generateBuildingMultiPolygon(feature.geometry, ds, buildTags)
                                         cmds.addAll(generatedBuilding.first)
@@ -123,10 +141,24 @@ class ClickAction : MapMode(
                                     } else if (e.isControlDown) {
                                         val geometryTags = mutableMapOf<String, String>(
                                             "fixme" to "REMOVE ME!",
-                                            "source:geometry" to requestLayer.name
+                                            "source:geometry" to "ЕГРН",
+                                            "autoremove:source:geometry" to requestLayer.name
                                         )
+                                        geometryTags.putAll(TagHelper.getLotTags(feature))
+
                                         val generatedGeometry =
                                             generateBuildingMultiPolygon(feature.geometry, ds, geometryTags)
+                                        cmds.addAll(generatedGeometry.first)
+                                    } else if (requestLayer == NSPDLayer.PLACES_BOUNDARIES && placeBoundariesMode) {
+                                        val geometryTags = mutableMapOf<String, String>(
+                                            "fixme" to "REMOVE ME!",
+                                            "autoremove:source:geometry" to requestLayer.name,
+                                        )
+                                        val placeTags = TagHelper.getPlaceTags(feature).toMutableMap()
+                                        placeTags["source:geometry"] = "ЕГРН"
+                                        geometryTags.putAll(placeTags)
+                                        val generatedGeometry =
+                                            generateBuildingMultiPolygon(feature.geometry, ds, geometryTags, placeTags)
                                         cmds.addAll(generatedGeometry.first)
                                     }
                                 }
@@ -137,14 +169,19 @@ class ClickAction : MapMode(
                     result.failure {
                         needToRepeat = false
                         retries = 0
-                        errorMessages.plusAssign((result as Result.Failure).error.message ?: "")
+                        val errorMessage = (result as Result.Failure).error.message
+                        errorMessages.plusAssign(errorMessage ?: "")
+                        Logging.error("EGRN-Plugin $errorMessage")
                     }
                 } else {
                     result.failure {
                         needToRepeat = if (retries > 0) {
                             true
                         } else {
-                            errorMessages.plusAssign((result as Result.Failure).error.message ?: "")
+                            repeatsExhausted = true
+                            val errorMessage = (result as Result.Failure).error.message
+                            errorMessages.plusAssign(errorMessage ?: "")
+                            Logging.error("EGRN-Plugin $errorMessage")
                             false
                         }
                         if (response.statusCode == -1) {
@@ -161,11 +198,13 @@ class ClickAction : MapMode(
         }
 
         //generate nodes
-        if (mergeDataOnSingleNode) {
-            nodes = nodes.plus(Node(GeometryHelper.getNodePlacement(mouseEN, 0)))
-            nodes.first().putAll(getMergedTags(nodeTags))
-        } else {
-            nodes = nodes.plus(getAllNodesWithTags(mouseEN, nodeTags))
+        if (nodeTags.isNotEmpty()) {
+            if (mergeDataOnSingleNode) {
+                nodes = nodes.plus(Node(GeometryHelper.getNodePlacement(mouseEN, 0)))
+                nodes.first().putAll(getMergedTags(nodeTags))
+            } else {
+                nodes = nodes.plus(getAllNodesWithTags(mouseEN, nodeTags))
+            }
         }
 
         nodes.forEach { node -> cmds.add(AddCommand(ds, node)) }
@@ -182,11 +221,17 @@ class ClickAction : MapMode(
             primitivesToValidate.add(buildingPrimitive!!)
             RussiaAddressHelperPlugin.cleanFromDoubles(buildingsToCheck)
             if (buildingsToCheck.isNotEmpty() && parsedAddressInfo.canAssignAddress()) {
+                val addressTags = mutableMapOf<String, String>()
+                val preferredAddress = parsedAddressInfo.getPreferredAddress()!!
+                if (TagSettingsReader.EGRN_ADDR_RECORD.get()) {
+                    addressTags["addr:RU:egrn"] = preferredAddress.egrnAddress
+                }
+                addressTags.putAll(preferredAddress.getOsmAddress().getBaseAddressTagsWithSource())
                 cmds.add(
                     ChangePropertyCommand(
                         ds,
                         listOf(buildingPrimitive),
-                        parsedAddressInfo.getPreferredAddress()!!.getOsmAddress().getBaseAddressTags()
+                        addressTags
                     )
                 )
             }
@@ -203,10 +248,9 @@ class ClickAction : MapMode(
             val c: Command =
                 SequenceCommand(I18n.tr("Added node from RussiaAddressHelper"), cmds)
             UndoRedoHandler.getInstance().add(c)
-            ds.setSelected(nodes)
         }
 
-        val simplifyCommands = simplifyWays(buildingPrimitive)
+        val simplifyCommands = GeometryHelper.simplifyWays(buildingPrimitive)
         if (simplifyCommands.isNotEmpty()) {
             UndoRedoHandler.getInstance().add(SequenceCommand(I18n.tr("Simplify imported geometry"), simplifyCommands))
             val msg = I18n.tr("Imported geometry was simplified, nodes removed")
@@ -217,6 +261,12 @@ class ClickAction : MapMode(
 
         if (primitivesToValidate.isNotEmpty()) {
             RussiaAddressHelperPlugin.runEgrnValidation(RussiaAddressHelperPlugin.cache.responses.keys)
+        }
+
+        if (buildingPrimitive != null) {
+            ds.setSelected(buildingPrimitive)
+        } else {
+            ds.setSelected(nodes)
         }
     }
 
@@ -270,94 +320,6 @@ class ClickAction : MapMode(
         }
 
         return result
-    }
-
-    private fun getAddressTags(address: ParsedAddress?): MutableMap<String, String> {
-        val result: MutableMap<String, String> = mutableMapOf()
-        if (address != null) {
-            if (address.isMatchedByStreetOrPlace()) {
-                result.putAll(address.getOsmAddress().getBaseAddressTags())
-            } else {
-                result["addr:RU:extracted_street_name"] = address.parsedStreet.extractedName
-                result["addr:RU:extracted_street_type"] = address.parsedStreet.extractedType?.name ?: ""
-                result["addr:RU:extracted_place_name"] = address.parsedPlace.extractedName
-                result["addr:RU:extracted_place_type"] = address.parsedPlace.extractedType?.name ?: ""
-                result["addr:RU:parsed_housenumber"] = address.parsedHouseNumber.houseNumber
-                result["addr:RU:parsed_flats"] = address.parsedHouseNumber.flats
-            }
-            if (TagSettingsReader.EGRN_ADDR_RECORD.get())
-                result["addr:RU:egrn"] = address.egrnAddress
-        }
-        return result
-    }
-
-    private fun simplifyWays(primitive: OsmPrimitive?): List<Command> {
-        if (!ClickActionSettingsReader.EGRN_CLICK_ENABLE_GEOMETRY_SIMPLIFY.get() || primitive == null) return emptyList()
-        val threshold: Double = ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_SIMPLIFY_THRESHOLD.get()
-
-        if (primitive is Way) {
-            val simplifyCommands = SimplifyWayAction.createSimplifyCommand(
-                primitive,
-                threshold
-            )
-            if (simplifyCommands != null) {
-                return listOf(simplifyCommands)
-            }
-        } else {
-            return (primitive as Relation).memberPrimitives.mapNotNull { way ->
-                SimplifyWayAction.createSimplifyCommand(way as Way, threshold)
-            }
-        }
-        return emptyList()
-    }
-
-    private fun generateBuildingMultiPolygon(
-        geometry: NSPDFeature.NSPDGeometry,
-        ds: DataSet,
-        tags: Map<String, String>
-    ): Pair<List<Command>, OsmPrimitive> {
-        val res: MutableList<Command> = mutableListOf()
-        val ways: MutableList<Way> = mutableListOf()
-        var biggestAreaPoly: Pair<Way?, Double> = Pair(null, 0.0)
-        var removedPolys = 0
-        val polygons: ArrayList<ArrayList<ArrayList<ArrayList<Double>>>> = arrayListOf()
-        if (geometry is NSPDPolygon) {
-            polygons.add(geometry.coordinates)
-        } else {
-            polygons.addAll((geometry as NSPDMultiPolygon).coordinates)
-        }
-        polygons.forEach { polygon -> //предполагаем, что тип мультиполи состоит из набора наборов полигонов, который в итоге вырождается в один огромный мультик в ОСМе
-            polygon.forEach { coords ->
-                val polyPair = GeometryHelper.createPolygon(ds, coords, true)
-                val way = polyPair.second
-                val area = Geometry.closedWayArea(way)
-                if (area.compareTo(ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_IMPORT_THRESHOLD.get()) > 0) {
-                    if (area.compareTo(biggestAreaPoly.second) > 0) {
-                        biggestAreaPoly = Pair(way, area)
-                    }
-                    res.addAll(polyPair.first)
-                    ways.add(way)
-                } else {
-                    removedPolys++
-                }
-            }
-        }
-
-        if (removedPolys > 0) {
-            Logging.warn("EGRN PLUGIN : Filtered $removedPolys from imported geometry, threshold setting ${ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_IMPORT_THRESHOLD.get()}")
-        }
-
-        return if (ways.size == 1) {
-            res.plusAssign(ChangePropertyCommand(ds, listOf(ways[0]), tags))
-            Pair(res, ways[0])
-        } else {
-            UndoRedoHandler.getInstance().add(SequenceCommand("Add polygons from EGRN", res), true)
-            val relationCommand = CreateMultipolygonAction.createMultipolygonCommand(ways, null)
-            Pair(
-                listOf(relationCommand.a, ChangePropertyCommand(ds, listOf(relationCommand.b), tags)),
-                relationCommand.b
-            )
-        }
     }
 
     override fun doKeyPressed(e: KeyEvent) {

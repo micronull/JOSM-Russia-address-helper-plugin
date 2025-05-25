@@ -6,6 +6,7 @@ import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.DataSet
 import org.openstreetmap.josm.data.osm.Node
 import org.openstreetmap.josm.data.osm.OsmDataManager
+import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
@@ -28,6 +29,10 @@ class SelectAction : JosmAction(
     companion object {
         val ACTION_NAME = I18n.tr("For selected objects")
         val ICON_NAME = "select.svg"
+    }
+
+    override fun updateEnabledState() {
+        isEnabled = MainApplication.isDisplayingMapView() && MainApplication.getMap().mapView.isActiveLayerDrawable
     }
 
     override fun actionPerformed(e: ActionEvent?) {
@@ -89,8 +94,8 @@ class SelectAction : JosmAction(
         progressDialog.showForegroundDialog()
 
         listener.onResponse = { response ->
-            //почему то в отладке закомментированое работает не так как без нее.
-            // видимо логика такова - если запрос был неуспешен, то мы уменьшаем общее количество запросов,
+            //почему-то в отладке закомментированое работает не так как без нее.
+            // Видимо логика такова - если запрос был неуспешен, то мы уменьшаем общее количество запросов,
             //т.е размер прогресс бара
             //не очень понятно как именно увеличивается количество сработавших запросов.
             //   if (!response.isSuccessful) {
@@ -117,8 +122,13 @@ class SelectAction : JosmAction(
 
         listener.onComplete = { changeBuildings ->
             //получаем зависание, если то, что хотим выделить, попадает под фильтрацию фильтрами редактора
-            //layerManager.editDataSet.setSelected(*changeBuildings)
-            layerManager.editDataSet.clearSelection()
+            //поэтому сбрасываем выделение совсем
+            if (MassActionSettingsReader.EGRN_MASS_ACTION_SELECT_UPDATED_AFTER.get()) {
+                layerManager.editDataSet.setSelected(*changeBuildings)
+            }
+            else {
+                layerManager.editDataSet.clearSelection()
+            }
             //валидируем все, все что у нас в кэше на данный момент и не удалено (может быть ситуация с удалением слоя в котором были уже закэшированные данные)
             val primitivesToValidate = RussiaAddressHelperPlugin.cache.responses.keys.filter { !it.isDeleted }
             RussiaAddressHelperPlugin.runEgrnValidation(primitivesToValidate)

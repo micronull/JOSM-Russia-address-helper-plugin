@@ -3,6 +3,16 @@
 #
 
 parts:
+  - name: страна
+    level: COUNTRY
+    prefixes:
+    postfixes:
+    filters:
+      - 'Россия'
+      - 'РФ'
+      - 'Российская Федерация'
+    numerable: false
+    namedBy: false
   - name: улица
     level: STREET
     prefixes:

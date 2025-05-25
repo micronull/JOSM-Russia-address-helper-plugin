@@ -18,6 +18,7 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
     private val egrnRequestSelectionLimit = JosmTextField(3)
     private val egrnTotalRequestsCounter = JosmTextField(9)
     private val egrnRequestDelay = JosmTextField(3)
+    private val nspdRequestTimeout = JosmTextField(5)
     private val disableSSLforRequests = JCheckBox(I18n.tr("Disable SSL for EGRN requests"))
     private val requestPixelResolution = JosmTextField(3)
     private val requestBoundaryMargin = JosmTextField(3)
@@ -38,6 +39,9 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
 
         panel.add(JLabel(I18n.tr("Request limit for single select action:")), GBC.std())
         panel.add(egrnRequestSelectionLimit, GBC.eop().insets(5, 0, 0, 5))
+
+        panel.add(JLabel(I18n.tr("Read timeout for requests in milliseconds:")), GBC.std())
+        panel.add(nspdRequestTimeout, GBC.eop().insets(5, 0, 0, 5))
 
         panel.add(JLabel(I18n.tr("Delay between requests in seconds:")), GBC.std())
         panel.add(egrnRequestDelay, GBC.eop().insets(5, 0, 0, 5))
@@ -63,6 +67,7 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
         userAgent.text = EgrnSettingsReader.EGRN_REQUEST_USER_AGENT.get()
         egrnRequestLimit.text = EgrnSettingsReader.REQUEST_LIMIT.get().toString()
         egrnRequestSelectionLimit.text = EgrnSettingsReader.REQUEST_LIMIT_PER_SELECTION.get().toString()
+        nspdRequestTimeout.text = EgrnSettingsReader.REQUEST_TIMEOUT.get().toString()
         egrnRequestDelay.text = EgrnSettingsReader.REQUEST_DELAY.get().toString()
         disableSSLforRequests.isSelected = EgrnSettingsReader.EGRN_DISABLE_SSL_FOR_REQUEST.get()
         egrnTotalRequestsCounter.text =
@@ -84,12 +89,13 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
 
         saveInteger(EgrnSettingsReader.REQUEST_LIMIT, egrnRequestLimit.text, 1, 10)
         saveInteger(EgrnSettingsReader.REQUEST_LIMIT_PER_SELECTION, egrnRequestSelectionLimit.text, 10, 500)
+        saveInteger(EgrnSettingsReader.REQUEST_TIMEOUT, nspdRequestTimeout.text, 100, 30000)
         saveInteger(EgrnSettingsReader.REQUEST_DELAY,egrnRequestDelay.text, 0, 30)
         saveInteger(EgrnSettingsReader.REQUEST_BOUNDS_MARGIN, requestBoundaryMargin.text, 0, 200)
         saveDouble(EgrnSettingsReader.REQUEST_PIXEL_RESOLUTION, requestPixelResolution.text, 1.0, 10.0)
 
         //debug call
-        RussiaAddressHelperPlugin.cache.getUnprocessed()
+        //RussiaAddressHelperPlugin.cache.getUnprocessed()
     }
 
 }

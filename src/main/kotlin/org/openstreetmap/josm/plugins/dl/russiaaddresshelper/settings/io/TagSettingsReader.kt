@@ -30,7 +30,13 @@ class TagSettingsReader {
 
         val ADDRESS_STOP_WORDS = ListProperty(
             "dl.russiaaddresshelper.tag.stop_words_list",
-            listOf("ориентир", "направлению", "на север", "на юг", "на запад", "на восток")
+            listOf("вне границ", "направлению", "на север", "на юг", "на запад", "на восток", "в районе", "вблизи", "прилегающий к", "за пределами")
         )
+
+        /**
+         * @since 0.9.6.4
+         * Enables overwrite for housenumber, street and place even if they already exist
+         */
+        val OVERWRITE_ADDRESS = BooleanProperty("dl.russiaaddresshelper.tag.force_overwrite_address", true)
     }
 }

@@ -32,7 +32,7 @@ class LayerFilterSettingsReader {
         }
 
         fun getMassRequestActionEnabledLayers (): Set<NSPDLayer> {
-            return getMassRequestActionLayers().filter { (_, enabled) -> enabled }.keys
+            return getMassRequestActionLayers().filter { (_, enabled) -> enabled }.keys.filter { it.hasAddressInfo() }.toSet()
         }
 
         fun saveSettings(data: Map<NSPDLayer, Pair<Boolean, Boolean>>) {
