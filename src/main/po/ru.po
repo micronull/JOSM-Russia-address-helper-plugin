@@ -127,8 +127,17 @@ msgstr "Валидация"
 msgid "Enable geometry import"
 msgstr "Импортировать геометрию из ПКК"
 
-msgid "Remove polygons smaller than"
-msgstr "Фильтровать полигоны менее чем, м. кв."
+msgid "Remove building polygons smaller than"
+msgstr "Фильтровать полигоны зданий менее чем, м. кв."
+
+msgid "Remove boundary polygons smaller than"
+msgstr "Фильтровать полигоны границ менее чем, м. кв."
+
+msgid "Some imported geometry was filtered by area (removed/total)"
+msgstr "Часть импортированной геометрии отфильтрована по площади (удалено/всего)"
+
+msgid "threshold setting (square meters)"
+msgstr "настройка фильтра (кв.м)"
 
 msgid "Simplify geometry after import"
 msgstr "Упрощать импортированную геометрию"

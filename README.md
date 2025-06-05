@@ -49,7 +49,7 @@
 
 
 ## Установка
-Зайдите в `Настройки` Josm (клавиша `F12`), `Модули`, найдите плагин по названию ("russian-address-helper") или его части, нажмите `Установить`, перезапустите Josm. 
+Зайдите в `Настройки` Josm (клавиша `F12`), `Модули`, найдите плагин по названию ("russia-address-helper") или его части, нажмите `Установить`, перезапустите Josm. 
 ### Установка вручную
 1. Скопируйте файл [russia-address-helper.jar](https://github.com/micronull/JOSM-Russia-address-helper-plugin/releases/latest/download/russia-address-helper.jar) в `%appdata%\JOSM\plugins` для Windows, и в `~/.local/share/JOSM/plugins` для Linux.
 2. Включите плагин в `Правка - Настройки - Модули`.
