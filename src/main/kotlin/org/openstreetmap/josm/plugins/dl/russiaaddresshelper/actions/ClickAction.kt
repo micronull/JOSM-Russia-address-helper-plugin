@@ -95,8 +95,7 @@ class ClickAction : MapMode(
         var repeatsExhausted = false
         layersToRequest.forEach { requestLayer ->
             if (repeatsExhausted) {
-                val msg = I18n.tr("Data downloading failed, reason: too much request errors, interrupting")
-                val notification = Notification("$msg").setIcon(JOptionPane.WARNING_MESSAGE)
+                val notification = Notification(I18n.tr("Data downloading failed, reason: too much request errors, interrupting")).setIcon(JOptionPane.WARNING_MESSAGE)
                 notification.duration = Notification.TIME_LONG
                 notification.show()
                 return@forEach
@@ -135,7 +134,7 @@ class ClickAction : MapMode(
                                         val buildTags: MutableMap<String, String> =
                                             TagHelper.getBuildingTags(feature, requestLayer)
                                         val generatedBuilding =
-                                            generateBuildingMultiPolygon(feature.geometry, ds, buildTags)
+                                            generateBuildingMultiPolygon(feature.geometry, ds, buildTags, mutableMapOf(), ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_IMPORT_THRESHOLD.get())
                                         cmds.addAll(generatedBuilding.first)
                                         buildingPrimitive = generatedBuilding.second
                                     } else if (e.isControlDown) {
@@ -147,7 +146,7 @@ class ClickAction : MapMode(
                                         geometryTags.putAll(TagHelper.getLotTags(feature))
 
                                         val generatedGeometry =
-                                            generateBuildingMultiPolygon(feature.geometry, ds, geometryTags)
+                                            generateBuildingMultiPolygon(feature.geometry, ds, geometryTags, mutableMapOf(), ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_IMPORT_THRESHOLD.get())
                                         cmds.addAll(generatedGeometry.first)
                                     } else if (requestLayer == NSPDLayer.PLACES_BOUNDARIES && placeBoundariesMode) {
                                         val geometryTags = mutableMapOf<String, String>(
@@ -158,7 +157,7 @@ class ClickAction : MapMode(
                                         placeTags["source:geometry"] = "ЕГРН"
                                         geometryTags.putAll(placeTags)
                                         val generatedGeometry =
-                                            generateBuildingMultiPolygon(feature.geometry, ds, geometryTags, placeTags)
+                                            generateBuildingMultiPolygon(feature.geometry, ds, geometryTags, placeTags, ClickActionSettingsReader.EGRN_CLICK_BOUNDARY_IMPORT_THRESHOLD.get())
                                         cmds.addAll(generatedGeometry.first)
                                     }
                                 }

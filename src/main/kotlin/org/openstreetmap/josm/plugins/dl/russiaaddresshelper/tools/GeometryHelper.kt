@@ -10,6 +10,7 @@ import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.*
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.MultipolygonCache
+import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NSPDFeature
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NSPDMultiPolygon
@@ -20,6 +21,7 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.LayerSh
 import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
+import javax.swing.JOptionPane
 
 class GeometryHelper {
     companion object {
@@ -168,8 +170,9 @@ class GeometryHelper {
             geometry: NSPDFeature.NSPDGeometry,
             ds: DataSet,
             tags: Map<String, String>,
-            tagsForMultiWays: Map<String, String> = mutableMapOf<String,String>()
-        ): Pair<List<Command>, OsmPrimitive> {
+            tagsForMultiWays: Map<String, String> = mutableMapOf<String, String>(),
+            areaThreshold: Double
+        ): Pair<List<Command>, OsmPrimitive?> {
             val res: MutableList<Command> = mutableListOf()
             val ways: MutableList<Way> = mutableListOf()
             var biggestAreaPoly: Pair<Way?, Double> = Pair(null, 0.0)
@@ -185,7 +188,7 @@ class GeometryHelper {
                     val polyPair = createPolygon(ds, coords, true)
                     val way = polyPair.second
                     val area = Geometry.closedWayArea(way)
-                    if (area.compareTo(ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_IMPORT_THRESHOLD.get()) > 0) {
+                    if (area.compareTo(areaThreshold) > 0) {
                         if (area.compareTo(biggestAreaPoly.second) > 0) {
                             biggestAreaPoly = Pair(way, area)
                         }
@@ -198,7 +201,16 @@ class GeometryHelper {
             }
 
             if (removedPolys > 0) {
-                Logging.warn("EGRN PLUGIN : Filtered $removedPolys from imported geometry, threshold setting ${ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_IMPORT_THRESHOLD.get()}")
+                Logging.warn("EGRN PLUGIN : Filtered $removedPolys from imported geometry total ${ways.size + removedPolys} polygons, threshold setting $areaThreshold")
+                val msg = I18n.tr("Some imported geometry was filtered by area (removed/total)") + " $removedPolys/${ways.size + removedPolys}, " + I18n.tr("threshold setting (square meters)")+ " $areaThreshold"
+                val notification = Notification(msg).setIcon(JOptionPane.INFORMATION_MESSAGE)
+                notification.duration = Notification.TIME_SHORT
+                notification.show()
+            }
+
+            if (ways.size == 0) {
+                Logging.warn("EGRN PLUGIN : Cant import geometry from ${geometry}, zero polygons formed.")
+                return Pair(emptyList(), null)
             }
 
             if (ways.size == 1) {

@@ -60,5 +60,14 @@ class ClickActionSettingsReader {
             "dl.russiaaddresshelper.click.boundaries_extension",
             200
         )
+
+        /**
+         * Filter imported place boundary polygons with area smaller than property.
+         * @since 0.9.6.7
+         */
+        val EGRN_CLICK_BOUNDARY_IMPORT_THRESHOLD = DoubleProperty(
+            "dl.russiaaddresshelper.click.boundary_geometry_import_threshold",
+            50.0
+        )
     }
 }
