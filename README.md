@@ -81,7 +81,7 @@
 1. Скачайте веб-прокси nginx с [сайта разработчика](https://nginx.org/ru/download.html), распакуйте в удобную вам папку. Nginx не требует прав администратора и установки в систему.
 
 2. Отредактируйте файл конфигурации прокси, находящийся по пути `папка_из_предыдущего_шага/conf/nginx.conf`, добавив в него следующие строки:
-    ```
+    ```nginx
     server {
         listen 8081; # перенаправлять запросы по всем адресам IPv4 с портом 8081
         listen [::]:8081; # перенаправлять запросы по всем адресам IPv6 с портом 8081
@@ -113,7 +113,7 @@
 3. Создайте на всякий случай резервную копию файла cacerts
 
 4. Выполните в командной строке следующие команды (пути к cacerts и файлам сертификатов заменить на ваши): 
-    ```
+    ```powershell
     keytool -v -importcert -alias RuRootCert -keystore "C:\JDK\jdk-11.0.2\lib\security\cacerts" -file "D:\certs\russian_trusted_root_ca.cer" -storepass changeit -trustcacerts
     keytool -v -importcert -alias Ru2cert -keystore "C:\JDK\jdk-11.0.2\lib\security\cacerts" -file "D:\certs\russian_trusted_sub_ca.cer" -storepass changeit -trustcacerts
     keytool -v -importcert -alias Ru3cert -keystore "C:\JDK\jdk-11.0.2\lib\security\cacerts" -file "D:\certs\russian_trusted_sub_ca_2024.cer" -storepass changeit -trustcacerts
