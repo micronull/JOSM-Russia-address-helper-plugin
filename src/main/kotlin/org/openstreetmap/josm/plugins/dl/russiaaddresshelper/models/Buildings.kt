@@ -6,10 +6,7 @@ import com.github.kittinunf.fuel.jackson.jacksonDeserializerOf
 import com.github.kittinunf.result.Result
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import org.openstreetmap.josm.command.AddCommand
-import org.openstreetmap.josm.command.ChangePropertyCommand
-import org.openstreetmap.josm.command.Command
-import org.openstreetmap.josm.command.SequenceCommand
+import org.openstreetmap.josm.command.*
 import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.Node
@@ -18,13 +15,15 @@ import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.*
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.LayerFilterSettingsReader
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.MassActionSettingsReader
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.*
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.DeleteDoubles
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper.Companion.generateBuildingMultiPolygon
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.collectAllAddressTags
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.collectAllEgrnTags
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.getAddressTagsForClickAction
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
 import java.time.LocalDateTime
@@ -52,12 +51,17 @@ class Buildings(objects: List<OsmPrimitive>) {
     class Building(val osmPrimitive: OsmPrimitive) {
         val coordinate: EastNorth
             get() {
+                if (osmPrimitive is Node && importedGeometry.isNotEmpty() && importedGeometry.first().second != null) {
+                    return GeometryHelper.getPointIntoPolygon(importedGeometry.first().second!!)
+                }
                 return GeometryHelper.getPointIntoPolygon(osmPrimitive)
             }
 
         val preparedTags: MutableMap<String, String> = mutableMapOf()
 
-        val addressNodes: MutableList<Node> = mutableListOf()
+        //val addressNodes: MutableList<Node> = mutableListOf()
+
+        val importedGeometry: MutableList<Pair<List<Command>, OsmPrimitive?>> = mutableListOf()
 
         fun requestNewApi(layer: NSPDLayer): Request {
             return RussiaAddressHelperPlugin.getNSPDClient()
@@ -66,6 +70,9 @@ class Buildings(objects: List<OsmPrimitive>) {
     }
 
     private var items: MutableList<Building> = mutableListOf()
+
+    private val defaultTagsForBuilding: Map<String, String> = mapOf("source:geometry" to "ЕГРН")
+    private val defaultRemoveMeTags: Map<String, String> = mapOf("fixme" to "REMOVE ME!")
 
     init {
         objects.forEach {
@@ -94,40 +101,69 @@ class Buildings(objects: List<OsmPrimitive>) {
             val map = MainApplication.getMap()
             val ds = map.mapView.layerManager.editDataSet
             val cmds: MutableList<Command> = mutableListOf()
-            for (building in items) {
-                building.addressNodes.forEach { node ->
-                    cmds.add(AddCommand(ds, node))
-                }
-            }
+            /*            for (building in items) {
+                            building.addressNodes.forEach { node ->
+                                cmds.add(AddCommand(ds, node))
+                            }
+                        }*/
 
             sanitize()
 
-            val changedBuildings: MutableList<OsmPrimitive> = mutableListOf()
+            val changedObjects: MutableList<OsmPrimitive> = mutableListOf()
 
+            //разве вся дальнейшая обработка не должна проводиться в хэндлере загрузки, после выхода из скоупа?
             if (items.size > 0) {
                 for (building in items) {
-                    building.preparedTags.forEach { (key, value) ->
-                        if (!building.osmPrimitive.hasTag(key)) {
-                            cmds.add(ChangePropertyCommand(building.osmPrimitive, key, value))
-                        } else {
-                            if (TagHelper.overwriteValue(key, building.osmPrimitive[key], value)) {
+                    if (building.osmPrimitive is Node && building.importedGeometry.isNotEmpty()) {
+                        cmds.addAll(building.importedGeometry.first().first)
+                        val buildingPrimitive = building.importedGeometry.first().second!!
+                        if (building.preparedTags.isNotEmpty()) {
+                            cmds.add(ChangePropertyCommand(ds, mutableListOf(buildingPrimitive), building.preparedTags))
+                        }
+                        changedObjects.add(buildingPrimitive)
+                    } else {
+                        building.preparedTags.forEach { (key, value) ->
+                            if (!building.osmPrimitive.hasTag(key)) {
                                 cmds.add(ChangePropertyCommand(building.osmPrimitive, key, value))
+                            } else {
+                                if (TagHelper.overwriteValue(key, building.osmPrimitive[key], value)) {
+                                    cmds.add(ChangePropertyCommand(building.osmPrimitive, key, value))
+                                }
                             }
                         }
-                    }
-                    if (!changedBuildings.contains(building.osmPrimitive)) {
-                        changedBuildings.add(building.osmPrimitive)
+                        if (!changedObjects.contains(building.osmPrimitive)) {
+                            changedObjects.add(building.osmPrimitive)
+                        }
                     }
                 }
             }
 
             if (cmds.size > 0) {
-                val c: Command = SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper "), cmds)
+                val geometryImport = items.isNotEmpty() && items[0].osmPrimitive is Node
+                val commandDescription = if (geometryImport) {
+                    I18n.tr("Imported geometry and address data by line selection")
+                } else {
+                    I18n.tr("Import address data for selected objects")
+                }
+                val c: Command = SequenceCommand(commandDescription, cmds)
                 UndoRedoHandler.getInstance().add(c)
 
+                val orthoCmds: MutableList<Command> = mutableListOf()
+                items.forEach {
+                    if (it.importedGeometry.isNotEmpty()) {
+                        val primitive = it.importedGeometry.first().second
+                        if (primitive != null) {
+                            orthoCmds.addAll(GeometryHelper.orthogonalizePrimitive(primitive))
+                        }
+                    }
+                }
+                if (orthoCmds.isNotEmpty()) {
+                    UndoRedoHandler.getInstance()
+                        .add(SequenceCommand(I18n.tr("Orthogonalize imported geometry"), orthoCmds))
+                }
             }
 
-            loadListener?.onComplete?.invoke(changedBuildings.toTypedArray())
+            loadListener?.onComplete?.invoke(changedObjects.toTypedArray())
         }
         return scope
     }
@@ -177,6 +213,7 @@ class Buildings(objects: List<OsmPrimitive>) {
                                         loadListener?.onResponse?.invoke(response)
                                         consecutiveFailures = 0
                                     }
+
                                     is Result.Failure -> {
                                         failuresTotal++
                                         consecutiveFailures++
@@ -184,7 +221,7 @@ class Buildings(objects: List<OsmPrimitive>) {
                                             needToRepeat = true
                                             retriesTotal++
                                             val msg =
-                                                I18n.tr("Data request error, retries left $retries")
+                                                I18n.tr("Data request error, retries left:") + " $retries"
                                             Notification(msg).setIcon(JOptionPane.WARNING_MESSAGE).show()
                                         } else {
                                             loadListener?.onResponse?.invoke(response)
@@ -285,65 +322,148 @@ class Buildings(objects: List<OsmPrimitive>) {
             //TODO если внутри скоупа происходит исключение, процесс загрузки просто молча виснет
             //обернуть эксепшоны или избавиться от асинхронности вовсе
             defers += scope.async {
-                val egrnResponse = d.responseBody
-
-                Logging.info("EGRN-PLUGIN Got data from EGRN: $egrnResponse")
-                if (egrnResponse.isEmpty()) {
+                val nspdResponse: NSPDResponse = d.responseBody
+                Logging.info("EGRN-PLUGIN Got data from EGRN: $nspdResponse")
+                if (nspdResponse.isEmpty()) {
                     Logging.info("EGRN PLUGIN empty response")
-                    Logging.info("$egrnResponse")
+                    Logging.info("$nspdResponse")
                     RussiaAddressHelperPlugin.cache.add(
                         d.building.osmPrimitive,
                         d.building.coordinate,
-                        egrnResponse,
+                        nspdResponse,
                         ParsedAddressInfo(listOf())
                     )
                 } else {
-                    //можем добавить расширенное инфо даже если нет адреса
-                    if (MassActionSettingsReader.EGRN_MASS_ACTION_USE_EXT_ATTRIBUTES.get()) {
-                        if (egrnResponse.responses[NSPDLayer.BUILDING] != null) {
-                            val egrnBuildingTags =
-                                TagHelper.getBuildingTags(egrnResponse.responses[NSPDLayer.BUILDING]?.features?.firstOrNull(), NSPDLayer.BUILDING)
-                            d.building.preparedTags.plusAssign(egrnBuildingTags)
-                        } else if (egrnResponse.responses[NSPDLayer.UNFINISHED] != null) {
-                            val egrnBuildingTags =
-                                TagHelper.getBuildingTags(egrnResponse.responses[NSPDLayer.UNFINISHED]?.features?.firstOrNull(), NSPDLayer.UNFINISHED)
-                            d.building.preparedTags.plusAssign(egrnBuildingTags)
-                        }
-                    }
-
-                    if (!egrnResponse.hasReadableAddress()) {
-                    Logging.info("EGRN PLUGIN no addresses found for for request $egrnResponse")
-                    RussiaAddressHelperPlugin.cache.add(
-                        d.building.osmPrimitive,
-                        d.building.coordinate,
-                        egrnResponse,
-                        ParsedAddressInfo(listOf())
-                    )
-                } else {
-                    RussiaAddressHelperPlugin.cache.remove(d.building.osmPrimitive)
-                    val parsedAddressInfo = egrnResponse.parseAddresses(d.building.coordinate)
-
-                    RussiaAddressHelperPlugin.cache.add(
-                        d.building.osmPrimitive,
-                        d.building.coordinate,
-                        egrnResponse,
-                        parsedAddressInfo
-                    )
-                    val preferredOsmAddress = parsedAddressInfo.getPreferredAddress()
-                    if (preferredOsmAddress != null) {
-                        //костыль чтобы не присваивать адрес если есть проблемы
-                        if (parsedAddressInfo.canAssignAddress()) {
-                            if (TagSettingsReader.EGRN_ADDR_RECORD.get()) {
-                                d.building.preparedTags["addr:RU:egrn"] = preferredOsmAddress.egrnAddress
+                    var primitive = d.building.osmPrimitive
+                    if (primitive is Node) {  //запрос геометрии по линии
+                        var geometryLayer: NSPDLayer? = null
+                        var buildingGeometryResponse: GetFeatureInfoResponse? = null
+                        val layersList =
+                            listOf(NSPDLayer.BUILDING, NSPDLayer.UNFINISHED, NSPDLayer.CONSTRUCTS)
+                        for (layer in layersList) {
+                            if (nspdResponse.responses[layer]?.features?.isNotEmpty() == true) {
+                                buildingGeometryResponse = nspdResponse.responses[layer]
+                                geometryLayer = layer
+                                break
                             }
-                            //спорное решение - добавляем зданию адрес БЕЗ номеров квартир
-                            d.building.preparedTags.plusAssign(
-                                preferredOsmAddress.getOsmAddress().getBaseAddressTagsWithSource()
-                            )
                         }
 
+                        if (buildingGeometryResponse != null) {
+                            val features = buildingGeometryResponse.features
+                            if (features.size > 1) {
+                                Logging.warn("EGRN PLUGIN more than 1 geometry feature for point building, skipping other ${features.size - 1} ")
+                            }
+                            val feature = features[0]
+                            val tagsForBuilding: MutableMap<String, String> = mutableMapOf()
+                            tagsForBuilding.putAll(feature.getTags("autoremove:egrn:"))
+                            //не уверен, что это должно быть тут, внутри
+                            val map = MainApplication.getMap()
+                            val ds = map.mapView.layerManager.editDataSet
+
+                            if (feature.geometry != null) {
+                                tagsForBuilding.putAll(defaultTagsForBuilding)
+                                val buildTags: MutableMap<String, String> =
+                                    TagHelper.getBuildingTags(feature, geometryLayer!!)
+                                if (MassActionSettingsReader.EGRN_MASS_ACTION_USE_EXT_ATTRIBUTES.get()) {
+                                    buildTags.putAll(tagsForBuilding)
+                                }
+                                val generatedBuilding =
+                                    generateBuildingMultiPolygon(
+                                        feature.geometry,
+                                        ds,
+                                        buildTags,
+                                        mutableMapOf(),
+                                        ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_IMPORT_THRESHOLD.get()
+                                    )
+
+                                if (generatedBuilding.first.isNotEmpty() && generatedBuilding.second != null) {
+                                    d.building.importedGeometry.add(generatedBuilding)
+                                    primitive = generatedBuilding.second!!
+                                    val parsedAddressInfo = nspdResponse.parseAddresses(d.building.coordinate)
+
+                                    RussiaAddressHelperPlugin.cache.add(
+                                        primitive,
+                                        d.building.coordinate,
+                                        nspdResponse,
+                                        parsedAddressInfo
+                                    )
+                                }
+                            }
+                        } else {
+                            if (MassActionSettingsReader.EGRN_MASS_ACTION_GENERATE_ADDRESS_POINTS.get()) {
+                                 val parsedAddressInfo = nspdResponse.parseAddresses(d.building.coordinate)
+                                if (parsedAddressInfo.canAssignAddress()) {
+                                    val address = parsedAddressInfo.getPreferredAddress()
+                                    d.building.preparedTags.plusAssign(getAddressTagsForClickAction(address))
+                                } else {
+                                    d.building.preparedTags.plusAssign(defaultRemoveMeTags)
+                                    d.building.preparedTags.plusAssign(collectAllEgrnTags(nspdResponse))
+                                    if (parsedAddressInfo.addresses.isNotEmpty()) {
+                                        d.building.preparedTags.plusAssign(collectAllAddressTags(parsedAddressInfo.addresses))
+                                    }
+                                }
+                            }
+                        }
+                    } else { //обычная обработка здания
+                        //можем добавить расширенное инфо даже если нет адреса
+                        if (MassActionSettingsReader.EGRN_MASS_ACTION_USE_EXT_ATTRIBUTES.get()) {
+                            if (nspdResponse.responses[NSPDLayer.BUILDING] != null) {
+                                val egrnBuildingTags =
+                                    TagHelper.getBuildingTags(
+                                        nspdResponse.responses[NSPDLayer.BUILDING]?.features?.firstOrNull(),
+                                        NSPDLayer.BUILDING
+                                    )
+                                d.building.preparedTags.plusAssign(egrnBuildingTags)
+                            } else if (nspdResponse.responses[NSPDLayer.UNFINISHED] != null) {
+                                val egrnBuildingTags =
+                                    TagHelper.getBuildingTags(
+                                        nspdResponse.responses[NSPDLayer.UNFINISHED]?.features?.firstOrNull(),
+                                        NSPDLayer.UNFINISHED
+                                    )
+                                d.building.preparedTags.plusAssign(egrnBuildingTags)
+                            }
+                        }
                     }
-                }
+                    if (!nspdResponse.hasReadableAddress()) {
+                        Logging.info("EGRN PLUGIN no addresses found for for request $nspdResponse")
+
+                        RussiaAddressHelperPlugin.cache.add(
+                            primitive,
+                            d.building.coordinate,
+                            nspdResponse,
+                            ParsedAddressInfo(listOf())
+                        )
+                    } else {
+                        RussiaAddressHelperPlugin.cache.remove(primitive)
+                        val parsedAddressInfo = nspdResponse.parseAddresses(d.building.coordinate)
+
+                        RussiaAddressHelperPlugin.cache.add(
+                            primitive,
+                            d.building.coordinate,
+                            nspdResponse,
+                            parsedAddressInfo
+                        )
+
+                        val preferredOsmAddress = parsedAddressInfo.getPreferredAddress()
+                        if (preferredOsmAddress != null) {
+                            if (d.building.osmPrimitive is Node) {
+                                d.building.preparedTags.putAll(
+                                    TagHelper.getAddressTagsForMassAction(
+                                        preferredOsmAddress
+                                    )
+                                )
+                            }
+                            //костыль чтобы не присваивать адрес если есть проблемы
+                            if (parsedAddressInfo.canAssignAddress()) {
+                                d.building.preparedTags.plusAssign(splitLongValue("addr:RU:egrn",preferredOsmAddress.egrnAddress))
+                                //спорное решение - добавляем зданию адрес БЕЗ номеров квартир
+                                d.building.preparedTags.plusAssign(
+                                    preferredOsmAddress.getOsmAddress().getBaseAddressTagsWithSource()
+                                )
+                            }
+                        }
+                    }
+
                 }
                 null
             }
@@ -352,8 +472,9 @@ class Buildings(objects: List<OsmPrimitive>) {
     }
 
     private fun sanitize() {
-        items.removeAll { it.preparedTags.isEmpty() }
+        items.removeAll { (it.preparedTags.isEmpty() && it.osmPrimitive !is Node) || (it.osmPrimitive is Node && it.importedGeometry.isEmpty() && it.preparedTags.isEmpty()) }
 
+        //костыль, поскольку алгоритм удаления дублей нужно сильно переработать для случая импорта геометрии
         if (items.isNotEmpty()) {
             items = DeleteDoubles().clear(items)
         }

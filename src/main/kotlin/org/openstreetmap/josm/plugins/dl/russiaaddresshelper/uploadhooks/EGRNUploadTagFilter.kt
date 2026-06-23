@@ -16,7 +16,7 @@ class EGRNUploadTagFilter : UploadHook {
 
         val needsToRemove = apiDataSet.primitivesToAdd.filter {
             (it.hasTag("fixme", "REMOVE_ME!") || it.hasTag("fixme", "REMOVE ME!") ||
-                (it.hasTag("fixme", "yes") && it.hasTag("source:addr", "ЕГРН"))) && it.isNew
+                    (it.hasTag("fixme", "yes") && it.hasTag("source:addr", "ЕГРН"))) && it.isNew
         }
         if (needsToRemove.isNotEmpty()) {
             //удаляем данные помеченные к удалению, вместе со связанными, из датасета
@@ -25,9 +25,15 @@ class EGRNUploadTagFilter : UploadHook {
             val waysToDelete = needsToRemove.filterIsInstance<Way>().toMutableList()
             val relationsToDelete = needsToRemove.filterIsInstance<Relation>().toMutableList()
 
-            relationsToDelete.forEach { rel -> rel.memberPrimitives.forEach{ primitive -> if(primitive is Node) nodesToDelete.add(primitive) else waysToDelete.add(primitive as Way)}}
+            relationsToDelete.forEach { rel ->
+                rel.memberPrimitives.forEach { primitive ->
+                    if (primitive is Node) nodesToDelete.add(
+                        primitive
+                    ) else waysToDelete.add(primitive as Way)
+                }
+            }
             waysToDelete.forEach { way -> allNodesToNotUpload.addAll(way.nodes.distinct()) }
-            if(relationsToDelete.isNotEmpty()) {
+            if (relationsToDelete.isNotEmpty()) {
                 val removeRelationsCommand = DeleteCommand.delete(relationsToDelete)
                 UndoRedoHandler.getInstance().add(removeRelationsCommand)
             }
@@ -48,8 +54,7 @@ class EGRNUploadTagFilter : UploadHook {
             Logging.info("EGRN-PLUGIN Upload filter removed some unneeded objects (nodes: ${nodesToDelete.size}, ways: ${waysToDelete.size}, relations: ${relationsToDelete.size})")
         }
 
-        val discardableKeys: Collection<String> = setOf(
-            "addr:RU:egrn",
+        val discardableKeys: MutableCollection<String> = mutableSetOf(
             "addr:RU:egrn_type",
             "addr:RU:extracted_name",
             "addr:RU:extracted_street_name",
@@ -60,19 +65,12 @@ class EGRNUploadTagFilter : UploadHook {
             "addr:RU:parsed_housenumber",
             "addr:RU:parsed_flats",
             "egrn_name",
-            "autoremove:description",
-            "autoremove:loc",
-            "autoremove:name",
-            "autoremove:geometry:docName",
-            "autoremove:source:geometry",
-            "autoremove:ownershipType",
-            "autoremove:permittedUseName",
-            "autoremove:permittedUseByDoc"
-
         )
         val needsChange = apiDataSet.primitives.stream().flatMap { obj: OsmPrimitive -> obj.keys() }
-            .anyMatch { o: String -> discardableKeys.contains(o) }
+            .anyMatch { o: String -> discardableKeys.contains(o) || o.contains("autoremove:", true) || o.contains("addr:RU:egrn", true) }
         if (needsChange) {
+            apiDataSet.primitives.stream().flatMap { obj: OsmPrimitive -> obj.keys() }
+                .forEach { key: String -> if (key.contains("autoremove:", true) || key.contains("addr:RU:egrn", true)) discardableKeys.plusAssign(key) }
             val map: MutableMap<String, String?> = HashMap()
             for (key in discardableKeys) {
                 map[key] = null

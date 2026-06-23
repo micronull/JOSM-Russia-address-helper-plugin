@@ -93,10 +93,10 @@ class EGRNPlaceNotFoundTest : Test(
                 val addresses =
                     addressInfo?.addresses!!.filter { it.flags.contains(ParsingFlags.CANNOT_FIND_PLACE_OBJECT_IN_OSM) }
                 affectedAddresses.addAll(addresses)
-                val prefferedAddress: ParsedAddress = addresses.first()
+                val preferredAddress: ParsedAddress = addresses.first()
                 egrnPlaceName =
-                    "${prefferedAddress.parsedPlace.extractedType?.name} ${prefferedAddress.parsedPlace.extractedName}"
-                prefferedAddress.parsedHouseNumber.houseNumber.let { it1 -> affectedHousenumbers.add(it1) }
+                    "${preferredAddress.parsedPlace.extractedType?.name} ${preferredAddress.parsedPlace.extractedName}"
+                preferredAddress.parsedHouseNumber.houseNumber.let { it1 -> affectedHousenumbers.add(it1) }
             }
         }
         affectedHousenumbers.sort()

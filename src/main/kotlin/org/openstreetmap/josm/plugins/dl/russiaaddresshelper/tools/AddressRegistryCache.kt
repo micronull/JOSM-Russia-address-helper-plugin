@@ -8,7 +8,8 @@ import org.openstreetmap.josm.gui.layer.OsmDataLayer
 import org.openstreetmap.josm.tools.Logging
 
 class AddressRegistryCache : AddressRegistry(), DataSetListenerAdapter.Listener, LayerManager.LayerChangeListener {
-
+    //скорее всего, будет проблема при работе с несколькими DATA слоями одновременно. Либо что-то не попадет в кэш, либо дубликаты будут искаться во всех слоях, а не в текущем
+    //внутри события есть датасет, для которого оно произошло. Нужно хранить кэш адресов по всем датасетам, лол
     @Transient
     private val dataChangedAdapter = DataSetListenerAdapter(this)
 

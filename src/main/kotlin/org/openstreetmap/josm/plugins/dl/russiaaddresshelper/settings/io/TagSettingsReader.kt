@@ -6,10 +6,6 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.model.MapS
 
 class TagSettingsReader {
     companion object {
-        /**
-         * @since 0.2
-         */
-        val EGRN_ADDR_RECORD = BooleanProperty("dl.russiaaddresshelper.tag.egrn_addr_record", true)
 
         val EGRN_BUILDING_TYPES_SETTINGS = MapStringListProperty(
             "dl.russiaaddresshelper.tag.building_types_settings",
@@ -30,7 +26,8 @@ class TagSettingsReader {
 
         val ADDRESS_STOP_WORDS = ListProperty(
             "dl.russiaaddresshelper.tag.stop_words_list",
-            listOf("вне границ", "направлению", "на север", "на юг", "на запад", "на восток", "в районе", "вблизи", "прилегающий к", "за пределами")
+            listOf("вне границ", "направлению", "на север", "на юг", "на запад", "на восток", "в районе", "вблизи",
+                "прилегающий к", "за пределами", "примыкает к", "за границами", "позиция", "поз." )
         )
 
         /**

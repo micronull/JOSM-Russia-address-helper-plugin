@@ -86,11 +86,11 @@ class EGRNStreetNotFoundTest : Test(
                 val addressInfo = RussiaAddressHelperPlugin.cache.get(it)?.addressInfo
                 val addresses =
                     addressInfo?.addresses!!.filter { it.flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM) }
-                val prefferedAddress: ParsedAddress = addresses.first()
+                val preferredAddress: ParsedAddress = addresses.first()
                 affectedAddresses.addAll(addresses)
                 egrnStreetName =
-                    "${prefferedAddress.parsedStreet.extractedType?.name} ${prefferedAddress.parsedStreet.extractedName}"
-                prefferedAddress.parsedHouseNumber.houseNumber.let { it1 -> affectedHousenumbers.add(it1) }
+                    "${preferredAddress.parsedStreet.extractedType?.name} ${preferredAddress.parsedStreet.extractedName}"
+                preferredAddress.parsedHouseNumber.houseNumber.let { it1 -> affectedHousenumbers.add(it1) }
             }
         }
 

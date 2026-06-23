@@ -17,6 +17,7 @@ import javax.swing.JOptionPane
 /**
  * Обработчик для удаления дублей.
  * Фильтрует переданный список по имеющимся адресам и оставляет здания с наибольшей площадью.
+ * Сильно требует рефакторинга
  */
 class DeleteDoubles {
     private val osmAddressMap: MutableMap<String, MutableMap<String, EastNorth>> = mutableMapOf()
@@ -31,14 +32,17 @@ class DeleteDoubles {
      */
     fun clear(items: MutableList<Buildings.Building>): MutableList<Buildings.Building> {
         try {
-        //удаляем все здания, с пустыми тэгами адреса
+        //удаляем все здания, с пустыми тэгами адреса (пропуская импортированные по линии)
         items.removeAll {
-            (it.preparedTags["addr:street"] == null).and(it.preparedTags["addr:place"] == null) || it.preparedTags["addr:housenumber"] == null
+            it.osmPrimitive !is Node && ((it.preparedTags["addr:street"] == null).and(it.preparedTags["addr:place"] == null) || it.preparedTags["addr:housenumber"] == null)
         }
 
         //удаляем все здания, которые совпадают по данным адреса с уже существующими в ОСМ
         //находящиеся на расстоянии ближе заданного в настройках
         items.removeAll {
+            //костыль - просто пропускаем здания с импортированной геометрией без адреса
+            if (it.osmPrimitive is Node && !it.preparedTags.contains("addr:housenumber")) return@removeAll false
+
             val streetOrPlace = if (StringUtils.isNotBlank(it.preparedTags["addr:street"])) {
                 it.preparedTags["addr:street"]
             } else {
@@ -48,40 +52,55 @@ class DeleteDoubles {
             val itemCentroid = it.coordinate
             //если мы включаем режим "валидации", то есть запрашиваем данные ЕГРН для которых уже есть адресные данные в ОСМ,
             //то тут происходит "интересное" - примитив здания сравнивается сам с собой, и считается дубликатом, поэтому вторичные тэги ему не присваиваются
+
+            //eще один фатальный баг - мапа адресов ОСМ хранит только одно сочетание "улица - номер дома - координата".
+            //поэтому, если присутствует два одинаковых адреса, а в мапу попал дальний от текущего запроса - то будет выдан адрес-дубль
             if (osmAddressMap.containsKey(streetOrPlace) && osmAddressMap[streetOrPlace]!!.contains(house)) {
-                if ((itemCentroid?.distance(osmAddressMap[streetOrPlace]?.get(house) ?: itemCentroid)
-                        ?: Double.MIN_VALUE) < CommonSettingsReader.CLEAR_DOUBLE_DISTANCE.get()
-                ) {
+                val distance = itemCentroid.distance(osmAddressMap[streetOrPlace]?.get(house) ?: itemCentroid)
+                if (distance < CommonSettingsReader.CLEAR_DOUBLE_DISTANCE.get()) {
                     Logging.info("EGRN PLUGIN remove existing in OSM address $streetOrPlace $house")
                     //TODO debug code until deduplication through validator will be implemented
                     //принять решение, сейчас дубликаты чистятся на этапе обработки, затем обработанные кидаются в валидатор по этому признаку
-                    RussiaAddressHelperPlugin.cache.markProcessed(
-                        it.osmPrimitive,
-                        EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND
-                    )
-
-                    return@removeAll true
+                    if (it.osmPrimitive is Node && it.importedGeometry.isNotEmpty()) {
+                        //если это импортированная геометрия, то удаляем адресные тэги
+                        RussiaAddressHelperPlugin.cache.markProcessed(
+                            it.importedGeometry.first().second!!,
+                            EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND
+                        )
+                        setOf("addr:street", "addr:place", "addr:housenumber", "source:addr").forEach{addrKey -> it.preparedTags.remove(addrKey)}
+                        return@removeAll false
+                    } else {
+                        RussiaAddressHelperPlugin.cache.markProcessed(
+                            it.osmPrimitive,
+                            EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND
+                        )
+                        return@removeAll true
+                    }
                 } else {
                     Logging.info(
-                        "EGRN PLUGIN found double for address, but not mark it for removal, because distance ${
-                            (itemCentroid?.distance(osmAddressMap[streetOrPlace]?.get(house) ?: itemCentroid)
-                                ?: Double.MIN_VALUE)
-                        } is bigger than ${CommonSettingsReader.CLEAR_DOUBLE_DISTANCE.get()}"
+                        "EGRN PLUGIN found double for address, but not mark it for removal, because distance $distance is bigger than ${CommonSettingsReader.CLEAR_DOUBLE_DISTANCE.get()}"
                     )
                 }
             }
             return@removeAll false
         }
 
+        val newItems: MutableSet<Buildings.Building> = mutableSetOf()
         val counter: MutableMap<String, MutableMap<String, MutableList<Buildings.Building>>> = mutableMapOf()
         //оставшиеся прочесываем на дубликаты, выстраивая по приоритету площади
         items.forEach {
             val streetOrPlace = if (StringUtils.isNotBlank(it.preparedTags["addr:street"])) {
-                it.preparedTags["addr:street"]!!
+                it.preparedTags["addr:street"]
             } else {
-                it.preparedTags["addr:place"]!!
+                it.preparedTags["addr:place"]
             }
-            val house = it.preparedTags["addr:housenumber"]!!
+            val house = it.preparedTags["addr:housenumber"]
+            if (streetOrPlace == null || house == null || (it.osmPrimitive is Node && it.importedGeometry.isEmpty())) {
+                if (it.osmPrimitive is Node) {
+                    newItems.add(it)
+                }
+                return@forEach
+            }
 
             if (!counter.containsKey(streetOrPlace)) {
                 counter[streetOrPlace] = mutableMapOf()
@@ -94,12 +113,10 @@ class DeleteDoubles {
             counter[streetOrPlace]!![house]!!.add(it)
         }
 
-        val newItems: MutableList<Buildings.Building> = mutableListOf()
-
         counter.forEach { (_, houses) ->
             houses.forEach { (_, items) ->
                 if (items.size > 1) {
-                    items.sortByDescending { Geometry.computeArea(it.osmPrimitive) }
+                    items.sortByDescending { if (it.osmPrimitive is Node) {Geometry.computeArea(it.importedGeometry.first().second)} else {Geometry.computeArea(it.osmPrimitive)}}
                     val street = if (items.first().preparedTags["addr:street"] != null) {
                         items.first().preparedTags["addr:street"]
                     } else {
@@ -111,18 +128,24 @@ class DeleteDoubles {
                     val msg = I18n.tr("Removed found in EGRN address doubles, leaving biggest area building")
                     Notification("$msg $street, $house").setIcon(JOptionPane.WARNING_MESSAGE).show()
                     //debug code until deduplication through validator will be implemented
-                    val otherPrimitives = items.toList().drop(1).map { it.osmPrimitive }.toSet()
+                    val otherPrimitives = items.toList().drop(1).map {
+                        if (it.osmPrimitive is Node) {
+                            setOf("addr:street", "addr:place", "addr:housenumber", "source:addr").forEach{addrKey -> it.preparedTags.remove(addrKey)}
+                            newItems.add(it)
+                            it.importedGeometry.first().second!!
+                        } else {
+                            it.osmPrimitive}
+                    }.toSet()
                     RussiaAddressHelperPlugin.cache.markProcessed(
                         otherPrimitives,
                         EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND
                     )
                 }
-
                 newItems.add(items.first())
             }
         }
 
-        return newItems
+        return newItems.toMutableList()
         } catch (ex :Exception) {
             Logging.error(ex)
         }

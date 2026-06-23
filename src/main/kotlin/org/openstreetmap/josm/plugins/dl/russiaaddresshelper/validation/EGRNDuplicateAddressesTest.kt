@@ -16,6 +16,7 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelper
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.OSMAddress
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.CommonSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.I18n
@@ -347,7 +348,7 @@ class EGRNDuplicateAddressesTest : Test(
         primitives: Collection<OsmPrimitive>
     ): Command {
         val addAddressTags = address.getBaseAddressTagsWithSource().toMutableMap()
-        addAddressTags["addr:RU:egrn"] = egrnAddress
+        addAddressTags.plusAssign(splitLongValue("addr:RU:egrn", egrnAddress))
         return ChangePropertyCommand(primitives, addAddressTags)
     }
 

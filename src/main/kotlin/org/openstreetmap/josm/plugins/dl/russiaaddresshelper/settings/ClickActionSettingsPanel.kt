@@ -10,7 +10,6 @@ import java.awt.GridBagLayout
 import javax.swing.*
 
 class ClickActionSettingsPanel : JPanel(GridBagLayout()) {
-    private val enableGeometryImport = JCheckBox(I18n.tr("Enable geometry import"))
     private val geometryImportAreaThreshold = JosmTextField(3)
     private val boundaryImportAreaThreshold = JosmTextField(3)
     private val enableGeometrySimplification = JCheckBox(I18n.tr("Simplify geometry after import"))
@@ -18,14 +17,12 @@ class ClickActionSettingsPanel : JPanel(GridBagLayout()) {
     private val enableMergeFeaturesOnSingleNode = JCheckBox(I18n.tr("Merge features tags to single node"))
     private val clickRequestBoundaryExtension = JosmTextField(4)
 
-
     init {
         val panel: JPanel = this
         panel.border = BorderFactory.createEmptyBorder(5, 5, 5, 5)
-        panel.add(enableGeometryImport, GBC.std())
         panel.add(JLabel(I18n.tr("Remove building polygons smaller than")), GBC.std().insets(0,0,40,0))
         panel.add(geometryImportAreaThreshold, GBC.eop().insets(5, 0, 0, 5))
-        panel.add(JLabel(I18n.tr("Remove boundary polygons smaller than")), GBC.std().insets(0,0,40,0).grid(1,1))
+        panel.add(JLabel(I18n.tr("Remove boundary polygons smaller than")), GBC.std().insets(0,0,40,0))
         panel.add(boundaryImportAreaThreshold, GBC.eop().insets(5, 0, 0, 5))
         panel.add(enableGeometrySimplification, GBC.std().insets(0,0,40,0))
         panel.add(JLabel(I18n.tr("Simplify ways threshold")), GBC.std())
@@ -35,13 +32,7 @@ class ClickActionSettingsPanel : JPanel(GridBagLayout()) {
         panel.add(clickRequestBoundaryExtension, GBC.eop())
 
         panel.add(Box.createVerticalGlue(), GBC.eol().fill())
-
-        enableGeometryImport.addActionListener {
-            run {
-                geometryImportAreaThreshold.isEditable = enableGeometryImport.isSelected
-            }
-        }
-        enableGeometrySimplification.addActionListener {
+     enableGeometrySimplification.addActionListener {
             run {
                 geometrySimplificationThreshold.isEditable = enableGeometrySimplification.isSelected
             }
@@ -52,7 +43,6 @@ class ClickActionSettingsPanel : JPanel(GridBagLayout()) {
      * Initializes the panel from preferences
      */
     fun initFromPreferences() {
-        enableGeometryImport.isSelected = ClickActionSettingsReader.EGRN_CLICK_ENABLE_GEOMETRY_IMPORT.get()
         geometryImportAreaThreshold.text =
             ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_IMPORT_THRESHOLD.get().toString()
         boundaryImportAreaThreshold.text =
@@ -68,7 +58,6 @@ class ClickActionSettingsPanel : JPanel(GridBagLayout()) {
      * Saves the current values to the preferences
      */
     fun saveToPreferences() {
-        ClickActionSettingsReader.EGRN_CLICK_ENABLE_GEOMETRY_IMPORT.put(enableGeometryImport.isSelected)
         ClickActionSettingsReader.EGRN_CLICK_ENABLE_GEOMETRY_SIMPLIFY.put(enableGeometrySimplification.isSelected)
         ClickActionSettingsReader.EGRN_CLICK_MERGE_FEATURES.put(enableMergeFeaturesOnSingleNode.isSelected)
 
@@ -88,6 +77,7 @@ class ClickActionSettingsPanel : JPanel(GridBagLayout()) {
             geometrySimplificationThreshold.text,
             0.1, 10.0
         )
+
         saveInteger(ClickActionSettingsReader.EGRN_CLICK_BOUNDS_EXTENSION, clickRequestBoundaryExtension.text, 5, 500)
     }
 

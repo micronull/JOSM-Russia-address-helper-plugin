@@ -27,5 +27,11 @@ class MassActionSettingsReader {
          * @since 0.9.6.5
          */
         val EGRN_MASS_ACTION_SELECT_UPDATED_AFTER = BooleanProperty("dl.russiaaddresshelper.mass.select_updated", false)
+
+        /**
+        * Generate address points when doing mass request by selected way, and no building is found.
+        * @since 0.9.6.8
+        */
+        val EGRN_MASS_ACTION_GENERATE_ADDRESS_POINTS = BooleanProperty("dl.russiaaddresshelper.mass.generate_address_points", false)
     }
 }

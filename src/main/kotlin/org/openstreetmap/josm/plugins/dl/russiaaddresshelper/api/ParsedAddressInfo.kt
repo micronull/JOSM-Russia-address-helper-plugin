@@ -11,11 +11,11 @@ data class ParsedAddressInfo(
         if (validAddresses.isEmpty()) {
             return null
         }
-        return validAddresses.find { it.flags.contains(ParsingFlags.IS_BUILDING) } ?: validAddresses.first()
+        return validAddresses.find { ParsingFlags.IS_BUILDING.trueFor(it) } ?: validAddresses.first()
     }
 
     fun getValidAddresses(): List<ParsedAddress> {
-        return this.addresses.filter { it.isMatchedByStreetOrPlace() && !it.flags.contains(ParsingFlags.STOP_LIST_WORDS) }
+        return this.addresses.filter { it.isMatchedByStreetOrPlace() && ParsingFlags.STOP_LIST_WORDS.falseFor(it) }
     }
 
     fun getDistinctValidAddresses(ignoreFlats: Boolean): List<ParsedAddress> {
@@ -24,7 +24,7 @@ data class ParsedAddressInfo(
     }
 
     fun getNonValidAddresses(): List<ParsedAddress> {
-        return this.addresses.filter { !it.isMatchedByStreetOrPlace() || it.flags.contains(ParsingFlags.STOP_LIST_WORDS) }
+        return this.addresses.filter { !it.isMatchedByStreetOrPlace() || ParsingFlags.STOP_LIST_WORDS.trueFor(it) }
     }
 
     fun canAssignAddress(): Boolean {
@@ -41,26 +41,24 @@ data class ParsedAddressInfo(
     }
 
     private fun checkValidAddress(address: ParsedAddress): Boolean {
-        return !address.flags.contains(ParsingFlags.STOP_LIST_WORDS) &&
-                !address.flags.contains(ParsingFlags.STREET_NAME_FUZZY_MATCH) &&
-                !address.flags.contains(ParsingFlags.STREET_NAME_INITIALS_MATCH) &&
-                !address.flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM) &&
-                !((address.flags.contains(ParsingFlags.PLACE_NAME_INITIALS_MATCH) || address.flags.contains(
-                    ParsingFlags.PLACE_NAME_FUZZY_MATCH
-                ))
+        return ParsingFlags.STOP_LIST_WORDS.falseFor(address) &&
+                ParsingFlags.STREET_NAME_FUZZY_MATCH.falseFor(address) &&
+                ParsingFlags.STREET_NAME_INITIALS_MATCH.falseFor(address) &&
+                ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM.falseFor(address) &&
+                !((ParsingFlags.PLACE_NAME_INITIALS_MATCH.trueFor(address) || ParsingFlags.PLACE_NAME_FUZZY_MATCH.trueFor(address))
                         && !address.getOsmAddress().isFilledStreetAddress())
     }
 
     private fun nonValidAddressCanBeFixed(address: ParsedAddress): Boolean {
-        return (address.flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM) ||
-                address.flags.contains(ParsingFlags.CANNOT_FIND_PLACE_OBJECT_IN_OSM))
+        return (ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM.trueFor(address) ||
+                ParsingFlags.CANNOT_FIND_PLACE_OBJECT_IN_OSM.trueFor(address))
                 && isHouseNumberValid(address)
     }
 
     private fun isHouseNumberValid(address: ParsedAddress): Boolean {
-        return !address.flags.contains(ParsingFlags.HOUSENUMBER_CANNOT_BE_PARSED) &&
-                !address.flags.contains(ParsingFlags.HOUSENUMBER_TOO_BIG)
-                && !address.flags.contains(ParsingFlags.HOUSENUMBER_CANNOT_BE_PARSED_BUT_CONTAINS_NUMBERS)
+        return ParsingFlags.HOUSENUMBER_CANNOT_BE_PARSED.falseFor(address) &&
+                ParsingFlags.HOUSENUMBER_TOO_BIG.falseFor(address) &&
+                ParsingFlags.HOUSENUMBER_CANNOT_BE_PARSED_BUT_CONTAINS_NUMBERS.falseFor(address)
     }
 
 }
@@ -75,7 +73,7 @@ enum class ParsingFlags {
     STREET_HAS_NUMBERED_NAME, //улица пронумерована
     CANNOT_FIND_PLACE_TYPE, //ЕГРН адрес не совпал ни с одним регекспом для имени места
     CANNOT_FIND_PLACE_OBJECT_IN_OSM, //удалось разобрать адрес из ЕГРН, но в данных ОСМ не нашлось соответствующего обьекта
-    UNSUPPORTED_ADDRESS_TYPE, //адрес разобран но, результат не может быть (автоматически) назначен обьекту ОСМ
+    UNSUPPORTED_ADDRESS_TYPE, //адрес разобран, но результат не может быть (автоматически) назначен обьекту ОСМ
     PLACE_HAS_NUMBERED_NAME,
     PLACE_NAME_INITIALS_MATCH,
     PLACE_NAME_FUZZY_MATCH,
@@ -83,7 +81,13 @@ enum class ParsingFlags {
     HOUSENUMBER_CANNOT_BE_PARSED, //номер не распознан, его скорее всего нет совсем
     HOUSENUMBER_CANNOT_BE_PARSED_BUT_CONTAINS_NUMBERS, //не удалось распознать номер дома, но можно попробовать руками
     HOUSENUMBER_TOO_BIG, //регулярка распознала цифры, но их слишком много для номера дома
-    STOP_LIST_WORDS, //В адресе из егрн присутствуют стоп-слова
+    STOP_LIST_WORDS; //В адресе из егрн присутствуют стоп-слова
 
+    fun trueFor (address: ParsedAddress) : Boolean {
+        return address.flags.contains(this)
+    }
 
+    fun falseFor (address: ParsedAddress) : Boolean {
+        return !address.flags.contains(this)
+    }
 }

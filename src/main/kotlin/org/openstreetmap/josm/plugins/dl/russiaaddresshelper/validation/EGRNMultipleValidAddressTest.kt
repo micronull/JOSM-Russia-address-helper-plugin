@@ -16,6 +16,7 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelper
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsedAddressInfo
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation.correction.AddressCorrection
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation.correction.MultipleAddressCorrectionTable
 import org.openstreetmap.josm.tools.GBC
@@ -142,8 +143,8 @@ class EGRNMultipleValidAddressTest : Test(
             val selectedCorrectionAddress = correctionTable.correctionTableModel.getSelectedValue().address
             val hasDouble = correctionTable.correctionTableModel.getSelectedValue().hasDouble
             testError.primitives.forEach {
-                var tags = selectedCorrectionAddress.getOsmAddress().getBaseAddressTagsWithSource()
-                tags = tags.plus(Pair("addr:RU:egrn", selectedCorrectionAddress.egrnAddress))
+                val tags = selectedCorrectionAddress.getOsmAddress().getBaseAddressTagsWithSource().toMutableMap()
+                tags.plusAssign(splitLongValue("addr:RU:egrn", selectedCorrectionAddress.egrnAddress))
                 if (hasDouble) RussiaAddressHelperPlugin.cache.markProcessed(
                     primitive,
                     EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND
