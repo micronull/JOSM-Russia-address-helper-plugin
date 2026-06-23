@@ -249,7 +249,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
 
         private fun getParsedInlineAddress(primitive: OsmPrimitive): String {
             val prefAddress = cache.get(primitive)?.addressInfo?.getPreferredAddress() ?: return ""
-            return prefAddress.getOsmAddress().getInlineAddress(",") ?: ""
+            return prefAddress.getOsmAddress().getInlineAddress(",", true) ?: ""
         }
 
         private fun isPlaceAddress(primitive: OsmPrimitive): Boolean {

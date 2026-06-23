@@ -16,6 +16,7 @@ import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel
 import org.openstreetmap.josm.gui.widgets.JosmTextField
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagLayout
@@ -132,9 +133,9 @@ class EGRNAddressAddedTest : Test(
                 val tags: MutableMap<String, String> = mutableMapOf(
                     "addr:housenumber" to number,
                     "source:addr" to "ЕГРН",
-                    "note" to "адрес из ЕГРН разобран вручную",
-                    "addr:RU:egrn" to preferredAddress.egrnAddress
+                    "note" to "адрес из ЕГРН разобран вручную"
                 )
+                tags.plusAssign(splitLongValue("addr:RU:egrn",preferredAddress.egrnAddress))
                 if (StringUtils.isNotBlank(streetName)) {
                     tags["addr:street"] = streetName
                 } else {

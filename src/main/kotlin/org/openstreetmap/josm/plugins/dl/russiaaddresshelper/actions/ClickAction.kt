@@ -19,11 +19,12 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelper
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.*
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.ClickActionSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.LayerFilterSettingsReader
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper.Companion.generateBuildingMultiPolygon
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.getAddressTagsForClickAction
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.getMergedTags
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
 import org.openstreetmap.josm.tools.*
 import java.awt.Cursor
 import java.awt.event.KeyEvent
@@ -65,7 +66,6 @@ class ClickAction : MapMode(
         if (!SwingUtilities.isLeftMouseButton(e)) {
             return
         }
-        val exportGeometry = ClickActionSettingsReader.EGRN_CLICK_ENABLE_GEOMETRY_IMPORT.get()
 
         val map = MainApplication.getMap()
         map.selectMapMode(map.mapModeSelect)
@@ -93,9 +93,13 @@ class ClickAction : MapMode(
         val mergeDataOnSingleNode = ClickActionSettingsReader.EGRN_CLICK_MERGE_FEATURES.get()
         val nodeTags: MutableMap<Pair<NSPDLayer, Int>, MutableMap<String, String>> = mutableMapOf()
         var repeatsExhausted = false
+        var isBuildingGeometryImported = false
         layersToRequest.forEach { requestLayer ->
             if (repeatsExhausted) {
-                val notification = Notification(I18n.tr("Data downloading failed, reason: too much request errors, interrupting")).setIcon(JOptionPane.WARNING_MESSAGE)
+                val notification =
+                    Notification(I18n.tr("Data downloading failed, reason: too much request errors, interrupting")).setIcon(
+                        JOptionPane.WARNING_MESSAGE
+                    )
                 notification.duration = Notification.TIME_LONG
                 notification.show()
                 return@forEach
@@ -125,18 +129,29 @@ class ClickAction : MapMode(
                                 val address = feature.parseAddress(mouseEN)
 
                                 tagsForNode.putAll(getAddressTagsForClickAction(address))
-                                tagsForNode.putAll(feature.getTags())
+                                tagsForNode.putAll(feature.getTags("autoremove:egrn:"))
                                 if (!placeBoundariesMode) {
                                     nodeTags[Pair(requestLayer, localIndex)] = tagsForNode
                                 }
                                 if (feature.geometry != null) {
-                                    if (exportGeometry && (requestLayer == NSPDLayer.BUILDING || requestLayer == NSPDLayer.UNFINISHED)) {
-                                        val buildTags: MutableMap<String, String> =
-                                            TagHelper.getBuildingTags(feature, requestLayer)
-                                        val generatedBuilding =
-                                            generateBuildingMultiPolygon(feature.geometry, ds, buildTags, mutableMapOf(), ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_IMPORT_THRESHOLD.get())
-                                        cmds.addAll(generatedBuilding.first)
-                                        buildingPrimitive = generatedBuilding.second
+                                    if (requestLayer == NSPDLayer.BUILDING || requestLayer == NSPDLayer.UNFINISHED || requestLayer == NSPDLayer.CONSTRUCTS) {
+                                        if (!isBuildingGeometryImported) {
+                                            val buildTags: MutableMap<String, String> =
+                                                TagHelper.getBuildingTags(feature, requestLayer)
+                                            val generatedBuilding =
+                                                generateBuildingMultiPolygon(
+                                                    feature.geometry,
+                                                    ds,
+                                                    buildTags,
+                                                    mutableMapOf(),
+                                                    ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_IMPORT_THRESHOLD.get()
+                                                )
+                                            cmds.addAll(generatedBuilding.first)
+                                            buildingPrimitive = generatedBuilding.second
+                                            isBuildingGeometryImported = true
+                                        } else {
+                                            Logging.warn("EGRN-Plugin Skipping geometry from layer ${requestLayer.description} because building already imported")
+                                        }
                                     } else if (e.isControlDown) {
                                         val geometryTags = mutableMapOf<String, String>(
                                             "fixme" to "REMOVE ME!",
@@ -146,7 +161,13 @@ class ClickAction : MapMode(
                                         geometryTags.putAll(TagHelper.getLotTags(feature))
 
                                         val generatedGeometry =
-                                            generateBuildingMultiPolygon(feature.geometry, ds, geometryTags, mutableMapOf(), ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_IMPORT_THRESHOLD.get())
+                                            generateBuildingMultiPolygon(
+                                                feature.geometry,
+                                                ds,
+                                                geometryTags,
+                                                mutableMapOf(),
+                                                ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_IMPORT_THRESHOLD.get()
+                                            )
                                         cmds.addAll(generatedGeometry.first)
                                     } else if (requestLayer == NSPDLayer.PLACES_BOUNDARIES && placeBoundariesMode) {
                                         val geometryTags = mutableMapOf<String, String>(
@@ -157,7 +178,13 @@ class ClickAction : MapMode(
                                         placeTags["source:geometry"] = "ЕГРН"
                                         geometryTags.putAll(placeTags)
                                         val generatedGeometry =
-                                            generateBuildingMultiPolygon(feature.geometry, ds, geometryTags, placeTags, ClickActionSettingsReader.EGRN_CLICK_BOUNDARY_IMPORT_THRESHOLD.get())
+                                            generateBuildingMultiPolygon(
+                                                feature.geometry,
+                                                ds,
+                                                geometryTags,
+                                                placeTags,
+                                                ClickActionSettingsReader.EGRN_CLICK_BOUNDARY_IMPORT_THRESHOLD.get()
+                                            )
                                         cmds.addAll(generatedGeometry.first)
                                     }
                                 }
@@ -222,9 +249,7 @@ class ClickAction : MapMode(
             if (buildingsToCheck.isNotEmpty() && parsedAddressInfo.canAssignAddress()) {
                 val addressTags = mutableMapOf<String, String>()
                 val preferredAddress = parsedAddressInfo.getPreferredAddress()!!
-                if (TagSettingsReader.EGRN_ADDR_RECORD.get()) {
-                    addressTags["addr:RU:egrn"] = preferredAddress.egrnAddress
-                }
+                addressTags.plusAssign(splitLongValue("addr:RU:egrn",preferredAddress.egrnAddress))
                 addressTags.putAll(preferredAddress.getOsmAddress().getBaseAddressTagsWithSource())
                 cmds.add(
                     ChangePropertyCommand(
@@ -249,13 +274,19 @@ class ClickAction : MapMode(
             UndoRedoHandler.getInstance().add(c)
         }
 
-        val simplifyCommands = GeometryHelper.simplifyWays(buildingPrimitive)
+        val simplifyCommands = GeometryHelper.simplifyWay(buildingPrimitive)
         if (simplifyCommands.isNotEmpty()) {
             UndoRedoHandler.getInstance().add(SequenceCommand(I18n.tr("Simplify imported geometry"), simplifyCommands))
             val msg = I18n.tr("Imported geometry was simplified, nodes removed")
             val notification = Notification(msg + ": ${simplifyCommands.size}").setIcon(JOptionPane.INFORMATION_MESSAGE)
             notification.duration = Notification.TIME_LONG
             notification.show()
+        }
+
+        val orthogonalizeCommands = GeometryHelper.orthogonalizePrimitive(buildingPrimitive)
+        if (orthogonalizeCommands.isNotEmpty()) {
+            UndoRedoHandler.getInstance()
+                .add(SequenceCommand(I18n.tr("Orthogonalize imported geometry"), orthogonalizeCommands))
         }
 
         if (primitivesToValidate.isNotEmpty()) {
@@ -267,41 +298,6 @@ class ClickAction : MapMode(
         } else {
             ds.setSelected(nodes)
         }
-    }
-
-    //выглядит очень неэффективно, нужен рефакторинг
-    private fun getMergedTags(nodeTags: MutableMap<Pair<NSPDLayer, Int>, MutableMap<String, String>>): MutableMap<String, String> {
-        val result = mutableMapOf<String, String>()
-        val tagsByKeyMap = mutableMapOf<String, MutableSet<Pair<String, Pair<NSPDLayer, Int>>>>()
-        nodeTags.forEach { (info, tags) ->
-            tags.forEach { (key, value) ->
-                if (value.isNotBlank()) {
-                    if (tagsByKeyMap.containsKey(key)) {
-                        tagsByKeyMap[key]?.add(Pair(value, info))
-                    } else {
-                        tagsByKeyMap[key] = mutableSetOf(Pair(value, info))
-                    }
-                }
-            }
-        }
-
-        tagsByKeyMap.forEach { (key, setOfValues) ->
-            if (setOfValues.size == 1 || setOfValues.distinctBy { it.first }.size == 1) {
-                result[key] = setOfValues.first().first
-            } else {
-                if (setOfValues.distinctBy { it.second.second }.size > 1) {
-                    setOfValues.forEach { entry ->
-                        result["$key:${entry.second.first.name.lowercase()}:${entry.second.second}"] = entry.first
-                    }
-                } else {
-                    setOfValues.forEach { entry ->
-                        result["$key:${entry.second.first.name.lowercase()}"] = entry.first
-                    }
-                }
-            }
-        }
-
-        return result
     }
 
     private fun getAllNodesWithTags(

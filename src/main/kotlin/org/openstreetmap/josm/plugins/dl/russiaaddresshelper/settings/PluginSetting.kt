@@ -4,6 +4,7 @@ import org.openstreetmap.josm.gui.GettingStarted.LinkGeneral
 import org.openstreetmap.josm.gui.preferences.ExtensibleTabPreferenceSetting
 import org.openstreetmap.josm.gui.preferences.PreferenceTabbedPane
 import org.openstreetmap.josm.gui.widgets.VerticallyScrollablePanel
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.Font
@@ -15,7 +16,7 @@ class PluginSetting : ExtensibleTabPreferenceSetting("icon.svg", I18n.tr("Russia
     companion object {
         val egrnSettingsPanel = EgrnRequestSettingsPanel()
         val clickSettingsPanel = ClickActionSettingsPanel()
-        val tagSettingsPanel = TagSettingsPanel()
+        val miscSettingsPanel = MiscSettingsPanel()
         val layerShiftSettingsPanel = LayerShiftSettingsPanel()
         val validationSettingsPanel = ValidationSettingsPanel()
         val queryLayersFilterPanel = QueryLayersFilterPanel()
@@ -62,13 +63,14 @@ class PluginSetting : ExtensibleTabPreferenceSetting("icon.svg", I18n.tr("Russia
         addSettingsSection(
             commonPanel,
             I18n.tr("Miscellaneous"),
-            tagSettingsPanel,
+            miscSettingsPanel,
             GBC.eol().fill(GridBagConstraints.HORIZONTAL)
         )
 
         val infoLabel = LinkGeneral(
             "<a href=\"https://github.com/micronull/JOSM-Russia-address-helper-plugin\">Домашняя страница (руководство)</a>" +
-                    "<br><br><a href=\"https://github.com/micronull/JOSM-Russia-address-helper-plugin/blob/master/CHANGELOG.md\">Изменения в текущей версии</a>"
+                    "<br><br><a href=\"https://github.com/micronull/JOSM-Russia-address-helper-plugin/blob/master/CHANGELOG.md\">Изменения в текущей версии</a>" +
+            "<br><br>Версия: ${RussiaAddressHelperPlugin.versionInfo}"
         )
         infoLabel.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, true)
         commonPanel.add(infoLabel, GBC.eop().anchor(GBC.NORTH).fill(GBC.HORIZONTAL))
@@ -115,7 +117,7 @@ class PluginSetting : ExtensibleTabPreferenceSetting("icon.svg", I18n.tr("Russia
     override fun ok(): Boolean {
         egrnSettingsPanel.saveToPreferences()
         clickSettingsPanel.saveToPreferences()
-        tagSettingsPanel.saveToPreferences()
+        miscSettingsPanel.saveToPreferences()
         layerShiftSettingsPanel.saveToPreferences()
         validationSettingsPanel.saveToPreferences()
         queryLayersFilterPanel.saveToPreferences()

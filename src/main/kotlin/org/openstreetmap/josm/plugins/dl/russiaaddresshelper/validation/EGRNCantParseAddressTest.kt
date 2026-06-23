@@ -19,6 +19,7 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelper
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagLayout
@@ -183,8 +184,8 @@ class EGRNCantParseAddressTest : Test(
                     "addr:housenumber" to number,
                     "source:addr" to "ЕГРН",
                     "note" to "адрес из ЕГРН разобран вручную",
-                    "addr:RU:egrn" to affectedAddresses.first().egrnAddress
                 )
+                tags.plusAssign(splitLongValue("addr:RU:egrn",affectedAddresses.first().egrnAddress))
                 if (StringUtils.isNotBlank(streetName)) {
                     tags["addr:street"] = streetName
                 } else {

@@ -17,6 +17,7 @@ import org.openstreetmap.josm.gui.widgets.JosmTextField
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagLayout
@@ -108,11 +109,11 @@ class EGRNInitialsStreetMatchingTest : Test(
         testError.primitives.forEach {
             if (RussiaAddressHelperPlugin.cache.contains(it)) {
                 val addressInfo = RussiaAddressHelperPlugin.cache.get(it)?.addressInfo
-                val prefferedAddress = addressInfo?.getPreferredAddress()
+                val preferredAddress = addressInfo?.getPreferredAddress()
                 egrnStreetName =
-                    "${prefferedAddress!!.parsedStreet.extractedType?.name} ${prefferedAddress.parsedStreet.extractedName}"
-                osmStreetName = prefferedAddress.parsedStreet.name
-                prefferedAddress.parsedHouseNumber.houseNumber.let { it1 -> affectedHousenumbers.add(it1) }
+                    "${preferredAddress!!.parsedStreet.extractedType?.name} ${preferredAddress.parsedStreet.extractedName}"
+                osmStreetName = preferredAddress.parsedStreet.name
+                preferredAddress.parsedHouseNumber.houseNumber.let { it1 -> affectedHousenumbers.add(it1) }
             } else {
                 affectedHighways.add(it)
             }
@@ -172,15 +173,15 @@ class EGRNInitialsStreetMatchingTest : Test(
                 val doublesAddresses =
                     osmStreetName + doubles.map { RussiaAddressHelperPlugin.cache.get(it)!!.addressInfo!!.getPreferredAddress()!!.parsedHouseNumber }
                         .joinToString { ", " }
-                val notification = Notification(msg + ": $doublesAddresses").setIcon(JOptionPane.INFORMATION_MESSAGE)
+                val notification = Notification("$msg: $doublesAddresses").setIcon(JOptionPane.INFORMATION_MESSAGE)
                 notification.duration = Notification.TIME_LONG
                 notification.show()
             }
             RussiaAddressHelperPlugin.cache.ignoreValidator(doubles, EGRNTestCode.EGRN_STREET_MATCH_WITHOUT_INITIALS)
             filteredPrimitives.forEach {
-                val prefferedAddress = RussiaAddressHelperPlugin.cache.get(it)!!.addressInfo?.getPreferredAddress()
-                var tags = prefferedAddress!!.getOsmAddress().getBaseAddressTagsWithSource()
-                tags = tags.plus(Pair("addr:RU:egrn", prefferedAddress.egrnAddress))
+                val preferredAddress = RussiaAddressHelperPlugin.cache.get(it)!!.addressInfo?.getPreferredAddress()
+                val tags = preferredAddress!!.getOsmAddress().getBaseAddressTagsWithSource().toMutableMap()
+                tags.plusAssign(splitLongValue("addr:RU:egrn", preferredAddress.egrnAddress))
                 cmds.add(ChangePropertyCommand(listOf(it), tags))
             }
         }
@@ -198,9 +199,9 @@ class EGRNInitialsStreetMatchingTest : Test(
                 if (RussiaAddressHelperPlugin.cache.contains(it)) {
                     val preferredAddress =
                         RussiaAddressHelperPlugin.cache.get(it)!!.addressInfo!!.getPreferredAddress()!!
-                    var tags = preferredAddress.getOsmAddress().getBaseAddressTagsWithSource()
-                    tags = tags.plus(Pair("addr:street", editedOsmStreetName))
-                    tags = tags.plus(Pair("addr:RU:egrn", preferredAddress.egrnAddress))
+                    val tags = preferredAddress.getOsmAddress().getBaseAddressTagsWithSource().toMutableMap()
+                    tags.plusAssign(Pair("addr:street", editedOsmStreetName))
+                    tags.plusAssign(splitLongValue("addr:RU:egrn", preferredAddress.egrnAddress))
                     cmds.add(ChangePropertyCommand(mutableListOf(it), tags))
                 }
             }

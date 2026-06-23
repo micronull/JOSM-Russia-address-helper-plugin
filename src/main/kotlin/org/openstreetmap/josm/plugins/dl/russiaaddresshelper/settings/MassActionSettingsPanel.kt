@@ -13,7 +13,8 @@ class MassActionSettingsPanel : JPanel(GridBagLayout()) {
 
     private val filterTagsTable =
         FilterTagsTable(MassActionSettingsReader.EGRN_MASS_ACTION_FILTER_LIST.get())
-    private val enableExtAttributes = JCheckBox(I18n.tr("Проставлять дополнительные тэги по данным ЕГРН"))
+    private val enableExtAttributes = JCheckBox(I18n.tr("Add extended attributes based on EGRN data"))
+    private val generateAddressPoints = JCheckBox(I18n.tr("Generate address points if geometry not found (for line request)"))
 
 
     init {
@@ -41,6 +42,8 @@ class MassActionSettingsPanel : JPanel(GridBagLayout()) {
         enableExtAttributes.toolTipText = "Проставлять тэги building, building:levels, start_date, если их нет"
         enableExtAttributes.isSelected = MassActionSettingsReader.EGRN_MASS_ACTION_USE_EXT_ATTRIBUTES.get()
         panel.add(enableExtAttributes, GBC.eol().anchor(GBC.NORTHWEST).insets(0,20,0,0))
+        generateAddressPoints.isSelected = MassActionSettingsReader.EGRN_MASS_ACTION_GENERATE_ADDRESS_POINTS.get()
+        panel.add(generateAddressPoints, GBC.eol().anchor(GBC.NORTHWEST).insets(0,0,0,0))
     }
 
     /**
@@ -49,6 +52,7 @@ class MassActionSettingsPanel : JPanel(GridBagLayout()) {
     fun saveToPreferences() {
         MassActionSettingsReader.EGRN_MASS_ACTION_FILTER_LIST.put(filterTagsTable.getData())
         MassActionSettingsReader.EGRN_MASS_ACTION_USE_EXT_ATTRIBUTES.put(enableExtAttributes.isSelected)
+        MassActionSettingsReader.EGRN_MASS_ACTION_GENERATE_ADDRESS_POINTS.put(generateAddressPoints.isSelected)
     }
 
 }

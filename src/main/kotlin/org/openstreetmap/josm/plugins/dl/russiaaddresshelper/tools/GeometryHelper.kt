@@ -1,6 +1,7 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools
 
 import org.openstreetmap.josm.actions.CreateMultipolygonAction
+import org.openstreetmap.josm.actions.OrthogonalizeAction
 import org.openstreetmap.josm.actions.SimplifyWayAction
 import org.openstreetmap.josm.command.AddCommand
 import org.openstreetmap.josm.command.ChangePropertyCommand
@@ -17,11 +18,17 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NSPDMultiPolygo
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NSPDPolygon
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.ClickActionSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.CommonSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.CommonSettingsReader.Companion.EGRN_ENABLE_GEOMETRY_ORTOGONALIZE
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.CommonSettingsReader.Companion.EGRN_GEOMETRY_ORTOGONALIZE_THRESHOLD
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.LayerShiftSettingsReader
 import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
+import org.openstreetmap.josm.tools.Utils
 import javax.swing.JOptionPane
+import kotlin.math.abs
+
+private const val POINT_EQUALITY_THRESHOLD = 0.1
 
 class GeometryHelper {
     companion object {
@@ -51,8 +58,8 @@ class GeometryHelper {
             }
             //неверная логика. Outer в мультике могут состоять из кусков. Площадь одного незамкнутого куска = null
             //нужно собирать outer в замкнутые контуры. Либо отказаться от сортировки полигонов мультика по площади совсем
-/*            return r.members.filter { m -> m.hasRole("outer") }
-                .maxByOrNull { Geometry.computeArea(it.way) }!!.way*/
+            /*            return r.members.filter { m -> m.hasRole("outer") }
+                            .maxByOrNull { Geometry.computeArea(it.way) }!!.way*/
             return null
         }
 
@@ -72,16 +79,18 @@ class GeometryHelper {
                     )
                 )
                 else Node(EastNorth(arrayList[0], arrayList[1]))
-            }.toMutableList()
-            if (nodelist.first().eastNorth.equalsEpsilon(nodelist.last().eastNorth, 0.1)) {
-                nodelist.removeLast()
-            } else { //возможно, такую геометрию и не стоит добавлять?
-                Logging.warn("Imported polygon is not closed")
             }
-            nodelist.forEach { node -> res.plusAssign(AddCommand(ds, node)) }
+            //удаляем все близкорасположенные точки, включая ту, что замыкает полигон
+            val filteredNodeList = nodelist.filterIndexed{ i, node ->
+                var next = i + 1
+                if (next >= nodelist.size) next = 0
+                !node.eastNorth.equalsEpsilon(nodelist[next].eastNorth, POINT_EQUALITY_THRESHOLD)
+            }.toMutableList()
+
+            filteredNodeList.forEach { node -> res.plusAssign(AddCommand(ds, node)) }
             val way = Way()
-            nodelist.plusAssign(nodelist.first())
-            way.nodes = nodelist
+            filteredNodeList.plusAssign(filteredNodeList.first())
+            way.nodes = filteredNodeList
             res.plusAssign(AddCommand(ds, way))
             return Pair(res, way)
         }
@@ -105,10 +114,14 @@ class GeometryHelper {
         актуальный пример, Красноярский край, Минусинск, улица Трегубенко 66А. (53.6878732, 91.6799617)
         реализован алгоритм - полигон бьется на треугольники, находим их центроид,
         если он внутри полигона здания, возвращаем его
-        */
+         */
 
         fun getPointIntoPolygon(osmPrimitive: OsmPrimitive): EastNorth {
             return when (osmPrimitive) {
+                is Node -> {
+                    return osmPrimitive.eastNorth
+                }
+
                 is Way -> {
                     val centroid = Geometry.getCentroid(osmPrimitive.nodes)
                     return if (Geometry.nodeInsidePolygon(Node(centroid), osmPrimitive.nodes)) {
@@ -121,7 +134,7 @@ class GeometryHelper {
                             if (j > nodes.size - 1) j = j - nodes.size
                             val node2 = nodes[j]
                             var k = i + 2
-                            if (j > nodes.size - 1) k = k - nodes.size
+                            if (k > nodes.size - 1) k = k - nodes.size
                             val node3 = nodes[k]
                             val triangleCentroid = Geometry.getCentroid(listOf(node1, node2, node3))
                             if (Geometry.nodeInsidePolygon(Node(triangleCentroid), osmPrimitive.nodes)) {
@@ -139,6 +152,7 @@ class GeometryHelper {
                         Geometry.getClosestPrimitive(Node(centroid), osmPrimitive.nodes).eastNorth
                     }
                 }
+
                 else -> {
                     //TODO реализация алгоритма поиска точки для мультиполигона
                     getPrimitiveCentroid(osmPrimitive)
@@ -146,7 +160,8 @@ class GeometryHelper {
             }
         }
 
-        fun simplifyWays(primitive: OsmPrimitive?): List<Command> {
+        //требуется чтобы примитив уже был создан в датасете, иначе команда вызовет исключение
+        fun simplifyWay(primitive: OsmPrimitive?): List<Command> {
             if (!ClickActionSettingsReader.EGRN_CLICK_ENABLE_GEOMETRY_SIMPLIFY.get() || primitive == null) return emptyList()
             val threshold: Double = ClickActionSettingsReader.EGRN_CLICK_GEOMETRY_SIMPLIFY_THRESHOLD.get()
 
@@ -164,6 +179,47 @@ class GeometryHelper {
                 }
             }
             return emptyList()
+        }
+
+        fun orthogonalizePrimitive(primitive: OsmPrimitive?): List<Command> {
+            if (!EGRN_ENABLE_GEOMETRY_ORTOGONALIZE.get() || primitive == null || primitive is Node) return emptyList()
+            val radianThreshold = Utils.toRadians(EGRN_GEOMETRY_ORTOGONALIZE_THRESHOLD.get())
+            if (primitive is Way && primitive.isClosed) {
+                if (canOrtogonalizeWay(primitive, radianThreshold)) {
+                    val orthogonalizeCommands = OrthogonalizeAction.orthogonalize(mutableListOf(primitive))
+                    if (orthogonalizeCommands != null) {
+                        return listOf(orthogonalizeCommands)
+                    }
+                }
+            } else {
+                val relationPrimitives = (primitive as Relation).memberPrimitives.filterNotNull()
+                    .filter { member -> member is Way && canOrtogonalizeWay(member, radianThreshold) }
+                return mutableListOf(OrthogonalizeAction.orthogonalize(relationPrimitives))
+            }
+            return emptyList()
+        }
+
+        private fun canOrtogonalizeWay(primitive: Way, threshold: Double): Boolean {
+            val rad90 = Utils.toRadians(90.0)
+            val rad180 = Utils.toRadians(180.0)
+            if (primitive.isClosed) {
+                val nodes = primitive.nodes
+                for (i in 0 until nodes.size - 2) {
+                    val node = nodes[i]
+                    var j = i - 1
+                    if (j < 0) j = nodes.size - 2
+                    val nodeLeft = nodes[j]
+                    var k = i + 1
+                    if (k > nodes.size - 2) k = 0
+                    val nodeRight = nodes[k]
+                    val nodeAngle = Geometry.getCornerAngle(nodeLeft.eastNorth, node.eastNorth, nodeRight.eastNorth)
+                    if (abs(nodeAngle) > threshold && abs(abs(nodeAngle) - rad90) > threshold && abs(rad180 - abs(nodeAngle)) > threshold) {
+                        return false
+                    }
+                }
+                return true
+            }
+            return false
         }
 
         fun generateBuildingMultiPolygon(
@@ -202,7 +258,8 @@ class GeometryHelper {
 
             if (removedPolys > 0) {
                 Logging.warn("EGRN PLUGIN : Filtered $removedPolys from imported geometry total ${ways.size + removedPolys} polygons, threshold setting $areaThreshold")
-                val msg = I18n.tr("Some imported geometry was filtered by area (removed/total)") + " $removedPolys/${ways.size + removedPolys}, " + I18n.tr("threshold setting (square meters)")+ " $areaThreshold"
+                val msg = I18n.tr("Some imported geometry was filtered by area (removed/total)") +
+                        " $removedPolys/${ways.size + removedPolys}, " + I18n.tr("threshold setting (square meters) ") + "$areaThreshold"
                 val notification = Notification(msg).setIcon(JOptionPane.INFORMATION_MESSAGE)
                 notification.duration = Notification.TIME_SHORT
                 notification.show()
@@ -222,7 +279,8 @@ class GeometryHelper {
                 if (relationCommand != null) {
                     if (tagsForMultiWays.isNotEmpty()) {
                         return Pair(
-                            listOf(relationCommand.a, ChangePropertyCommand(ds, listOf(relationCommand.b), tags),
+                            listOf(
+                                relationCommand.a, ChangePropertyCommand(ds, listOf(relationCommand.b), tags),
                                 ChangePropertyCommand(ds, ways, tagsForMultiWays)
                             ),
                             relationCommand.b

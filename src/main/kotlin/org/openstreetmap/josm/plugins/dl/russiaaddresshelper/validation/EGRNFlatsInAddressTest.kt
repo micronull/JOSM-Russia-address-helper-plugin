@@ -18,6 +18,7 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelper
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagLayout
@@ -131,7 +132,7 @@ class EGRNFlatsInAddressTest : Test(
             affectedAddresses.forEachIndexed { index, element ->
                 val node = Node(getNodePlacement(createNodeAt, index))
                 node.putAll(element.getOsmAddress().getTags())
-                node.put("addr:RU:egrn", element.egrnAddress)
+                node.putAll(splitLongValue("addr:RU:egrn",element.egrnAddress))
                 cmds.add(AddCommand(ds, node))
             }
 

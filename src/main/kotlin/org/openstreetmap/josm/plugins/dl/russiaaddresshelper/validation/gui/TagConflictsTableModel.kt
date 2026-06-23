@@ -16,7 +16,7 @@ class TagConflictsTableModel(existingTags: Map<String, String>, conflictTags: Ma
 
     init {
         this.conflictTags = ArrayList(conflictTags.toList())
-        this.existingTags = ArrayList(existingTags.filter { (key, _) -> conflictTags.containsKey(key) }.toList())
+        this.existingTags = ArrayList(conflictTags.keys.map { key -> Pair(key,existingTags[key]?:"ERROR")}.toList())
         this.mergedTags = ArrayList(List(conflictTags.size) { Pair("", "") })
     }
 

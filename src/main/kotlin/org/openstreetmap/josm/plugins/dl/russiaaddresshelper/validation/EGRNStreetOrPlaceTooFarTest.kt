@@ -278,8 +278,8 @@ class EGRNStreetOrPlaceTooFarTest : Test(
         p.add(infoLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
 
         var labelText = "Полученный из ЕГРН адрес: <br>"
-        val prefferedAddress = parsedAddress.getPreferredAddress()
-        labelText += "${prefferedAddress?.egrnAddress},<b> тип: ${if (prefferedAddress!!.isBuildingAddress()) "здание" else "участок"}</b><br>"
+        val preferredAddress = parsedAddress.getPreferredAddress()
+        labelText += "${preferredAddress?.egrnAddress},<b> тип: ${if (preferredAddress!!.isBuildingAddress()) "здание" else "участок"}</b><br>"
 
         val egrnAddressesLabel = JMultilineLabel(labelText, false, true)
         egrnAddressesLabel.setMaxWidth(800)

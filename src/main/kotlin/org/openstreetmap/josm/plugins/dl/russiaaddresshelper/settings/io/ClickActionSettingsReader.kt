@@ -8,15 +8,6 @@ class ClickActionSettingsReader {
     companion object {
 
         /**
-         * Enable import of geometry features.
-         * @since 0.9.4
-         */
-        val EGRN_CLICK_ENABLE_GEOMETRY_IMPORT = BooleanProperty(
-            "dl.russiaaddresshelper.click.enable_geometry_import",
-            false
-        )
-
-        /**
          * Filter imported polygons with area smaller than property.
          * @since 0.9.4.1
          */
@@ -69,5 +60,6 @@ class ClickActionSettingsReader {
             "dl.russiaaddresshelper.click.boundary_geometry_import_threshold",
             50.0
         )
+
     }
 }

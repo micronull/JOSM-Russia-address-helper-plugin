@@ -14,6 +14,7 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelper
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagLayout
@@ -109,12 +110,12 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
         testError.primitives.forEach {
             if (RussiaAddressHelperPlugin.cache.responses[it] != null) {
                 val addressInfo = RussiaAddressHelperPlugin.cache.responses[it]?.addressInfo
-                val prefferedAddress = addressInfo?.getPreferredAddress()
-                egrnPlaceName = prefferedAddress!!.parsedPlace.extractedName
-                egrnPlaceType = prefferedAddress.parsedPlace.extractedType!!.name
-                osmPlaceName = prefferedAddress.parsedPlace.name
-                affectedAddresses.add(prefferedAddress)
-                prefferedAddress.parsedHouseNumber.houseNumber.let { it1 -> affectedHousenumbers.add(it1) }
+                val preferredAddress = addressInfo?.getPreferredAddress()
+                egrnPlaceName = preferredAddress!!.parsedPlace.extractedName
+                egrnPlaceType = preferredAddress.parsedPlace.extractedType!!.name
+                osmPlaceName = preferredAddress.parsedPlace.name
+                affectedAddresses.add(preferredAddress)
+                preferredAddress.parsedHouseNumber.houseNumber.let { it1 -> affectedHousenumbers.add(it1) }
             }
         }
 
@@ -179,9 +180,9 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
             val doubles = RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
             RussiaAddressHelperPlugin.cache.ignoreValidator(doubles, EGRNTestCode.getByCode(testError.code)!!)
             filteredPrimitives.forEach {
-                val prefferedAddress = RussiaAddressHelperPlugin.cache.responses[it]!!.addressInfo!!.getPreferredAddress()
-                var tags = prefferedAddress!!.getOsmAddress().getBaseAddressTagsWithSource()
-                tags = tags.plus(Pair("addr:RU:egrn", prefferedAddress.egrnAddress))
+                val preferredAddress = RussiaAddressHelperPlugin.cache.responses[it]!!.addressInfo!!.getPreferredAddress()
+                val tags = preferredAddress!!.getOsmAddress().getBaseAddressTagsWithSource().toMutableMap()
+                tags.plusAssign(splitLongValue("addr:RU:egrn", preferredAddress.egrnAddress))
                 cmds.add(ChangePropertyCommand(listOf(it), tags))
             }
         }
