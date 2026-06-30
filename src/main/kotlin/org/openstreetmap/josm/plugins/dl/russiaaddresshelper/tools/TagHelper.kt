@@ -162,7 +162,7 @@ class TagHelper {
             nspdResponse.responses.forEach {(layer, resp)->
                  if (resp.features.isNotEmpty()) {
                      resp.features.forEachIndexed { localIndex, feature ->
-                     val tags  = feature.getTags("autoremove:egrn:")
+                     val tags  = splitLongValues(feature.getTags("autoremove:egrn:"))
                          if (feature.properties?.options?.readableAddress != null) {
                             tags.plusAssign(splitLongValue("addr:RU:egrn", feature.properties.options.readableAddress))
                          }
@@ -206,6 +206,12 @@ class TagHelper {
                 }
             }
 
+            return result
+        }
+
+        fun splitLongValues(data: MutableMap<String,String>): MutableMap<String,String> {
+            val result :MutableMap<String,String> = mutableMapOf()
+            data.forEach { (tag, value) -> result.plusAssign(splitLongValue(tag,value))}
             return result
         }
 

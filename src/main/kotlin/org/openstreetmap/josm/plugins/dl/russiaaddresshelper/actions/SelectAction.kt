@@ -213,10 +213,15 @@ class SelectAction : JosmAction(
             if (MassActionSettingsReader.EGRN_MASS_ACTION_SELECT_UPDATED_AFTER.get()) {
                 if (isLineSelected) {
                     if (splittedPart != null) {
-                        layerManager.editDataSet.setSelected(splittedPart)
+                        layerManager.editDataSet.addSelected(splittedPart)
+                        if (splittedPart.isSelectable) {
+                            layerManager.editDataSet.setSelected(splittedPart)
+
+                        }
                     }
                 } else {
-                    layerManager.editDataSet.setSelected(*changeBuildings)
+                    layerManager.editDataSet.addSelected(*changeBuildings)
+                    layerManager.editDataSet.setSelected(*changeBuildings.filter { it.isSelectable }.toTypedArray())
                 }
             } else {
                 layerManager.editDataSet.clearSelection()

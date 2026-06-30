@@ -25,6 +25,7 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.getAddressTagsForClickAction
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.getMergedTags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValues
 import org.openstreetmap.josm.tools.*
 import java.awt.Cursor
 import java.awt.event.KeyEvent
@@ -129,7 +130,7 @@ class ClickAction : MapMode(
                                 val address = feature.parseAddress(mouseEN)
 
                                 tagsForNode.putAll(getAddressTagsForClickAction(address))
-                                tagsForNode.putAll(feature.getTags("autoremove:egrn:"))
+                                tagsForNode.putAll(splitLongValues(feature.getTags("autoremove:egrn:")))
                                 if (!placeBoundariesMode) {
                                     nodeTags[Pair(requestLayer, localIndex)] = tagsForNode
                                 }

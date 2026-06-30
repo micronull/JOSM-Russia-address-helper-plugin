@@ -194,7 +194,7 @@ class GeometryHelper {
             } else {
                 val relationPrimitives = (primitive as Relation).memberPrimitives.filterNotNull()
                     .filter { member -> member is Way && canOrtogonalizeWay(member, radianThreshold) }
-                return mutableListOf(OrthogonalizeAction.orthogonalize(relationPrimitives))
+                if (relationPrimitives.isNotEmpty()) return mutableListOf(OrthogonalizeAction.orthogonalize(relationPrimitives))
             }
             return emptyList()
         }
