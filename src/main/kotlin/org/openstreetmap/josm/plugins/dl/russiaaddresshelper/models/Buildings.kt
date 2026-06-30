@@ -24,6 +24,7 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Com
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.collectAllEgrnTags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.getAddressTagsForClickAction
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValues
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
 import java.time.LocalDateTime
@@ -355,7 +356,7 @@ class Buildings(objects: List<OsmPrimitive>) {
                             }
                             val feature = features[0]
                             val tagsForBuilding: MutableMap<String, String> = mutableMapOf()
-                            tagsForBuilding.putAll(feature.getTags("autoremove:egrn:"))
+                            tagsForBuilding.putAll(splitLongValues(feature.getTags("autoremove:egrn:")))
                             //не уверен, что это должно быть тут, внутри
                             val map = MainApplication.getMap()
                             val ds = map.mapView.layerManager.editDataSet
