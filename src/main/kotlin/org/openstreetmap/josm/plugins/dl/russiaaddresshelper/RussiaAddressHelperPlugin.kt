@@ -20,7 +20,6 @@ import org.openstreetmap.josm.plugins.PluginInformation
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions.AddNSPDLayersAction
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions.ClickAction
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.actions.SelectAction
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.EgrnApi
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NspdApi
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.PluginSetting
@@ -65,16 +64,6 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         val selectAction: SelectAction = SelectAction()
         val clickAction: ClickAction = ClickAction()
         val addLayersAction: AddNSPDLayersAction = AddNSPDLayersAction()
-
-        fun getEgrnClient(): EgrnApi {
-            val userAgent = String.format(
-                EgrnSettingsReader.EGRN_REQUEST_USER_AGENT.get(),
-                Version.getInstance().versionString,
-                versionInfo
-            )
-
-            return EgrnApi(EgrnSettingsReader.EGRN_URL_REQUEST.get(), userAgent)
-        }
 
         fun getNSPDClient(): NspdApi {
             val userAgent = String.format(

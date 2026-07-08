@@ -7,14 +7,6 @@ import org.openstreetmap.josm.data.preferences.StringProperty
 
 class EgrnSettingsReader {
     companion object {
-        /**
-         * Property for current EGRN server.
-         * @since 0.0.1
-         */
-        val EGRN_URL_REQUEST = StringProperty(
-            "dl.russiaaddresshelper.ppk.url",
-            "https://pkk.rosreestr.ru/api/features/?text={lat}%20{lon}&tolerance=1&types=[{type}]"
-        )
 
         /**
          * Property for limiting concurrent requests.
@@ -51,12 +43,12 @@ class EgrnSettingsReader {
 
         val NSPD_GET_FEATURE_REQUEST_URL = StringProperty(
             "dl.russiaaddresshelper.nspd.getfeature.url",
-            "https://nspd.gov.ru/api/aeggis/v3/{layer}/wms?REQUEST=GetFeatureInfo&QUERY_LAYERS={layer}&SERVICE=WMS&VERSION=1.3.0&FORMAT=image/png&STYLES=&TRANSPARENT=true&LAYERS={layer}&INFO_FORMAT=application/json&FEATURE_COUNT=10&I={x}&J={y}&WIDTH={width}&HEIGHT={height}&CRS=EPSG:3857&BBOX={minx},{miny},{maxx},{maxy}"
+            "https://nspd.gov.ru/api/aeggis/v4/{layer}/wms?REQUEST=GetFeatureInfo&QUERY_LAYERS={layer}&SERVICE=WMS&VERSION=1.3.0&FORMAT=image/png&STYLES=&TRANSPARENT=true&LAYERS={layer}&INFO_FORMAT=application/json&FEATURE_COUNT=10&I={x}&J={y}&WIDTH={width}&HEIGHT={height}&CRS=EPSG:3857&BBOX={minx},{miny},{maxx},{maxy}"
         )
 
         val NSPD_GET_MAP_REQUEST_URL = StringProperty(
             "dl.russiaaddresshelper.nspd.getfeature.url",
-            "wms:{site}/api/aeggis/v3/{layer}/wms?REQUEST=GetMap&SERVICE=WMS&VERSION=1.3.0&FORMAT=image/png&STYLES=&TRANSPARENT=true&LAYERS={layer}&WIDTH={width}&HEIGHT={height}&CRS={proj}&BBOX={bbox}"
+            "wms:{site}/api/aeggis/v4/{layer}/wms?REQUEST=GetMap&SERVICE=WMS&VERSION=1.3.0&FORMAT=image/png&STYLES=&TRANSPARENT=true&LAYERS={layer}&WIDTH={width}&HEIGHT={height}&CRS={proj}&BBOX={bbox}"
         )
 
         val NSPD_SITE_URL = StringProperty(
