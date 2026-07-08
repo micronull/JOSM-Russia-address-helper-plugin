@@ -11,7 +11,6 @@ import java.awt.GridBagLayout
 import javax.swing.*
 
 class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
-    private val egrnUrl = JosmTextField()
     private val nspdUrl = JosmTextField()
     private val userAgent = JosmTextField()
     private val egrnRequestLimit = JosmTextField(3)
@@ -62,7 +61,6 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
      * Initializes the panel from preferences
      */
     fun initFromPreferences() {
-        egrnUrl.text = EgrnSettingsReader.EGRN_URL_REQUEST.get()
         nspdUrl.text = EgrnSettingsReader.NSPD_GET_FEATURE_REQUEST_URL.get()
         userAgent.text = EgrnSettingsReader.EGRN_REQUEST_USER_AGENT.get()
         egrnRequestLimit.text = EgrnSettingsReader.REQUEST_LIMIT.get().toString()
@@ -81,7 +79,6 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
      * Saves the current values to the preferences
      */
     fun saveToPreferences() {
-        EgrnSettingsReader.EGRN_URL_REQUEST.put(egrnUrl.text)
         EgrnSettingsReader.NSPD_GET_FEATURE_REQUEST_URL.put(nspdUrl.text)
         EgrnSettingsReader.EGRN_REQUEST_USER_AGENT.put(userAgent.text)
         EgrnSettingsReader.EGRN_DISABLE_SSL_FOR_REQUEST.put(disableSSLforRequests.isSelected)

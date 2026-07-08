@@ -178,6 +178,7 @@ class EGRNCantParseAddressTest : Test(
             val streetName = osmStreetNameEditBox.text
             val placeName = osmPlaceNameEditBox.text
             val number = osmNumberEditBox.text
+            //TODO: нет проверки на дубликаты, или хотя бы индикации что такой адрес существует
 
             if (StringUtils.isNotBlank(number) && (StringUtils.isNotBlank(streetName) || StringUtils.isNotBlank(placeName))) {
                 val tags: MutableMap<String, String> = mutableMapOf(
