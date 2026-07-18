@@ -1,0 +1,38 @@
+{
+  "data_format": 1,
+  "data_url": "https://raw.githubusercontent.com/micronull/JOSM-Russia-address-helper-plugin/refs/heads/master/taginfo.json",
+  "data_updated": "20260718T120000Z",
+  "project": {
+    "name": "RussianAddressHelper",
+    "description": "Josm editor plugin for parse address and building info from Russian Cadastre Service.",
+    "project_url": "https://github.com/micronull/JOSM-Russia-address-helper-plugin",
+    "doc_url": "https://github.com/micronull/JOSM-Russia-address-helper-plugin",
+    "icon_url": "https://raw.githubusercontent.com/micronull/JOSM-Russia-address-helper-plugin/refs/heads/master/src/main/resources/images/icon.svg",
+    "contact_name": "Takuto",
+    "contact_email": "42@ductco.de"
+  },
+  "tags": [
+    {
+      "key": "source:addr",
+      "value": "ЕГРН",
+      "object_types": [
+        "node",
+        "way",
+        "relation"
+      ],
+      "description": "Address info of object was imported from Russian Cadastre Service (www.nspd.gov.ru).",
+      "doc_url": "https://wiki.openstreetmap.org/wiki/Tag:source%3Aaddr%3DЕГРН"
+    },
+    {
+      "key": "source:geometry",
+      "value": "ЕГРН",
+      "object_types": [
+        "node",
+        "way",
+        "relation"
+      ],
+      "description": "Geometry of object was imported from Russian Cadastre Service (www.nspd.gov.ru).",
+      "doc_url": "https://wiki.openstreetmap.org/wiki/Tag:source%3Ageometry%3DЕГРН"
+    }
+  ]
+}
