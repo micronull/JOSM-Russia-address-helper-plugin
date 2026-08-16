@@ -8,7 +8,7 @@ plugins {
 }
 
 group 'org.openstreetmap.josm.plugins.dl.russiaaddresshelper'
-version '0.9.7.2'
+version '0.9.7.6'
 
 repositories {
     mavenCentral()
@@ -26,6 +26,7 @@ dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-core:2.13.1'
     implementation 'com.fasterxml.jackson.core:jackson-annotations:2.13.1'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.4.2'
+    implementation 'org.openstreetmap.josm:josm:18902'
 
     packIntoJar 'org.apache.commons:commons-text:1.10.0'
     packIntoJar 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0-native-mt'

@@ -76,6 +76,17 @@ class PluginSetting : ExtensibleTabPreferenceSetting("icon.svg", I18n.tr("Russia
         commonPanel.add(infoLabel, GBC.eop().anchor(GBC.NORTH).fill(GBC.HORIZONTAL))
         commonPanel.add(infoLabel)
 
+        if(false) {
+            val debugInfoWindow = JTextArea(10,1)
+            debugInfoWindow.append("Debug info:\n")
+            debugInfoWindow.append("Cache records size: ${RussiaAddressHelperPlugin.cache.size()}\n")
+            debugInfoWindow.append("Address cache size: ${RussiaAddressHelperPlugin.addressRegistry.getSize()}\n")
+            debugInfoWindow.append("Address places count: ${RussiaAddressHelperPlugin.addressRegistry.getPlacesCount()}\n")
+            debugInfoWindow.append("Address primitives count: ${RussiaAddressHelperPlugin.addressRegistry.getPrimitivesCount()}\n")
+            commonPanel.add(debugInfoWindow, GBC.std())
+
+        }
+
         layerShiftSettingsPanel.fillComboWithLayers()
 
         pane.addTab(I18n.tr("Common settings"), addPanelToPane(commonPanel))

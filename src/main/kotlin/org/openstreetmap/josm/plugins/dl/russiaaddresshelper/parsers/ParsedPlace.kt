@@ -9,7 +9,7 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.PlaceType
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.PlaceTypes
 import org.openstreetmap.josm.tools.Logging
 
-//TO DO LOW PRIORITY в коде ParsedPlace и ParsedStreet слишком много дублирования
+//TODO LOW PRIORITY в коде ParsedPlace и ParsedStreet слишком много дублирования
 //подумать над рефакторингом этого кода на общих основаниях - общий список правил, общий парсер,
 //общая процедура матчинга. Возвращаться должен обьект с разложенным в иерархию адресом
 //проблема - текущая версия кода вернет только 1 распознанный адрес по месту, даже если таких частей больше 1
@@ -20,12 +20,17 @@ data class ParsedPlace(
     val matchedPrimitives: List<OsmPrimitive>,
     val flags: List<ParsingFlags>
 ) {
+
     companion object {
         fun identify(
             address: String,
             placeTypes: PlaceTypes,
             primitivesToCompare: MutableMap<String, Map<String, List<OsmPrimitive>>>
         ): ParsedPlace {
+            val PLACETYPE : List<String> = listOf("locality","isolated_dwelling", "neighbourhood", "suburb", "allotments", "hamlet", "village", "town")
+            val placesComparator = Comparator{ p1: OsmPrimitive, p2: OsmPrimitive -> PLACETYPE.indexOf(p1["place"]) - PLACETYPE.indexOf(p2["place"]) }
+            val placeTypesComparator = Comparator{ p1: ParsedPlace, p2: ParsedPlace -> PLACETYPE.indexOf(p1.matchedPrimitives.sortedWith(placesComparator).first()["place"]) - PLACETYPE.indexOf(p2.matchedPrimitives.sortedWith(placesComparator).first()["place"]) }
+
             if (StringUtils.isBlank(address)) {
                 Logging.error("EGRN-PLUGIN address is empty")
                 return emptyParsedPlace()
@@ -42,96 +47,108 @@ data class ParsedPlace(
             val filteredEgrnAddress = address.replace("ё", "е").replace("\"", "")
             val flags: MutableList<ParsingFlags> = mutableListOf()
 
-            val parsedPlaceType = placeTypes.types.find { it.hasEgrnMatch(address) }
+            val parsedPlaceTypes = placeTypes.types.filter { it.hasEgrnMatch(address) }
 
-            if (parsedPlaceType == null) {
+            if (parsedPlaceTypes.isEmpty()) {
                 Logging.warn("EGRN-PLUGIN Cannot extract place type from EGRN address $address")
                 flags.add(ParsingFlags.CANNOT_FIND_PLACE_TYPE)
                 return emptyParsedPlace(flags)
             }
-            val egrnPlaceName = extractPlaceName(parsedPlaceType.egrn.asRegExpList(), filteredEgrnAddress)
-            val filteredEgrnPlaceName = egrnPlaceName.replace("ё", "е")
-            val JWSsimilarity = JaroWinklerSimilarity()
 
-            var maxSimilarity = 0.0
-            var mostSimilar = ""
-            // Ищем соответствующий адресу примитив
-            val primitiveNamesMap = primitivesToCompare[parsedPlaceType.name] ?: mapOf()
+            val matchedPlaces: MutableSet<ParsedPlace> = mutableSetOf()
 
-            for (osmPlaceEntry in primitiveNamesMap) {
-                val osmObjectComparisonName = osmPlaceEntry.key
-                val osmNameTagValue = osmPlaceEntry.value[0].name
+            parsedPlaceTypes.forEach { parsedPlaceType ->
+                val egrnPlaceName = extractPlaceName(parsedPlaceType.egrn.asRegExpList(), filteredEgrnAddress)
+                val filteredEgrnPlaceName = egrnPlaceName.replace("ё", "е")
+                val JWSsimilarity = JaroWinklerSimilarity()
 
-                val filteredOsmPlaceName =
-                    extractPlaceName(
-                        parsedPlaceType.osm.asRegExpList(),
-                        osmObjectComparisonName.replace('ё', 'е').replace('Ё', 'Е')
-                    )
+                var maxSimilarity = 0.0
+                var mostSimilar = ""
+                // Ищем соответствующий адресу примитив
+                val primitiveNamesMap = primitivesToCompare[parsedPlaceType.name] ?: mapOf()
 
+                for (osmPlaceEntry in primitiveNamesMap) {
+                    val osmObjectComparisonName = osmPlaceEntry.key
+                    val osmNameTagValue = osmPlaceEntry.value[0].name
 
-                if (filteredOsmPlaceName == "") {
-                    //это условие вообще выполнится, если мы тут собрали только подходящие ОСМ обьекты?
-                    Logging.info("EGRN-PLUGIN Cannot get openStreetMap name for $osmObjectComparisonName, type ${parsedPlaceType.name}")
-                    continue
+                    val filteredOsmPlaceName =
+                        extractPlaceName(
+                            parsedPlaceType.osm.asRegExpList(),
+                            osmObjectComparisonName.replace('ё', 'е').replace('Ё', 'Е')
+                        )
+
+                    if (filteredOsmPlaceName == "") {
+                        //это условие вообще выполнится, если мы тут собрали только подходящие ОСМ обьекты?
+                        Logging.info("EGRN-PLUGIN Cannot get openStreetMap name for $osmObjectComparisonName, type ${parsedPlaceType.name}")
+                        continue
+                    }
+
+                    if (filteredOsmPlaceName.lowercase() == filteredEgrnPlaceName.lowercase()) {
+                        if (filteredOsmPlaceName.contains(Regex("""\d"""))) flags.add(ParsingFlags.PLACE_HAS_NUMBERED_NAME)
+                        matchedPlaces.plusAssign( ParsedPlace(osmNameTagValue, egrnPlaceName, parsedPlaceType, osmPlaceEntry.value, flags))
+                    } else {
+                        if (matchedNumberedPlace(filteredEgrnPlaceName, filteredOsmPlaceName, parsedPlaceType.name)) {
+                            Logging.info("EGRN-PLUGIN Matched OSM place name by numerics parsing $egrnPlaceName -> $osmObjectComparisonName")
+                            flags.add(ParsingFlags.PLACE_HAS_NUMBERED_NAME)
+                            matchedPlaces.plusAssign(
+                            ParsedPlace(
+                                osmNameTagValue,
+                                egrnPlaceName,
+                                parsedPlaceType,
+                                osmPlaceEntry.value,
+                                flags
+                            ))
+                        }
+
+                        if (matchedWithoutInitials(filteredEgrnPlaceName, filteredOsmPlaceName)) {
+                            flags.add(ParsingFlags.PLACE_NAME_INITIALS_MATCH)
+
+                            Logging.warn("EGRN-PLUGIN Matched OSM place name without initials $egrnPlaceName -> $osmObjectComparisonName")
+                            matchedPlaces.plusAssign( ParsedPlace(
+                                osmNameTagValue,
+                                egrnPlaceName,
+                                parsedPlaceType,
+                                osmPlaceEntry.value,
+                                flags
+                            ))
+                        }
+                        val similarity = JWSsimilarity.apply(filteredEgrnPlaceName, filteredOsmPlaceName)
+                        if (similarity > maxSimilarity) {
+                            maxSimilarity = similarity
+                            mostSimilar = osmObjectComparisonName
+                        }
+                    }
                 }
 
-                if (filteredOsmPlaceName.lowercase() == filteredEgrnPlaceName.lowercase()) {
-                    if (filteredOsmPlaceName.contains(Regex("""\d"""))) flags.add(ParsingFlags.PLACE_HAS_NUMBERED_NAME)
-                    return ParsedPlace(osmNameTagValue, egrnPlaceName, parsedPlaceType, osmPlaceEntry.value, flags)
-                } else {
-                    if (matchedNumberedPlace(
-                            filteredEgrnPlaceName,
-                            filteredOsmPlaceName,
-                            parsedPlaceType.name
-                        )
-                    ) {
-                        Logging.info("EGRN-PLUGIN Matched OSM place name by numerics parsing $egrnPlaceName -> $osmObjectComparisonName")
-                        flags.add(ParsingFlags.PLACE_HAS_NUMBERED_NAME)
-                        return ParsedPlace(
-                            osmNameTagValue,
-                            egrnPlaceName,
-                            parsedPlaceType,
-                            osmPlaceEntry.value,
-                            flags
-                        )
-                    }
-
-                    if (matchedWithoutInitials(filteredEgrnPlaceName, filteredOsmPlaceName)) {
-                        flags.add(ParsingFlags.PLACE_NAME_INITIALS_MATCH)
-
-                        Logging.warn("EGRN-PLUGIN Matched OSM place name without initials $egrnPlaceName -> $osmObjectComparisonName")
-                        return ParsedPlace(
-                            osmNameTagValue,
-                            egrnPlaceName,
-                            parsedPlaceType,
-                            osmPlaceEntry.value,
-                            flags
-                        )
-                    }
-                    val similarity = JWSsimilarity.apply(filteredEgrnPlaceName, filteredOsmPlaceName)
-                    if (similarity > maxSimilarity) {
-                        maxSimilarity = similarity
-                        mostSimilar = osmObjectComparisonName
-                    }
+                if (mostSimilar.isNotBlank() && maxSimilarity > 0.9) {
+                    Logging.warn("EGRN-PLUGIN Exact place match for $egrnPlaceName not found, use most similar: $mostSimilar with distance $maxSimilarity")
+                    flags.add(ParsingFlags.PLACE_NAME_FUZZY_MATCH)
+                    matchedPlaces.plusAssign( ParsedPlace(
+                        primitiveNamesMap[mostSimilar]?.get(0)?.name ?: "",
+                        egrnPlaceName,
+                        parsedPlaceType,
+                        primitiveNamesMap[mostSimilar] ?: listOf(),
+                        flags
+                    ))
                 }
             }
 
-            if (mostSimilar.isNotBlank() && maxSimilarity > 0.9) {
-                Logging.warn("EGRN-PLUGIN Exact place match for $egrnPlaceName not found, use most similar: $mostSimilar with distance $maxSimilarity")
-                flags.add(ParsingFlags.PLACE_NAME_FUZZY_MATCH)
-                return ParsedPlace(
-                    primitiveNamesMap[mostSimilar]?.get(0)?.name ?: "",
-                    egrnPlaceName,
-                    parsedPlaceType,
-                    primitiveNamesMap[mostSimilar] ?: listOf(),
-                    flags
-                )
+            if (matchedPlaces.isNotEmpty()) {
+                if (matchedPlaces.size > 1) {
+                    Logging.warn("EGRN-PLUGIN More than one place regex match for $address, placeNames: " +
+                            matchedPlaces.joinToString(",") { it.extractedName })
+                    flags.add(ParsingFlags.MORE_THAN_ONE_PLACE_MATCH)
+                }
+                return matchedPlaces.sortedWith(placeTypesComparator).first()
             }
 
             flags.add(ParsingFlags.CANNOT_FIND_PLACE_OBJECT_IN_OSM)
-            return ParsedPlace("", egrnPlaceName, parsedPlaceType, listOf(), flags)
+            var egrnPlaceName: String = ""
+            if (parsedPlaceTypes.isNotEmpty()) {
+                egrnPlaceName = extractPlaceName(parsedPlaceTypes.first().egrn.asRegExpList(), filteredEgrnAddress)
+            }
+            return ParsedPlace("", egrnPlaceName, parsedPlaceTypes.firstOrNull(), listOf(), flags)
         }
-
 
         //пытаемся поматчить места убирая из них инициалы, префикс "им" и имена
         private fun matchedWithoutInitials(EGRNStreetName: String, osmStreetName: String): Boolean {
@@ -185,33 +202,30 @@ data class ParsedPlace(
             return false
         }
 
-
+        //ищем совпадение с регеэкспом из настроек, перебирая все, в поисках нумерованного места
         private fun extractPlaceName(regExList: Collection<Regex>, address: String): String {
             if (address == "") {
                 return ""
             }
-
+            var placeName = ""
+            var placeNumber = ""
             for (pattern in regExList) {
                 if (pattern.containsMatchIn(address)) {
                     val lastMatch = pattern.findAll(address).last() //берем самое правое совпадение
-                    val placeName = lastMatch.groups["place"]!!.value
-                    //костыли, потому что эта функция обрабатывает и ОСМ имена и ЕГРН.
-                    //возможно стоит добавить в ОСМ паттерн тоже номер улицы и убрать это условие?
-                    //условие нужно для приведения нумерованных обьектов в одинаковое состояние?
+                    val matchedPlaceName = lastMatch.groups["place"]!!.value
+                    if (placeNumber.isBlank()) placeNumber = matchedPlaceName.trim()
                     if (pattern.toString().contains("placeNumber")) {
                         val numericPrefixMatch = lastMatch.groups["placeNumber"]
                         if (numericPrefixMatch != null) {
-                            val numericPrefix = numericPrefixMatch.value
-                            var filteredPlaceName = placeName.replace(numericPrefix, "").trim()
-                            filteredPlaceName = "$numericPrefix$filteredPlaceName"
-                            return filteredPlaceName
+                            val matchedNumericPrefix = numericPrefixMatch.value.trim()
+                            if (placeNumber.isBlank()) placeNumber = matchedNumericPrefix
+                            placeName = matchedPlaceName
                         }
                     }
-                    return placeName
                 }
             }
-
-            return ""
+            placeName = placeName.replace(placeNumber, "").trim()
+            return "$placeNumber $placeName".trim()
         }
 
         private fun emptyParsedPlace(flags: List<ParsingFlags> = listOf()): ParsedPlace {
@@ -220,7 +234,7 @@ data class ParsedPlace(
     }
 
     private fun getOsmObjectsByType(placeType: PlaceType): Set<OsmPrimitive> {
-
+        //TODO заменить на обращение к AddressRegistry
         val allLoadedPrimitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives()
         val foundPrimitives =
             allLoadedPrimitives.filter { p -> placeType.tags.all { entry -> entry.value.contains(p.get(entry.key)) } }

@@ -67,9 +67,8 @@ class EGRNPlaceNotFoundTest : Test(
 
         parsedPlaceToPrimitiveMap.forEach { (parsedName, primitives) ->
             RussiaAddressHelperPlugin.cache.markProcessed(primitives, EGRNTestCode.EGRN_NOT_MATCHED_OSM_PLACE)
-            val highlightPrimitives: List<OsmPrimitive> = primitives.mapNotNull { p ->
-                GeometryHelper.getBiggestPoly(p)
-            }
+            val highlightPrimitives: List<OsmPrimitive> = primitives.map { p ->
+                GeometryHelper.getOuterWays(p)}.flatten()
             errors.add(
                 TestError.builder(
                     this, Severity.ERROR,

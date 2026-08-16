@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 import org.openstreetmap.josm.JOSMFixture
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.Node
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.AddressRegistry
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.AddressToPlacesRegistry
 
 class AddressRegistryTest {
 
@@ -18,7 +18,7 @@ class AddressRegistryTest {
 
     @Test
     fun testAddressRegistry() {
-        val registry = AddressRegistry()
+        val registry = AddressToPlacesRegistry()
 
         val node = getNode("Сосновая улица", "1")
         assertTrue(registry.add(node))
@@ -31,13 +31,13 @@ class AddressRegistryTest {
         val node2 = getNode("Сосновая улица", "1")
         registry.add(node2)
         assertEquals(2, registry.getDoubles(node2).size)
-        assertEquals(2, registry.getDoubles("Сосновая улица",null, housenumber = "1").size)
+        assertEquals(1, registry.getDoubles(node2,).size)
         assertEquals(3, registry.getSize())
 
         val node3 = getNode("", "1", "Пухлово")
         assertTrue(registry.add(node3))
         assertTrue(registry.contains(node3))
-        assertFalse (registry.hasDoubles(node3))
+        assertFalse (registry.getDoubles(node3).isNotEmpty())
 
         registry.remove(node1)
         assertTrue(!registry.contains(node1))

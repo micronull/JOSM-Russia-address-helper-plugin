@@ -13,7 +13,7 @@ class TagSettingsReader {
                 "apartments" to listOf<String>("многоквартир"),
                 "school" to listOf<String>("школа", "школьное", "лицей", "гимназия"),
                 "house" to listOf<String>("жилой дом"),
-                "kindergarten" to listOf<String>("дошкольное", "ДДУ", "детский сад", "дошкольная"),
+                "kindergarten" to listOf<String>("дошкольн", "ДДУ", "детский сад"),
                 "commercial" to listOf<String>(
                     "торговый комплекс", "торговый центр",
                     "коммерческий комплекс"
@@ -21,6 +21,8 @@ class TagSettingsReader {
                 "retail" to listOf<String>("магазин"),
                 "garage" to listOf<String>("гараж"),
                 "chapel" to listOf<String>("часовня"),
+                "parking" to listOf<String>("паркинг","автостоянка","парковка"),
+                "dormitory" to listOf<String>("общежити"),
             )
         )
 
@@ -35,5 +37,17 @@ class TagSettingsReader {
          * Enables overwrite for housenumber, street and place even if they already exist
          */
         val OVERWRITE_ADDRESS = BooleanProperty("dl.russiaaddresshelper.tag.force_overwrite_address", true)
+
+        /**
+         * @since 0.9.7.3
+         * Enables calculation of building:levels = floors - underground floors.
+         */
+        val CALCULATE_LEVELS = BooleanProperty("dl.russiaaddresshelper.tag.force_overwrite_address", false)
+
+        /**
+         * @since 0.9.7.5
+         * Enables parsing of cultural_heritage tag
+         */
+        val PARSE_CULTURAL_HERITAGE = BooleanProperty("dl.russiaaddresshelper.tag.parse_cultural_heritage", true)
     }
 }

@@ -81,7 +81,8 @@ enum class ParsingFlags {
     HOUSENUMBER_CANNOT_BE_PARSED, //номер не распознан, его скорее всего нет совсем
     HOUSENUMBER_CANNOT_BE_PARSED_BUT_CONTAINS_NUMBERS, //не удалось распознать номер дома, но можно попробовать руками
     HOUSENUMBER_TOO_BIG, //регулярка распознала цифры, но их слишком много для номера дома
-    STOP_LIST_WORDS; //В адресе из егрн присутствуют стоп-слова
+    STOP_LIST_WORDS, //В адресе из егрн присутствуют стоп-слова
+    MORE_THAN_ONE_PLACE_MATCH; //совпадение больше чем с 1 регэкспом для места
 
     fun trueFor (address: ParsedAddress) : Boolean {
         return address.flags.contains(this)

@@ -53,6 +53,10 @@ class BuildingTagsTable(filterSettings: Map<String, List<String>>) :
         (this.model as BuildingSettingsTableModel).removeRow(selectedRow)
     }
 
+    fun mergeData (values:Map<String, List<String>>) {
+        (this.model as BuildingSettingsTableModel).mergeData(values)
+    }
+
     fun fillData(filterSettings: Map<String, List<String>>) {
         (this.model as BuildingSettingsTableModel).fillData(filterSettings)
     }

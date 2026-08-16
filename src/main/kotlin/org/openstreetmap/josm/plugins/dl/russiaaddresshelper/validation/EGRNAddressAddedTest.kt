@@ -14,13 +14,12 @@ import org.openstreetmap.josm.gui.ExtendedDialog
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel
-import org.openstreetmap.josm.gui.widgets.JosmTextField
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation.gui.AddressEditPanel
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagLayout
-import javax.swing.JLabel
 import javax.swing.JOptionPane
 import javax.swing.JPanel
 
@@ -29,9 +28,6 @@ class EGRNAddressAddedTest : Test(
     I18n.tr("EGRN address added to OSM"),
     I18n.tr("EGRN information for address parsed and added")
 ) {
-    private val osmStreetNameEditBox = JosmTextField("")
-    private val osmPlaceNameEditBox = JosmTextField("")
-    private val osmNumberEditBox = JosmTextField("")
 
     override fun visit(w: Way) {
         visitForPrimitive(w)
@@ -53,7 +49,7 @@ class EGRNAddressAddedTest : Test(
                         this, Severity.WARNING,
                         EGRNTestCode.EGRN_VALID_ADDRESS_ADDED.code
                     )
-                        .message(I18n.tr( EGRNTestCode.EGRN_VALID_ADDRESS_ADDED.message), preferredAddress.egrnAddress)
+                        .message(I18n.tr(EGRNTestCode.EGRN_VALID_ADDRESS_ADDED.message), preferredAddress.egrnAddress)
                         .primitives(p)
                         .build()
                 )
@@ -71,39 +67,19 @@ class EGRNAddressAddedTest : Test(
         label1.setMaxWidth(800)
         p.add(label1, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
         val infoLabel = JMultilineLabel(
-            "Запрос в ЕГРН вернул адрес" +
-                    "<br>${preferredAddress.egrnAddress}, <br><b> тип: ${if (preferredAddress.isBuildingAddress()) "здание" else "участок"}</b>" +
-                    "<br> который был распознан и добавлен в ОСМ.<br>" +
+            "Запрос в ЕГРН вернул адрес, который был распознан и добавлен в ОСМ.<br>" +
                     "Если адрес был распознан некорректно, вы можете попытаться разобрать адрес вручную, или удалить некорректные тэги.<br>" +
                     "<b>Не вносите в ОСМ данные основанные на интерполяции!" +
                     "<br>Не вносите в ОСМ данные, взятые из неразрешенных источников " +
                     "<br>(другие карты, панорамы, сайты, которые ЯВНО не дали разрешение на использование)</b>" +
-                    "<br><br>Распознанный адрес:",
-        false,
-        true)
+                    "<br>",
+            false,
+            true
+        )
         infoLabel.setMaxWidth(800)
         p.add(infoLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
-
-        osmStreetNameEditBox.text = ""
-        osmPlaceNameEditBox.text = ""
-        osmNumberEditBox.text = ""
-
-        if (StringUtils.isNotBlank(preferredAddress.parsedStreet.name)) {
-            osmStreetNameEditBox.text = preferredAddress.parsedStreet.name
-        }
-        if (StringUtils.isNotBlank(preferredAddress.parsedPlace.name)) {
-            osmPlaceNameEditBox.text = preferredAddress.parsedPlace.name
-        }
-        if (StringUtils.isNotBlank(preferredAddress.parsedHouseNumber.houseNumber)) {
-            osmNumberEditBox.text = preferredAddress.parsedHouseNumber.houseNumber
-        }
-
-        p.add(JLabel("addr:street"), GBC.std())
-        p.add(osmStreetNameEditBox, GBC.eop().fill(GBC.HORIZONTAL))
-        p.add(JLabel("addr:place"), GBC.std())
-        p.add(osmPlaceNameEditBox, GBC.eop().fill(GBC.HORIZONTAL))
-        p.add(JLabel("addr:housenumber"), GBC.std())
-        p.add(osmNumberEditBox, GBC.eop().fill(GBC.HORIZONTAL))
+        val addressEditPanel = AddressEditPanel(primitive, listOf(preferredAddress))
+        p.add(addressEditPanel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
 
         val buttonTexts = arrayOf(
             I18n.tr("Редактировать адрес"),
@@ -125,9 +101,9 @@ class EGRNAddressAddedTest : Test(
         }
         val cmds: MutableList<Command> = mutableListOf()
         if (answer == 1) {
-            val streetName = osmStreetNameEditBox.text
-            val placeName = osmPlaceNameEditBox.text
-            val number = osmNumberEditBox.text
+            val streetName = addressEditPanel.getStreetName()
+            val placeName = addressEditPanel.getPlaceName()
+            val number = addressEditPanel.getHouseNumber()
 
             if (StringUtils.isNotBlank(number) && StringUtils.isNotBlank(streetName) || StringUtils.isNotBlank(placeName)) {
                 val tags: MutableMap<String, String> = mutableMapOf(
@@ -135,7 +111,7 @@ class EGRNAddressAddedTest : Test(
                     "source:addr" to "ЕГРН",
                     "note" to "адрес из ЕГРН разобран вручную"
                 )
-                tags.plusAssign(splitLongValue("addr:RU:egrn",preferredAddress.egrnAddress))
+                tags.plusAssign(splitLongValue("addr:RU:egrn", preferredAddress.egrnAddress))
                 if (StringUtils.isNotBlank(streetName)) {
                     tags["addr:street"] = streetName
                 } else {
@@ -151,8 +127,10 @@ class EGRNAddressAddedTest : Test(
         }
 
         if (answer == 2) {
-            val tagsToRemove = mutableMapOf<String, String?>("addr:place" to null,"addr:street" to null,
-                "addr:housenumber" to null ,"source:addr" to null, "addr:RU:egrn" to null)
+            val tagsToRemove = mutableMapOf<String, String?>(
+                "addr:place" to null, "addr:street" to null,
+                "addr:housenumber" to null, "source:addr" to null, "addr:RU:egrn" to null
+            )
             cmds.add(ChangePropertyCommand(listOf(primitive), tagsToRemove))
             RussiaAddressHelperPlugin.cache.ignoreAllValidators(primitive)
         }

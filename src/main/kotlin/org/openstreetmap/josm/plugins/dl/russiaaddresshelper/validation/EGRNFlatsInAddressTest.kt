@@ -54,7 +54,7 @@ class EGRNFlatsInAddressTest : Test(
                 RussiaAddressHelperPlugin.cache.markProcessed(p, EGRNTestCode.EGRN_ADDRESS_HAS_FLATS)
                 val inlineAddress: String = validAddressesWithFlats.first().getOsmAddress().getInlineAddress(",", true)!!
                 val flats : String = validAddressesWithFlats.map { it.getOsmAddress().flatnumber }.sorted().joinToString(", ")
-                val highlightPrimitive = GeometryHelper.getBiggestPoly(p)
+                val highlightPrimitive = GeometryHelper.getOuterWays(p)
                 errors.add(
                     TestError.builder(
                         this, Severity.WARNING,

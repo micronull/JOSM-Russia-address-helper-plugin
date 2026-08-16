@@ -122,7 +122,10 @@ msgid "EGRN terms"
 msgstr "Подстроки ЕГРН"
 
 msgid "Buildings ext info"
-msgstr "Типы зданий"
+msgstr "Тэгирование зданий"
+
+msgid "Enable levels calculation"
+msgstr "Вычислять этажность зданий"
 
 msgid "Validation settings"
 msgstr "Валидация"

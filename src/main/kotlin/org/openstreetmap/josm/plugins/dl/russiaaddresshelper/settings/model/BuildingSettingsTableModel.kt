@@ -20,6 +20,24 @@ class BuildingSettingsTableModel(tagSettings: Map<String, List<String>>) : Abstr
         super.fireTableDataChanged()
     }
 
+    fun mergeData(newData: Map<String, List<String>>) {
+
+        val currentData = this.getData().toMutableMap()
+        newData.forEach{ (key, values) ->
+            if (currentData.containsKey(key) && currentData[key] != null ) {
+                val currentValues = currentData[key]!!.toMutableSet()
+                currentValues.addAll(values)
+                currentData[key] = currentValues.toList()
+            } else {
+                currentData.plusAssign(Pair(key, values))
+            }
+        }
+        this.values =
+            ArrayList(currentData.map { (key, values) -> Pair(key, values.joinToString(",")) }
+                .toList())
+        super.fireTableDataChanged()
+    }
+
     fun getData(): Map<String, List<String>> {
         return values.filter { it.first.isNotBlank() && it.second.isNotBlank() }.associate { data ->
             data.first to if (data.second.contains(",")) data.second.split(",") else listOf(data.second)
