@@ -18,6 +18,7 @@ class TagConflictSimpleDialog(
     p: OsmPrimitive,
     conflictedTags: Map<String, String>,
     egrnAddress: String?,
+    rawEgrnData: Map<String,String>,
     vararg buttonTexts: String?
 ) :
     ExtendedDialog(parent, title, *buttonTexts) {
@@ -43,7 +44,14 @@ class TagConflictSimpleDialog(
             true
         )
         infoLabel.setMaxWidth(800)
-        contentPanel.add(infoLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL).insets(0, 10, 0, 10))
+        contentPanel.add(infoLabel, GBC.eol().anchor(GBC.CENTER).fill(GBC.HORIZONTAL).insets(0, 10, 0, 10))
+
+        val egrnTagsLabel = JMultilineLabel("<b>Сырые данные, полученные из ЕГРН:</b><br>" + rawEgrnData.map{(k,v) ->"$k = $v"}.joinToString ("<br>"),
+            false,
+            true
+        )
+        contentPanel.add(egrnTagsLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL).insets(0, 0, 0, 10))
+
         val addressLabel = JLabel("Адрес из ЕГРН: $egrnAddress")
         contentPanel.add(addressLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL).insets(0, 10, 0, 10))
         val tablePanel = JPanel(GridBagLayout())

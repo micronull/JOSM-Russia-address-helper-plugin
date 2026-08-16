@@ -2,7 +2,9 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings
 
 import org.openstreetmap.josm.gui.ExtendedDialog
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.MassActionSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader.Companion.EGRN_BUILDING_TYPES_SETTINGS
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.table.BuildingTagsTable
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
@@ -16,11 +18,14 @@ import javax.swing.*
 
 class BuildingTagsSettingsPanel : JPanel(GridBagLayout()) {
 
-    private val buildingTagsTable = BuildingTagsTable(TagSettingsReader.EGRN_BUILDING_TYPES_SETTINGS.get())
+    private val buildingTagsTable = BuildingTagsTable(EGRN_BUILDING_TYPES_SETTINGS.get())
     private val upButton = JButton(ImageProvider.get("dialogs/up", ImageSizes.LARGEICON))
     private val downButton = JButton(ImageProvider.get("dialogs/down", ImageSizes.LARGEICON))
     private val removeButton = JButton(ImageProvider.get("dialogs/delete", ImageSizes.LARGEICON))
     private val resetButton = JButton(ImageProvider.get("dialogs/refresh", ImageSizes.LARGEICON))
+    private val updateFromDefaultsButton = JButton(ImageProvider.get("dialogs/conflict", ImageSizes.LARGEICON))
+    private val enableExtAttributes = JCheckBox(I18n.tr("Add extended attributes based on EGRN data"))
+    private val enableOldLevelsCalculation = JCheckBox(I18n.tr("Enable levels calculation"))
 
     init {
         val panel: JPanel = this
@@ -49,7 +54,7 @@ class BuildingTagsSettingsPanel : JPanel(GridBagLayout()) {
         buildingTagsTable.columnModel.getColumn(0).preferredWidth = 100
         buildingTagsTable.columnModel.getColumn(1).preferredWidth = 400
         val tablePanel = JPanel(GridBagLayout())
-        tablePanel.add(JScrollPane(buildingTagsTable), GBC.std().anchor(GBC.NORTH).insets(10, 0, 10, 0))
+        tablePanel.add(JScrollPane(buildingTagsTable), GBC.std().anchor(GBC.NORTHWEST).insets(10, 0, 10, 0))
 
         upButton.addActionListener {
             run {
@@ -68,9 +73,15 @@ class BuildingTagsSettingsPanel : JPanel(GridBagLayout()) {
             }
         }
 
+        updateFromDefaultsButton.addActionListener {
+            run {
+                buildingTagsTable.mergeData(EGRN_BUILDING_TYPES_SETTINGS.defaultValue)
+            }
+        }
+
         val buttonPane = JPanel(GridBagLayout())
         buttonPane.add(upButton, GBC.eol())
-
+        buttonPane.add(updateFromDefaultsButton, GBC.eol())
         buttonPane.add(downButton, GBC.eol().insets(0, 0, 0, 50))
         buttonPane.add(removeButton, GBC.eol())
         buttonPane.add(resetButton, GBC.eol())
@@ -79,10 +90,12 @@ class BuildingTagsSettingsPanel : JPanel(GridBagLayout()) {
 
         upButton.toolTipText = I18n.tr("Move up")
         downButton.toolTipText = I18n.tr("Move down")
+        updateFromDefaultsButton.toolTipText = I18n.tr("Update from defaults")
         removeButton.toolTipText = I18n.tr("Remove row")
         resetButton.toolTipText = I18n.tr("Reset to defaults")
 
-        panel.add(tablePanel, GBC.std().anchor(GBC.NORTH))
+
+        panel.add(tablePanel, GBC.eol().anchor(GBC.NORTHWEST))
 
         val buttonTexts = arrayOf(
             I18n.tr("Yes"),
@@ -101,16 +114,26 @@ class BuildingTagsSettingsPanel : JPanel(GridBagLayout()) {
             run {
                 dialog.showDialog()
                 val answer = dialog.value
-                if (answer == 1) buildingTagsTable.fillData(TagSettingsReader.EGRN_BUILDING_TYPES_SETTINGS.defaultValue)
+                if (answer == 1) buildingTagsTable.fillData(EGRN_BUILDING_TYPES_SETTINGS.defaultValue)
             }
         }
+
+        enableExtAttributes.toolTipText = "Проставлять тэги building, building:levels, start_date, если их нет"
+        enableExtAttributes.isSelected = MassActionSettingsReader.EGRN_MASS_ACTION_USE_EXT_ATTRIBUTES.get()
+        panel.add(enableExtAttributes, GBC.eol().anchor(GBC.NORTHWEST).insets(0,20,0,0))
+
+        enableOldLevelsCalculation.toolTipText = "Вычислять levels, как раньше (floors - underground_floors). Если выключено, levels = floors"
+        enableOldLevelsCalculation.isSelected = TagSettingsReader.CALCULATE_LEVELS.get()
+        panel.add(enableOldLevelsCalculation, GBC.eol().anchor(GBC.NORTHWEST).insets(0,0,0,0))
     }
 
     /**
      * Saves the current values to the preferences
      */
     fun saveToPreferences() {
-        TagSettingsReader.EGRN_BUILDING_TYPES_SETTINGS.put(buildingTagsTable.getData())
+        EGRN_BUILDING_TYPES_SETTINGS.put(buildingTagsTable.getData())
+        MassActionSettingsReader.EGRN_MASS_ACTION_USE_EXT_ATTRIBUTES.put(enableExtAttributes.isSelected)
+        TagSettingsReader.CALCULATE_LEVELS.put(enableOldLevelsCalculation.isSelected)
     }
 
 }

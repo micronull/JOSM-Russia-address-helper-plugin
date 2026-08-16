@@ -13,8 +13,10 @@ import org.openstreetmap.josm.gui.ExtendedDialog
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin.Companion.findDoubledAddressesWithCache
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsedAddressInfo
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.ValidationSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation.correction.AddressCorrection
@@ -53,7 +55,7 @@ class EGRNMultipleValidAddressTest : Test(
                 RussiaAddressHelperPlugin.cache.markProcessed(p, EGRNTestCode.EGRN_HAS_MULTIPLE_VALID_ADDRESSES)
                 val firstAddress = addressInfo.getPreferredAddress()!!
                 val secondAddress = addressInfo.getValidAddresses().first { it != firstAddress }
-                val highlightPrimitive = GeometryHelper.getBiggestPoly(p)
+                val highlightPrimitive = GeometryHelper.getOuterWays(p)
                 errors.add(
                     TestError.builder(
                         this, Severity.ERROR,
@@ -81,8 +83,13 @@ class EGRNMultipleValidAddressTest : Test(
             val addressInfo = RussiaAddressHelperPlugin.cache.get(primitive)?.addressInfo
             affectedAddresses.addAll(addressInfo!!.getValidAddresses())
         }
+        var doubledAddresses : Set<ParsedAddress> = mutableSetOf()
+        if (ValidationSettingsReader.ENABLE_NEW_DOUBLES_CHECK.get()) {
+             doubledAddresses = findDoubledAddressesWithCache(affectedAddresses, primitive)
+        } else {
+             doubledAddresses = RussiaAddressHelperPlugin.findDoubledAddresses(affectedAddresses)
+        }
 
-        val doubledAddresses = RussiaAddressHelperPlugin.findDoubledAddresses(affectedAddresses)
         val corrections = affectedAddresses.map { AddressCorrection(it, doubledAddresses.contains(it)) }.toMutableList()
         var preferredIndex = corrections.indexOfFirst { it.address.isBuildingAddress() }
         if (preferredIndex == -1) {

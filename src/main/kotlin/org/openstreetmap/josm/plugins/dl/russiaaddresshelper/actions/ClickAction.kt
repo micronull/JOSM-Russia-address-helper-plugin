@@ -11,14 +11,18 @@ import org.openstreetmap.josm.command.Command
 import org.openstreetmap.josm.command.SequenceCommand
 import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.coor.EastNorth
-import org.openstreetmap.josm.data.osm.*
+import org.openstreetmap.josm.data.osm.Node
+import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.util.KeyPressReleaseListener
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.*
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.GetFeatureInfoResponse
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NSPDLayer
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NSPDResponse
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.ClickActionSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.LayerFilterSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.MassActionSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper.Companion.generateBuildingMultiPolygon
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper
@@ -26,13 +30,15 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Com
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.getMergedTags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValues
-import org.openstreetmap.josm.tools.*
+import org.openstreetmap.josm.tools.I18n
+import org.openstreetmap.josm.tools.ImageProvider
+import org.openstreetmap.josm.tools.Logging
+import org.openstreetmap.josm.tools.Shortcut
 import java.awt.Cursor
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
 import javax.swing.JOptionPane
 import javax.swing.SwingUtilities
-import kotlin.Pair
 
 class ClickAction : MapMode(
     ACTION_NAME, ICON_NAME, null, Shortcut.registerShortcut(
@@ -137,8 +143,10 @@ class ClickAction : MapMode(
                                 if (feature.geometry != null) {
                                     if (requestLayer == NSPDLayer.BUILDING || requestLayer == NSPDLayer.UNFINISHED || requestLayer == NSPDLayer.CONSTRUCTS) {
                                         if (!isBuildingGeometryImported) {
-                                            val buildTags: MutableMap<String, String> =
-                                                TagHelper.getBuildingTags(feature, requestLayer)
+                                            val buildTags: MutableMap<String, String> = mutableMapOf()
+                                            if (MassActionSettingsReader.EGRN_MASS_ACTION_USE_EXT_ATTRIBUTES.get()) {
+                                                buildTags.plusAssign(TagHelper.getBuildingTags(feature, requestLayer))
+                                            }
                                             val generatedBuilding =
                                                 generateBuildingMultiPolygon(
                                                     feature.geometry,
@@ -250,7 +258,7 @@ class ClickAction : MapMode(
             if (buildingsToCheck.isNotEmpty() && parsedAddressInfo.canAssignAddress()) {
                 val addressTags = mutableMapOf<String, String>()
                 val preferredAddress = parsedAddressInfo.getPreferredAddress()!!
-                addressTags.plusAssign(splitLongValue("addr:RU:egrn",preferredAddress.egrnAddress))
+                addressTags.plusAssign(splitLongValue("addr:RU:egrn", preferredAddress.egrnAddress))
                 addressTags.putAll(preferredAddress.getOsmAddress().getBaseAddressTagsWithSource())
                 cmds.add(
                     ChangePropertyCommand(

@@ -10,11 +10,11 @@ data class ParsedAddressPart(
     val type: String,
     val value: String,
     val level: AddressPartLevel,
-    val quality : Integer,
+    val quality : Int,
     val pattern: Regex,
     val boundary: IntRange,
 
-) {
+    ) {
     companion object
 
 /*    fun getAllRegexes(): List<Regex> {

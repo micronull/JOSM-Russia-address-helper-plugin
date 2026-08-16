@@ -14,7 +14,7 @@ class EGRNCleanPluginCache : UploadHook {
         val removedCount = RussiaAddressHelperPlugin.cache.size()
         if (CommonSettingsReader.EXPORT_PARSED_DATA_TO_CSV.get()) {
             val filename = FileHelper.getCurrentExportFilename()
-            RussiaAddressHelperPlugin.cache.exportData(filename)
+            FileHelper.exportData(filename, RussiaAddressHelperPlugin.cache.responses.values)
         }
         RussiaAddressHelperPlugin.cache.emptyCache()
         val editLayer = MainApplication.getLayerManager().editLayer

@@ -78,6 +78,13 @@ class EGRNConflictedDataTest : Test(
 
     override fun fixError(testError: TestError): Command? {
         val primitive = testError.primitives.iterator().next()
+        val egrnResult = RussiaAddressHelperPlugin.cache.get(primitive)
+        var buildingFeature = egrnResult?.data?.responses?.get(NSPDLayer.BUILDING)?.features?.firstOrNull()
+        if (buildingFeature == null) {
+            buildingFeature = egrnResult?.data?.responses?.get(NSPDLayer.UNFINISHED)?.features?.firstOrNull()
+        }
+
+        val rawEgrnTags = buildingFeature?.getTags("egrn:",setOf("cad_num","version")) ?: mapOf()
 
         val buttonTexts = arrayOf(
             I18n.tr("Add merged data"),
@@ -90,6 +97,7 @@ class EGRNConflictedDataTest : Test(
             primitive,
             conflictedTags = getConflictedTags(RussiaAddressHelperPlugin.cache.get(primitive)!!, primitive),
             egrnAddress = RussiaAddressHelperPlugin.cache.get(primitive)!!.addressInfo?.getPreferredAddress()?.egrnAddress,
+            rawEgrnTags,
             *buttonTexts
         )
 

@@ -7,15 +7,16 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NSPDResponse
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader.Companion.EGRN_BUILDING_TYPES_SETTINGS
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader.Companion.PARSE_CULTURAL_HERITAGE
+import org.openstreetmap.josm.tools.Logging
 
 class TagHelper {
     companion object {
-
         fun getBuildingTags(feature: NSPDFeature?, layer: NSPDLayer): MutableMap<String, String> {
             val buildTags: MutableMap<String, String> = mutableMapOf()
             if (feature?.properties?.options != null) {
                 val options: NSPDOptions = feature.properties.options
-                if (layer == NSPDLayer.BUILDING) {
+                if (layer == NSPDLayer.BUILDING || layer == NSPDLayer.CONSTRUCTS) {
                     buildTags["building"] = getPossibleBuildingValue(feature)
                 } else { //UNFINISHED
                     buildTags["building"] = "construction"
@@ -23,19 +24,105 @@ class TagHelper {
                 }
                 if (!options.yearBuilt.isNullOrBlank()) {
                     buildTags["start_date"] = options.yearBuilt
+                } else if (!options.constructYearBuilt.isNullOrBlank()) {
+                    buildTags["start_date"] = options.constructYearBuilt
                 }
                 if (!options.yearCommissioning.isNullOrBlank()) {
                     buildTags["start_date"] = options.yearCommissioning
+                } else if (!options.constructYearCommissioning.isNullOrBlank()) {
+                    buildTags["start_date"] = options.constructYearCommissioning
                 }
+
+                var resultUndergroundFloors: Int? = null
+                if (!options.undergroundFloors.isNullOrBlank()) {
+                    resultUndergroundFloors = options.undergroundFloors.toIntOrNull()
+                } else if (!options.constructUndergroundFloors.isNullOrBlank()) {
+                    resultUndergroundFloors = options.constructUndergroundFloors.toIntOrNull()
+                }
+                var resultFloors: Int? = null
                 if (!options.floors.isNullOrBlank()) {
-                    val undergroundLevels: Int = options.undergroundFloors?.toIntOrNull() ?: 0
-                    val levels: Int = options.floors.toIntOrNull() ?: 0
-                    if (levels > 0) {
-                        buildTags["building:levels"] = (levels - undergroundLevels).toString()
+                    resultFloors = options.floors.toIntOrNull()
+                } else if (!options.constructFloors.isNullOrBlank()) {
+                    resultFloors = options.constructFloors.toIntOrNull()
+                }
+
+                if (resultFloors != null || resultUndergroundFloors != null) {
+                    if (resultUndergroundFloors == null || resultUndergroundFloors == 0) {
+                        buildTags["building:levels"] = resultFloors.toString()
+                    } else {
+                        var levels: Int?
+                        if (TagSettingsReader.CALCULATE_LEVELS.get()) {
+                            //вычисление этажей, из предположения что ЕГРН в поле floors верно указывает общую этажность (надземные + подземные). По Москве это точно не так!
+                            levels = (resultFloors ?: 0) - resultUndergroundFloors
+                            if (levels < 0) {
+                                Logging.warn("EGRN PLUGIN calculated levels incorrect: total $resultFloors, underground $resultUndergroundFloors, levels: $levels")
+                                levels = null
+                            }
+                        } else {
+                            levels = resultFloors
+                        }
+                        buildTags["fixme"] = "resurvey building:levels"
+                        buildTags["building:underground:levels"] = resultUndergroundFloors.toString()
+                        if (levels != null) {
+                            buildTags["building:levels"] = levels.toString()
+                        }
+
                     }
                 }
             }
+            buildTags.putAll(getCulturalHeritageTags(feature))
+
             return buildTags
+        }
+
+        private fun getCulturalHeritageTags(feature: NSPDFeature?): MutableMap<String, String> {
+            val result: MutableMap<String, String> = mutableMapOf()
+            var prefix = ""
+            if (!PARSE_CULTURAL_HERITAGE.get()) return mutableMapOf()
+            val culturalHeritageValue = feature?.properties?.options?.culturalHeritageVal
+            if (culturalHeritageValue.isNullOrBlank()) return mutableMapOf()
+            Logging.info("EGRN_Plugin: recieved cultural_heritage_val $culturalHeritageValue")
+            result.putAll(splitLongValues(mutableMapOf("autoremove:egrn_heritage" to culturalHeritageValue)))
+            val heritageValues: List<String> = culturalHeritageValue.split(",").map { it.trim() }
+            val egrokn = heritageValues[0]
+            if (egrokn.length == 10 && egrokn.all { it.isDigit() }) {
+                Logging.warn("EGRN PLUGIN Old type EGROKN index: $egrokn")
+                return result
+            }
+
+            val parsedEgroknData = EgroknParser.parseOrNull(egrokn) ?: return result
+
+            if (heritageValues.size > 1 && !parsedEgroknData.objectTypeName.equals(heritageValues[1], true)) {
+                Logging.warn("EGRN PLUGIN EGROKN objectType != EGRN objectType, ${parsedEgroknData.objectTypeName}, ${heritageValues[1]}")
+            }
+            result["autoremove:object_type"] = parsedEgroknData.objectTypeName
+
+            if (parsedEgroknData.objectType == "1") {
+                result["heritage"] = "building"
+
+            } else {
+                Logging.warn("EGRN PLUGIN Heritage cant be auto-mapped: ${parsedEgroknData.objectTypeName}")
+                prefix = "autoremove:"
+                result[prefix + "heritage"] = "yes"
+            }
+
+            result[prefix + "ref:egrokn"] = egrokn
+            result[prefix + "heritage"] = parsedEgroknData.getOsmHeritageCategory()
+            result["autoremove:category"] = parsedEgroknData.categoryName
+
+            val heritageName :String
+            if (heritageValues.size >= 3) {
+                if (heritageValues.size == 4) {
+                    result["autoremove:start_date"] = heritageValues[3]
+                     heritageName = heritageValues[2]
+                } else {
+                    heritageName = heritageValues.drop(2).joinToString(",")
+                }
+                result[prefix + "name:heritage"] = heritageName
+                result[prefix + "historic"] = getPossibleHistoricValue(heritageName)
+            }
+
+            return result
         }
 
         private fun getPossibleBuildingValue(feature: NSPDFeature): String {
@@ -43,11 +130,25 @@ class TagHelper {
             val options = feature.properties?.options
             rules.forEach { (key, value) ->
                 if (value.any {
-                        (feature.properties?.descr?.contains(it, true) == true)
-                                || options?.purpose?.contains(it, true) == true
+                        (feature.properties?.descr?.contains(it, true) == true) ||
+                                (options?.purpose?.contains(it, true) == true) ||
+                                (options?.buildingName?.contains(it, true) == true) ||
+                                (options?.constructName?.contains(it, true) == true) ||
+                                (options?.constructPurpose?.contains(it, true) == true)
+
                     }) return key
             }
             return "yes"
+        }
+
+        private fun getPossibleHistoricValue(heritage: String): String {
+            val rules = EGRN_BUILDING_TYPES_SETTINGS.get()
+            rules.forEach { (key, value) ->
+                if (value.any {
+                        heritage.contains(it, true)
+                    }) return key
+            }
+            return "building"
         }
 
         fun overwriteValue(key: String, oldvalue: String, value: String): Boolean {
@@ -98,7 +199,12 @@ class TagHelper {
                     placeTags.plusAssign(splitLongValue("autoremove:ownershipType", options.ownershipType))
                 }
                 if (!options.permittedUseEstablishedByDocument.isNullOrBlank()) {
-                    placeTags.plusAssign(splitLongValue("autoremove:permittedUseByDoc", options.permittedUseEstablishedByDocument))
+                    placeTags.plusAssign(
+                        splitLongValue(
+                            "autoremove:permittedUseByDoc",
+                            options.permittedUseEstablishedByDocument
+                        )
+                    )
                 }
                 if (!options.permittedUseName.isNullOrBlank()) {
                     placeTags.plusAssign(splitLongValue("autoremove:permittedUseName", options.permittedUseName))
@@ -118,7 +224,7 @@ class TagHelper {
                 } else {
                     getDebugAddressTags(result, address)
                 }
-                result.plusAssign(splitLongValue("addr:RU:egrn",address.egrnAddress))
+                result.plusAssign(splitLongValue("addr:RU:egrn", address.egrnAddress))
             }
             return result
         }
@@ -139,37 +245,42 @@ class TagHelper {
             val result: MutableMap<String, String> = mutableMapOf()
             if (address != null) {
                 getDebugAddressTags(result, address)
-                result.plusAssign(splitLongValue("addr:RU:egrn",address.egrnAddress))
+                result.plusAssign(splitLongValue("addr:RU:egrn", address.egrnAddress))
             }
             return result
         }
 
-       fun collectAllAddressTags(addresses: List<ParsedAddress>): MutableMap<String,String> {
+        fun collectAllAddressTags(addresses: List<ParsedAddress>): MutableMap<String, String> {
             val nodeTags: MutableMap<Pair<NSPDLayer, Int>, MutableMap<String, String>> = mutableMapOf()
-            val indexMap : MutableMap <NSPDLayer, Int> = mutableMapOf()
+            val indexMap: MutableMap<NSPDLayer, Int> = mutableMapOf()
 
-            addresses.forEach{ addr ->
+            addresses.forEach { addr ->
                 if (addr.layer == null) return@forEach
-                val index = indexMap.getOrDefault(addr.layer,0)
+                val index = indexMap.getOrDefault(addr.layer, 0)
                 nodeTags[Pair(addr.layer!!, index)] = getAddressTagsForMassAction(addr)
                 indexMap[addr.layer!!] = index + 1
             }
             return getMergedTags(nodeTags)
         }
 
-        fun collectAllEgrnTags (nspdResponse: NSPDResponse) : MutableMap<String, String> {
+        fun collectAllEgrnTags(nspdResponse: NSPDResponse): MutableMap<String, String> {
             val nodeTags: MutableMap<Pair<NSPDLayer, Int>, MutableMap<String, String>> = mutableMapOf()
-            nspdResponse.responses.forEach {(layer, resp)->
-                 if (resp.features.isNotEmpty()) {
-                     resp.features.forEachIndexed { localIndex, feature ->
-                     val tags  = splitLongValues(feature.getTags("autoremove:egrn:"))
-                         if (feature.properties?.options?.readableAddress != null) {
-                            tags.plusAssign(splitLongValue("addr:RU:egrn", feature.properties.options.readableAddress))
-                         }
-                         nodeTags[Pair(layer, localIndex)] = tags
+            nspdResponse.responses.forEach { (layer, resp) ->
+                if (resp.features.isNotEmpty()) {
+                    resp.features.forEachIndexed { localIndex, feature ->
+                        val tags = splitLongValues(feature.getTags("autoremove:egrn:"))
+                        if (feature.properties?.options?.getAnyReadableAddress() != null) {
+                            tags.plusAssign(
+                                splitLongValue(
+                                    "addr:RU:egrn",
+                                    feature.properties.options.getAnyReadableAddress()!!
+                                )
+                            )
+                        }
+                        nodeTags[Pair(layer, localIndex)] = tags
 
-                     }
-                 }
+                    }
+                }
             }
             return getMergedTags(nodeTags)
         }
@@ -209,20 +320,20 @@ class TagHelper {
             return result
         }
 
-        fun splitLongValues(data: MutableMap<String,String>): MutableMap<String,String> {
-            val result :MutableMap<String,String> = mutableMapOf()
-            data.forEach { (tag, value) -> result.plusAssign(splitLongValue(tag,value))}
+        fun splitLongValues(data: MutableMap<String, String>): MutableMap<String, String> {
+            val result: MutableMap<String, String> = mutableMapOf()
+            data.forEach { (tag, value) -> result.plusAssign(splitLongValue(tag, value)) }
             return result
         }
 
-        fun splitLongValue (tag: String, value: String, maxChunkSize: Int = 255) :MutableMap<String,String> {
+        fun splitLongValue(tag: String, value: String, maxChunkSize: Int = 255): MutableMap<String, String> {
             if (value.length <= maxChunkSize) {
                 return mutableMapOf(Pair(tag, value))
             }
-            val parts :MutableMap<String,String> = mutableMapOf()
+            val parts: MutableMap<String, String> = mutableMapOf()
             var partIndex = 1
             var start = 0
-            while(start < value.length) {
+            while (start < value.length) {
                 var end = minOf(start + maxChunkSize, value.length)
                 if (end < value.length) {
                     val lastComma = value.lastIndexOf(',', end) + 1

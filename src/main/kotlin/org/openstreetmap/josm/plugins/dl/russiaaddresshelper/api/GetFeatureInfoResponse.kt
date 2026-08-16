@@ -11,7 +11,7 @@ data class GetFeatureInfoResponse(val type: String?, val features: List<NSPDFeat
         val addresses: MutableList<ParsedAddress> = mutableListOf()
         val existingAddresses: MutableList<String> = mutableListOf()
         this.features.forEach { res ->
-            val egrnAddress = res.properties?.options?.readableAddress?: return@forEach
+            val egrnAddress = res.properties?.options?.getAnyReadableAddress()?: return@forEach
             val parsedAddress = addressParser.parse(egrnAddress, requestCoordinate, OsmDataManager.getInstance().editDataSet)
 
             val key = parsedAddress.getOsmAddress().getInlineAddress()

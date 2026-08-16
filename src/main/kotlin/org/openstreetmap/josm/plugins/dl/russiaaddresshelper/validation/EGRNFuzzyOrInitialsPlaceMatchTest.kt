@@ -41,6 +41,7 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
     fun visitForPrimitive(p: OsmPrimitive) {
         if (!p.isUsable) return
         if (parsedPlaceToPrimitiveMap.isNotEmpty()) return
+        //составляем мапу из всех place с которыми было нечеткое или инициальное совпадение при парсинге адресов
         RussiaAddressHelperPlugin.cache.responses.forEach { entry ->
             val primitive = entry.key
             val addressInfo = entry.value.addressInfo
@@ -56,18 +57,18 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
                 } else {
                     return@forEach
                 }
-                val parsedStreetName = address.parsedPlace.extractedType?.name + " " + address.parsedPlace.extractedName
+                val parsedPlaceName = address.parsedPlace.extractedType?.name + " " + address.parsedPlace.extractedName
                 val osmObjName = address.parsedPlace.name
                 var affectedPrimitives =
                     parsedPlaceToPrimitiveMap.getOrDefault(
-                        Pair(parsedStreetName, code),
+                        Pair(parsedPlaceName, code),
                         Pair(mutableSetOf(), osmObjName)
                     ).first
                 affectedPrimitives = affectedPrimitives.plus(primitive)
                 affectedPrimitives = affectedPrimitives.plus(address.parsedStreet.matchedPrimitives.toSet())
                 parsedPlaceToPrimitiveMap = parsedPlaceToPrimitiveMap.plus(
                     Pair(
-                        Pair(parsedStreetName, code),
+                        Pair(parsedPlaceName, code),
                         Pair(affectedPrimitives, osmObjName)
                     )
                 )
@@ -84,9 +85,7 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
             }
 
             RussiaAddressHelperPlugin.cache.markProcessed(errorPrimitives, errorCode)
-            val highlightPrimitives: List<OsmPrimitive> = errorPrimitives.mapNotNull { p ->
-                GeometryHelper.getBiggestPoly(p)
-            }
+            val highlightPrimitives: List<OsmPrimitive> = errorPrimitives.map { p -> GeometryHelper.getOuterWays(p)}.flatten()
             errors.add(
                 TestError.builder(
                     this, Severity.ERROR,

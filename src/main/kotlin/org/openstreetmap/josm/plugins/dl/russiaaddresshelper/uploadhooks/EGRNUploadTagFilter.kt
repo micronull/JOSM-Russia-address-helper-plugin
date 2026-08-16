@@ -35,15 +35,22 @@ class EGRNUploadTagFilter : UploadHook {
             waysToDelete.forEach { way -> allNodesToNotUpload.addAll(way.nodes.distinct()) }
             if (relationsToDelete.isNotEmpty()) {
                 val removeRelationsCommand = DeleteCommand.delete(relationsToDelete)
-                UndoRedoHandler.getInstance().add(removeRelationsCommand)
+                if (removeRelationsCommand != null) {
+                    UndoRedoHandler.getInstance().add(removeRelationsCommand)
+                }
             }
             if (waysToDelete.isNotEmpty()) {
                 val removeWaysCommand = DeleteCommand.delete(waysToDelete, true, false)
-                UndoRedoHandler.getInstance().add(removeWaysCommand)
+                //команды к удалению могут быть пусты, если в диалоге обработки удаления из отношений была нажата отмена
+                if (removeWaysCommand != null) {
+                    UndoRedoHandler.getInstance().add(removeWaysCommand)
+                }
             }
             if (nodesToDelete.isNotEmpty()) {
                 val removeNodesCommand = DeleteCommand.delete(nodesToDelete)
-                UndoRedoHandler.getInstance().add(removeNodesCommand)
+                if (removeNodesCommand != null) {
+                    UndoRedoHandler.getInstance().add(removeNodesCommand)
+                }
             }
 
             //remove from upload data set

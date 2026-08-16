@@ -1,10 +1,8 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation
 
 import org.openstreetmap.josm.command.Command
-import org.openstreetmap.josm.data.osm.Node
-import org.openstreetmap.josm.data.osm.OsmPrimitive
-import org.openstreetmap.josm.data.osm.Relation
-import org.openstreetmap.josm.data.osm.Way
+import org.openstreetmap.josm.data.osm.*
+import org.openstreetmap.josm.data.osm.visitor.paint.relations.MultipolygonCache
 import org.openstreetmap.josm.data.validation.Severity
 import org.openstreetmap.josm.data.validation.Test
 import org.openstreetmap.josm.data.validation.TestError
@@ -55,7 +53,7 @@ class EGRNStreetOrPlaceTooFarTest : Test(
             }
             val centroidNode = Node(GeometryHelper.getPrimitiveCentroid(p))
             val closestStreet = getClosestPrimitive(centroidNode, matchingPrimitives)
-            //существуют ли улицы, заданные отношениями?
+            //существуют ли улицы, заданные ТОЛЬКО отношениями?
             val closestStreetNode = getClosestPrimitive(centroidNode, (closestStreet as Way).nodes)
             val distanceToWay = getDistance(centroidNode, closestStreet)
             val distanceToNode = getDistance(
@@ -67,12 +65,12 @@ class EGRNStreetOrPlaceTooFarTest : Test(
             ) {
                 val streetName = parsedStreet.name
                 RussiaAddressHelperPlugin.cache.markProcessed(p, EGRNTestCode.EGRN_STREET_FOUND_TOO_FAR)
-                val highlightPrimitive = GeometryHelper.getBiggestPoly(p)
+                val highlightPrimitives = GeometryHelper.getOuterWays(p).plus(closestStreet)
                 errors.add(
                     TestError.builder(this, Severity.ERROR, EGRNTestCode.EGRN_STREET_FOUND_TOO_FAR.code)
                         .message(I18n.tr(EGRNTestCode.EGRN_STREET_FOUND_TOO_FAR.message) + ": " + streetName + " (${distance.roundToLong()} м)")
                         .primitives(p)
-                        .highlight(listOf(highlightPrimitive, closestStreet))
+                        .highlight(highlightPrimitives)
                         .build()
                 )
             }
@@ -81,12 +79,22 @@ class EGRNStreetOrPlaceTooFarTest : Test(
 
         if (preferredAddress.isMatchedByPlace()) {
             val severity = if (preferredAddress.isMatchedByStreet()) Severity.WARNING else Severity.ERROR
-
             //если не по улице, значит по месту
             val parsedPlace = preferredAddress.parsedPlace
+            val placeName = parsedPlace.name
             var placeNodeTooFar = false
+            var insideOfSomePlaceBoundary = false
+            //проверять тут, есть ли у примитива место в кэше, и, если есть - дальнейшие проверки не проводить
+            val cachedPlace = RussiaAddressHelperPlugin.addressRegistry.getPlaceForBuilding(p)
+            if (cachedPlace != null && cachedPlace["name"] == placeName)  return
+
             var distanceToPlaceNode = 0.0
-            val matchedPrimitives = parsedPlace.getMatchingPrimitives()
+            val matchedPrimitives : Set<OsmPrimitive> = if (preferredAddress.isMatchedByStreet()) {
+                getMatchingPrimitivesByName(placeName)
+            } else {
+                parsedPlace.getMatchingPrimitives()
+            }
+
             if (matchedPrimitives.isEmpty()) {
                 Logging.warn("EGRN PLUGIN: Parent too far validator got matched place ${parsedPlace.name}, but have no matched primitives! ")
                 return
@@ -95,10 +103,9 @@ class EGRNStreetOrPlaceTooFarTest : Test(
             val matchedWays = matchedPrimitives.filterIsInstance<Way>()
             val matchedRelations = matchedPrimitives.filterIsInstance<Relation>()
             val centroidNode = Node(GeometryHelper.getPrimitiveCentroid(p))
-            if (matchedNodes.isNotEmpty() && !RussiaAddressHelperPlugin.cache.isIgnored(
-                    p,
-                    EGRNTestCode.EGRN_PLACE_FOUND_TOO_FAR
-                )
+
+            if (matchedNodes.isNotEmpty() && !RussiaAddressHelperPlugin.cache.isIgnored(p, EGRNTestCode.EGRN_PLACE_FOUND_TOO_FAR)
+                && matchedWays.isEmpty() && matchedRelations.isEmpty()
             ) {
                 val closestNode = getClosestPrimitive(centroidNode, matchedNodes)
 
@@ -112,46 +119,36 @@ class EGRNStreetOrPlaceTooFarTest : Test(
                 }
             }
 
-            if (matchedWays.isNotEmpty()) { //граница места задана полигоном
+            val outsideOfBoundaries = mutableListOf<OsmPrimitive>()
+            if (matchedWays.isNotEmpty() && !RussiaAddressHelperPlugin.cache.isIgnored(p, EGRNTestCode.EGRN_ADDRESS_NOT_INSIDE_PLACE_POLY)) { //граница места задана полигоном
                 if (matchedWays.size > 1) {
                     Logging.warn("EGRN PLUGIN: Parent too far validator got more than one (${matchedWays.size}) place boundary for ${parsedPlace.name}!")
                 }
-                //TODO как отловить случай, что мы проверяем пересечение битого, незамкнутого мультика здания с границей места?
-                //возможно, тут надо использовать другие функции - что-то из класса мультиполигона или Geometry
-                val containingBoundary =
-                    matchedWays.find {
-                        it.isArea && (polygonIntersection(
-                            getArea(GeometryHelper.getBiggestPoly(p)!!.nodes),
-                            getArea(it.nodes)
-                        )
-                            .equals(PolygonIntersection.FIRST_INSIDE_SECOND))
-                    }
-                if (containingBoundary == null
-                    && !RussiaAddressHelperPlugin.cache.isIgnored(p, EGRNTestCode.EGRN_ADDRESS_NOT_INSIDE_PLACE_POLY)
-                ) {
-                    val placeName = parsedPlace.name
-                    val primitives = matchedWays.plus(p)
-                    errors.add(
-                        TestError.builder(this, severity, EGRNTestCode.EGRN_ADDRESS_NOT_INSIDE_PLACE_POLY.code)
-                            .message(I18n.tr(EGRNTestCode.EGRN_ADDRESS_NOT_INSIDE_PLACE_POLY.message) + ": " + placeName)
-                            .primitives(p)
-                            .highlight(primitives)
-                            .build()
-                    )
-                } else {
+
+                val containingBoundaries =
+                        matchedWays.filter {
+                            it.isArea && (polygonIntersection(
+                                getArea(GeometryHelper.getOuterWays(p).map { way-> way.nodes }.flatten()),
+                                getArea(it.nodes)
+                            )
+                                .equals(PolygonIntersection.FIRST_INSIDE_SECOND))
+                        }
+
+                if (containingBoundaries.isNotEmpty()) {
                     //нашелся полигон места, гасим ошибку "точка слишком далеко"
+                    containingBoundaries.forEach{RussiaAddressHelperPlugin.addressRegistry.putPrimitiveToPlace(p, it)}
                     placeNodeTooFar = false
+                    insideOfSomePlaceBoundary = true
+                } else {
+                    outsideOfBoundaries.addAll(matchedWays)
                 }
             }
 
-            if (matchedRelations.isNotEmpty()) {
+            if (matchedRelations.isNotEmpty() && !insideOfSomePlaceBoundary) {
                 if (matchedRelations.size > 1) {
                     Logging.warn("EGRN PLUGIN: ParentTooFar validator got more than one (${matchedRelations.size}) place boundary relation for ${parsedPlace.name}!")
                 }
-                val placeName = parsedPlace.name
                 val primitives = matchedRelations.plus(p)
-                var insideOfSomePlaceBoundary = false
-                val outsideOfBoundaries = mutableListOf<Relation>()
                 matchedRelations.forEach { relation ->
                     if (relation.hasIncompleteMembers() && !RussiaAddressHelperPlugin.cache.isIgnored(
                             p,
@@ -166,41 +163,37 @@ class EGRNStreetOrPlaceTooFarTest : Test(
                                 .build()
                         )
                     } else {
-                        //TODO как отловить случай, что мы проверяем пересечение битого, незамкнутого мультика здания с границей места?
-                        if (!isPolygonInsideMultiPolygon(GeometryHelper.getBiggestPoly(p)!!.nodes, relation, null)
-                            && !RussiaAddressHelperPlugin.cache.isIgnored(
-                                p,
-                                EGRNTestCode.EGRN_ADDRESS_NOT_INSIDE_PLACE_POLY
-                            )
-                        ) {
+                        if (!RussiaAddressHelperPlugin.cache.isIgnored(p, EGRNTestCode.EGRN_ADDRESS_NOT_INSIDE_PLACE_POLY)
+                            && !isPolygonInsideMultiPolygon(GeometryHelper.getOuterWays(p).map { way-> way.nodes }.flatten(), relation, null))
+                        {
                             outsideOfBoundaries.add(relation)
                         } else {
                             insideOfSomePlaceBoundary = true
                             placeNodeTooFar = false
+                             RussiaAddressHelperPlugin.addressRegistry.putPrimitiveToPlace(p, relation)
                         }
-
                     }
                 }
-                if (!insideOfSomePlaceBoundary) {
-                    outsideOfBoundaries.forEach { boundary ->
-                        val highlightPrimitives = listOf<OsmPrimitive>(boundary, p)
-                        errors.add(
-                            TestError.builder(
-                                this,
-                                severity,
-                                EGRNTestCode.EGRN_ADDRESS_NOT_INSIDE_PLACE_POLY.code
-                            )
-                                .message(I18n.tr(EGRNTestCode.EGRN_ADDRESS_NOT_INSIDE_PLACE_POLY.message) + ": " + placeName)
-                                .primitives(p)
-                                .highlight(highlightPrimitives)
-                                .build()
+            }
+            if (!insideOfSomePlaceBoundary) {
+                outsideOfBoundaries.forEach { boundary ->
+                    val highlightBoundary : List<Way> = if (boundary is Way) { listOf(boundary) } else { MultipolygonCache.getInstance()[boundary as Relation?].outerWays}
+                    val highlightPrimitives = highlightBoundary.plus(p)
+                    errors.add(
+                        TestError.builder(
+                            this,
+                            severity,
+                            EGRNTestCode.EGRN_ADDRESS_NOT_INSIDE_PLACE_POLY.code
                         )
-                    }
+                            .message(I18n.tr(EGRNTestCode.EGRN_ADDRESS_NOT_INSIDE_PLACE_POLY.message) + ": " + placeName)
+                            .primitives(p)
+                            .highlight(highlightPrimitives)
+                            .build()
+                    )
                 }
             }
 
             if (placeNodeTooFar) {
-                val placeName = parsedPlace.name
                 val primitives = matchedNodes.plus(p)
                 errors.add(
                     TestError.builder(this, severity, EGRNTestCode.EGRN_PLACE_FOUND_TOO_FAR.code)
@@ -211,6 +204,11 @@ class EGRNStreetOrPlaceTooFarTest : Test(
                 )
             }
         }
+    }
+
+    private fun getMatchingPrimitivesByName(placeName: String): Set<OsmPrimitive> {
+        val allLoadedPrimitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives()
+        return allLoadedPrimitives.filter { p -> p.hasKey("place") && (p["name"] == placeName || p["alt_name"] == placeName || p["egrn_name"] == placeName) }.toSet()
     }
 
     override fun fixError(testError: TestError): Command? {
@@ -239,7 +237,7 @@ class EGRNStreetOrPlaceTooFarTest : Test(
                 osmObjectName = parsedAddress.getPreferredAddress()!!.parsedPlace.name
                 errorText =
                     "$errorMessage<br>Здание получило из ЕГРН адрес по месту: <b>${osmObjectName}</b>," +
-                            "<br>точка которого в ОСМ находится слишком далеко от здания (более заданного в настройках расстояния в ${ValidationSettingsReader.DISTANCE_FOR_PLACE_NODE_SEARCH.get()} метров)" +
+                            "<br>точка которого в ОСМ находится слишком далеко от здания (дальше заданного в настройках расстояния в ${ValidationSettingsReader.DISTANCE_FOR_PLACE_NODE_SEARCH.get()} метров)" +
                             "<br>Убедитесь что сопоставление происходит с верным местом, проверьте что адрес не должен быть на самом деле по улице, или," +
                             "<br>проигнорируйте эту ошибку."
             }
@@ -255,7 +253,7 @@ class EGRNStreetOrPlaceTooFarTest : Test(
                 osmObjectName = parsedAddress.getPreferredAddress()!!.parsedPlace.name
                 errorText =
                     "Здание получило из ЕГРН адрес с именем места: <b>${osmObjectName}</b>," +
-                            "<br>при этом мультиполигон границы места - неполный и не может быть проверен." +
+                            "<br>при этом один из мультиполигонов границ места - неполный и не может быть проверен." +
                             "<br>Докачайте отсутствующих участников и повторите валидацию, или" +
                             "<br>проигнорируйте эту ошибку."
             }

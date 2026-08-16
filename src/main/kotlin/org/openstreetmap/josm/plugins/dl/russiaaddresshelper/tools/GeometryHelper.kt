@@ -10,9 +10,8 @@ import org.openstreetmap.josm.command.SequenceCommand
 import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.*
-import org.openstreetmap.josm.data.osm.visitor.paint.relations.MultipolygonCache
+import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.Notification
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NSPDFeature
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NSPDMultiPolygon
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NSPDPolygon
@@ -36,34 +35,20 @@ class GeometryHelper {
             return when (p) {
                 is Node -> p.eastNorth
                 is Way -> Geometry.getCentroid(p.nodes) //can return null, if no nodes in Way
-                else -> Geometry.getCentroid(
-                    getBiggestClosedOuter(p as Relation)?.nodes ?: p.members.first { it.isWay }.way.nodes
-                )
+                else -> Geometry.getCentroid(getOuterWays(p).flatMap { it.nodes })
             }
         }
 
-        fun getBiggestPoly(p: OsmPrimitive): Way? {
-            if (p is Node) return null
-            return if (p is Way) p else getBiggestClosedOuter(p as Relation)
+        fun getOuterWays(p: OsmPrimitive): List<Way> {
+            if (p is Node) return emptyList()
+            return if (p is Way) listOf(p) else (p as Relation).members.filter { mem -> mem.isWay && mem.hasRole("outer") }.map { it.member as Way}
         }
 
         fun getBiggestPoly(ways: List<Way>): Way {
             return ways.maxByOrNull { Geometry.computeArea(it) ?: 0.0 } ?: ways.first()
         }
 
-        private fun getBiggestClosedOuter(r: Relation): Way? {
-            if (r.isMultipolygon) {
-                val mp = MultipolygonCache.getInstance()[r]
-                return mp.outerWays.maxByOrNull { Geometry.computeArea(it) ?: 0.0 }
-            }
-            //неверная логика. Outer в мультике могут состоять из кусков. Площадь одного незамкнутого куска = null
-            //нужно собирать outer в замкнутые контуры. Либо отказаться от сортировки полигонов мультика по площади совсем
-            /*            return r.members.filter { m -> m.hasRole("outer") }
-                            .maxByOrNull { Geometry.computeArea(it.way) }!!.way*/
-            return null
-        }
-
-        fun createPolygon(
+        private fun createPolygon(
             ds: DataSet,
             coords: ArrayList<ArrayList<Double>>,
             shiftCorrect: Boolean
@@ -144,7 +129,7 @@ class GeometryHelper {
                                         arrayListOf(node2.eastNorth.east(), node2.eastNorth.north()),
                                         arrayListOf(node3.eastNorth.east(), node3.eastNorth.north()),
                                     )
-                                    RussiaAddressHelperPlugin.createDebugObject(coords, triangleCentroid)
+                                    createDebugObject(coords, triangleCentroid)
                                 }
                                 return triangleCentroid
                             }
@@ -220,6 +205,14 @@ class GeometryHelper {
                 return true
             }
             return false
+        }
+
+        fun createDebugObject(coords: ArrayList<ArrayList<Double>>, requestCoord: EastNorth) {
+            val map = MainApplication.getMap()
+            val ds = map.mapView.layerManager.editDataSet
+            val cmds = GeometryHelper.createPolygon(ds, coords, false).first
+            cmds.add(AddCommand(ds, Node(requestCoord)))
+            UndoRedoHandler.getInstance().add(SequenceCommand("Add debug geometry", cmds))
         }
 
         fun generateBuildingMultiPolygon(

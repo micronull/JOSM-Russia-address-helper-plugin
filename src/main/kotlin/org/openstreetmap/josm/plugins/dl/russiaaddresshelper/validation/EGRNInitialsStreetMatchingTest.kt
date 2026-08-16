@@ -84,9 +84,7 @@ class EGRNInitialsStreetMatchingTest : Test(
                 errorPrimitives,
                 EGRNTestCode.EGRN_STREET_MATCH_WITHOUT_INITIALS
             )
-            val highlightPrimitives: List<OsmPrimitive> = errorPrimitives.mapNotNull { p ->
-                GeometryHelper.getBiggestPoly(p)
-            }
+            val highlightPrimitives: List<OsmPrimitive> = errorPrimitives.map{ p -> GeometryHelper.getOuterWays(p)}.flatten()
             errors.add(
                 TestError.builder(
                     this, Severity.ERROR,
@@ -171,13 +169,13 @@ class EGRNInitialsStreetMatchingTest : Test(
             if (doubles.isNotEmpty()) {
                 val msg = I18n.tr("Duplicate addresses was not assigned")
                 val doublesAddresses =
-                    osmStreetName + doubles.map { RussiaAddressHelperPlugin.cache.get(it)!!.addressInfo!!.getPreferredAddress()!!.parsedHouseNumber }
-                        .joinToString { ", " }
+                    osmStreetName + ", " + doubles.joinToString { RussiaAddressHelperPlugin.cache.get(it)?.addressInfo?.getPreferredAddress()?.parsedHouseNumber?.houseNumber ?: it["addr:housenumber"] ?:"ERROR"}
                 val notification = Notification("$msg: $doublesAddresses").setIcon(JOptionPane.INFORMATION_MESSAGE)
                 notification.duration = Notification.TIME_LONG
                 notification.show()
             }
             RussiaAddressHelperPlugin.cache.ignoreValidator(doubles, EGRNTestCode.EGRN_STREET_MATCH_WITHOUT_INITIALS)
+            RussiaAddressHelperPlugin.cache.markProcessed(doubles, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)
             filteredPrimitives.forEach {
                 val preferredAddress = RussiaAddressHelperPlugin.cache.get(it)!!.addressInfo?.getPreferredAddress()
                 val tags = preferredAddress!!.getOsmAddress().getBaseAddressTagsWithSource().toMutableMap()

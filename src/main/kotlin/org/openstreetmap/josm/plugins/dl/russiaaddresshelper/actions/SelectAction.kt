@@ -210,6 +210,7 @@ class SelectAction : JosmAction(
 
             //получаем зависание, если то, что хотим выделить, попадает под фильтрацию фильтрами редактора
             //поэтому функционал выделения управляется скрытой настройкой, иначе выделение сбрасывается
+            //TODO удалить настройку после тестирования
             if (MassActionSettingsReader.EGRN_MASS_ACTION_SELECT_UPDATED_AFTER.get()) {
                 if (isLineSelected) {
                     if (splittedPart != null) {

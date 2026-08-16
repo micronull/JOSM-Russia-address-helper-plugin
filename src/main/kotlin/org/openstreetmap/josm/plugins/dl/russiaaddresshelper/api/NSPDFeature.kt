@@ -10,7 +10,7 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddre
 
 @kotlinx.serialization.Serializable
 data class NSPDFeature(
-    val id: Int,
+    val id: Long,
     val type: String,
     @Contextual
     val geometry: NSPDGeometry?,
@@ -23,7 +23,7 @@ data class NSPDFeature(
 
     fun parseAddress(requestCoordinate: EastNorth): ParsedAddress? {
         val addressParser = AddressParser()
-        val nspdAddress = this.properties?.options?.readableAddress ?: return null
+        val nspdAddress = this.properties?.options?.getAnyReadableAddress() ?: return null
         return addressParser.parse(nspdAddress, requestCoordinate, OsmDataManager.getInstance().editDataSet)
     }
 

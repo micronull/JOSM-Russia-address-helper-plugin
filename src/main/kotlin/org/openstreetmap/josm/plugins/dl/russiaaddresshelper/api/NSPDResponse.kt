@@ -20,7 +20,7 @@ data class NSPDResponse(val responses: MutableMap<NSPDLayer, GetFeatureInfoRespo
     fun hasReadableAddress(): Boolean {
         return responses.values.any { res ->
             res.features.any { feat ->
-                feat.properties?.options?.readableAddress?.isNotBlank()
+                feat.properties?.options?.getAnyReadableAddress()?.isNotBlank()
                     ?: false
             }
         }

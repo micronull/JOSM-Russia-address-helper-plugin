@@ -14,16 +14,15 @@ import org.openstreetmap.josm.gui.ExtendedDialog
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel
-import org.openstreetmap.josm.gui.widgets.JosmTextField
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.TagSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation.gui.AddressEditPanel
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import java.awt.GridBagLayout
-import javax.swing.JLabel
 import javax.swing.JOptionPane
 import javax.swing.JPanel
 
@@ -32,9 +31,6 @@ class EGRNCantParseAddressTest : Test(
     I18n.tr("EGRN address cannot be parsed"),
     I18n.tr("EGRN information cannot be fully parsed into address")
 ) {
-    private val osmStreetNameEditBox = JosmTextField("")
-    private val osmPlaceNameEditBox = JosmTextField("")
-    private val osmNumberEditBox = JosmTextField("")
 
     override fun visit(w: Way) {
         visitForPrimitive(w)
@@ -81,7 +77,8 @@ class EGRNCantParseAddressTest : Test(
                                 if (flags.contains(ParsingFlags.STOP_LIST_WORDS)) {
                                     code = EGRNTestCode.EGRN_CONTAINS_STOP_WORD
                                     message = code.message
-                                    message2 = TagSettingsReader.ADDRESS_STOP_WORDS.get().filter { address.egrnAddress.contains(it)}.joinToString(",")
+                                    message2 = TagSettingsReader.ADDRESS_STOP_WORDS.get()
+                                        .filter { address.egrnAddress.contains(it) }.joinToString(",")
                                 }
 
                 if (code != null && !egrnResult.isIgnored(code)) {
@@ -112,7 +109,7 @@ class EGRNCantParseAddressTest : Test(
         label1.setMaxWidth(800)
         p.add(label1, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
         val infoLabel = JMultilineLabel(
-            "Запрос в ЕГРН вернул адрес, который не удалось корректно распознать.<br>" +
+            "Запрос в ЕГРН вернул адреса, который не удалось корректно распознать.<br>" +
                     "Вы можете попытаться разобрать адрес вручную, или проигнорировать нераспознанные данные.<br>" +
                     "<b>Не вносите в ОСМ данные основанные на интерполяции!" +
                     "<br>Не вносите в ОСМ данные, взятые из неразрешенных источников " +
@@ -121,33 +118,9 @@ class EGRNCantParseAddressTest : Test(
         infoLabel.setMaxWidth(800)
         p.add(infoLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
 
-        osmStreetNameEditBox.text = ""
-        osmPlaceNameEditBox.text = ""
-        osmNumberEditBox.text = ""
-        var labelText = ""
-        affectedAddresses.forEach {
-            labelText += "${it.egrnAddress},<b> тип: ${if (it.isBuildingAddress()) "здание" else "участок"}</b><br>"
-            if (StringUtils.isNotBlank(it.parsedStreet.name)) {
-                osmStreetNameEditBox.text = it.parsedStreet.name
-            }
-            if (StringUtils.isNotBlank(it.parsedPlace.name)) {
-                osmPlaceNameEditBox.text = it.parsedPlace.name
-            }
-            if (StringUtils.isNotBlank(it.parsedHouseNumber.houseNumber)) {
-                osmNumberEditBox.text = it.parsedHouseNumber.houseNumber
-            }
-        }
-        val egrnAddressesLabel = JMultilineLabel(labelText, false, true)
-        egrnAddressesLabel.setMaxWidth(800)
-        p.add(egrnAddressesLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
+        val addressEditPanel = AddressEditPanel(primitive, affectedAddresses)
 
-
-        p.add(JLabel("addr:street"), GBC.std())
-        p.add(osmStreetNameEditBox, GBC.eop().fill(GBC.HORIZONTAL))
-        p.add(JLabel("addr:place"), GBC.std())
-        p.add(osmPlaceNameEditBox, GBC.eop().fill(GBC.HORIZONTAL))
-        p.add(JLabel("addr:housenumber"), GBC.std())
-        p.add(osmNumberEditBox, GBC.eop().fill(GBC.HORIZONTAL))
+        p.add(addressEditPanel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
 
         val buttonTexts = arrayOf(
             I18n.tr("Ignore error"),
@@ -175,25 +148,27 @@ class EGRNCantParseAddressTest : Test(
 
         val cmds: MutableList<Command> = mutableListOf()
         if (answer == 2) {
-            val streetName = osmStreetNameEditBox.text
-            val placeName = osmPlaceNameEditBox.text
-            val number = osmNumberEditBox.text
-            //TODO: нет проверки на дубликаты, или хотя бы индикации что такой адрес существует
+            val streetName = addressEditPanel.getStreetName()
+            val placeName = addressEditPanel.getPlaceName()
+            val number = addressEditPanel.getHouseNumber()
 
-            if (StringUtils.isNotBlank(number) && (StringUtils.isNotBlank(streetName) || StringUtils.isNotBlank(placeName))) {
+            if (StringUtils.isNotBlank(number) && (StringUtils.isNotBlank(streetName) || StringUtils.isNotBlank(
+                    placeName
+                ))
+            ) {
                 val tags: MutableMap<String, String> = mutableMapOf(
                     "addr:housenumber" to number,
                     "source:addr" to "ЕГРН",
                     "note" to "адрес из ЕГРН разобран вручную",
                 )
-                tags.plusAssign(splitLongValue("addr:RU:egrn",affectedAddresses.first().egrnAddress))
+                tags.plusAssign(splitLongValue("addr:RU:egrn", affectedAddresses.first().egrnAddress))
                 if (StringUtils.isNotBlank(streetName)) {
                     tags["addr:street"] = streetName
                 } else {
                     tags["addr:place"] = placeName
                 }
                 cmds.add(ChangePropertyCommand(listOf(primitive), tags))
-
+                RussiaAddressHelperPlugin.cache.markProcessed(primitive, EGRNTestCode.EGRN_VALID_ADDRESS_ADDED)
             } else {
                 Notification(I18n.tr("Address not complete and was not added to building")).setIcon(JOptionPane.WARNING_MESSAGE)
                     .show()

@@ -14,7 +14,7 @@ class StopWordsTablePanel : JPanel(GridBagLayout()) {
     private val label =
         JLabel(I18n.tr("Addresses containing words from this table will trigger Adress is not recognized error"))
     private val stopWordsTable: StopWordsTable = StopWordsTable(listOf<String>())
-    private val updateFromDefaultsButton = JButton(ImageProvider.get("dialogs/refresh", ImageSizes.LARGEICON))
+    private val updateFromDefaultsButton = JButton(ImageProvider.get("dialogs/conflict", ImageSizes.LARGEICON))
 
     init {
         val panel: JPanel = this
@@ -61,7 +61,7 @@ class StopWordsTablePanel : JPanel(GridBagLayout()) {
         ADDRESS_STOP_WORDS.put(stopWordsTable.getData())
     }
 
-    fun updateFromDefaults() {
+    private fun updateFromDefaults() {
         val existingData = ADDRESS_STOP_WORDS.get().toMutableSet()
         existingData.addAll(ADDRESS_STOP_WORDS.defaultValue)
         ADDRESS_STOP_WORDS.put(existingData.toMutableList())

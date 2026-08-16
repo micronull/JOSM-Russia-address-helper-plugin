@@ -8,11 +8,11 @@ import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.BBox
 import org.openstreetmap.josm.data.projection.Projections
 import org.openstreetmap.josm.io.OsmTransferException
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.ClickActionSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.CommonSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.LayerShiftSettingsReader
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
 import org.openstreetmap.josm.tools.Logging
 import java.net.MalformedURLException
 import java.net.URL
@@ -86,7 +86,7 @@ class NspdApi(private val url: String, private val userAgent: String, private va
                 arrayListOf(maxx, maxy),
                 arrayListOf(maxx, miny)
             )
-            RussiaAddressHelperPlugin.createDebugObject(coords, coordinate)
+            GeometryHelper.createDebugObject(coords, coordinate)
         }
 
         val pixelWidth: Int = ((maxx - minx) * pixelPerMeter).toInt()

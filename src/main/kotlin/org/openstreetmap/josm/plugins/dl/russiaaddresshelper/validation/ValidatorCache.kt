@@ -1,10 +1,8 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation
 
 import org.openstreetmap.josm.data.coor.EastNorth
-import org.openstreetmap.josm.data.coor.conversion.DecimalDegreesCoordinateFormat
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.data.osm.event.*
-import org.openstreetmap.josm.data.projection.Projections
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.layer.LayerManager
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerChangeListener
@@ -12,14 +10,11 @@ import org.openstreetmap.josm.gui.layer.LayerManager.LayerRemoveEvent
 import org.openstreetmap.josm.gui.layer.OsmDataLayer
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NSPDResponse
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsedAddressInfo
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
-import java.io.File
-import java.io.FileOutputStream
-import java.io.OutputStream
+import java.util.concurrent.ConcurrentHashMap
 
 
 class ValidatorCache : DataSetListenerAdapter.Listener, LayerChangeListener {
-    var responses: MutableMap<OsmPrimitive, ValidationRecord> = mutableMapOf()
+    var responses: ConcurrentHashMap<OsmPrimitive, ValidationRecord> = ConcurrentHashMap()
 
     @Transient
     private val dataChangedAdapter = DataSetListenerAdapter(this)
@@ -93,56 +88,6 @@ class ValidatorCache : DataSetListenerAdapter.Listener, LayerChangeListener {
         return responses.containsKey(primitive)
     }
 
-    //TODO перенести экспорт данных в файлхелпер
-    fun exportData(filename: String = "addressHelperExport.csv") {
-        val file = File(filename)
-        val append = file.exists()
-        val dataToExport =
-            responses.values//.filter { (_, value) -> !value.isProcessed(EGRNTestCode.EGRN_VALID_ADDRESS_ADDED) }.values
-        FileOutputStream(file, append).apply { writeData(dataToExport, append) }
-    }
-
-    private fun OutputStream.writeData(records: Collection<ValidationRecord>, append: Boolean) {
-        val writer = bufferedWriter()
-        if (!append) {
-            writer.write(""""Coordinate";"EgrnAddress";"OSMAddress";"ParsedPlace";"ParsedStreet";"ParsedHousenumber";"ParsedFlats";""" + getFlagsHeaders())
-            writer.newLine()
-        }
-
-        records.forEach {
-            it.addressInfo?.addresses?.forEach { address ->
-                val line = "${eastNorthToLatLon(it.coordinate)};" +
-                        "${address.egrnAddress.replace(";", ",")};" +
-                        "${address.getOsmAddress().getInlineAddress(",")};" +
-                        "${address.parsedPlace.extractedName} ${address.parsedPlace.extractedType?.name};" +
-                        "${address.parsedStreet.extractedName} ${address.parsedStreet.extractedType?.name};" +
-                        "${address.parsedHouseNumber.houseNumber};" +
-                        " ${address.parsedHouseNumber.flats};" + getFlagsValues(address.flags)
-                writer.write(line)
-                writer.newLine()
-            }
-        }
-        writer.flush()
-    }
-
-    private fun getFlagsValues(flags: MutableList<ParsingFlags>): String {
-        return ParsingFlags.values().joinToString(";") { if (flags.contains(it)) "1" else "0" }
-    }
-
-    private fun getFlagsHeaders(): String {
-        return ParsingFlags.values().joinToString(";") { "\"" + it.name + "\"" }
-    }
-
-    private fun eastNorthToLatLon(coord: EastNorth?): String {
-        if (coord == null) return "NULL"
-        val mercator = Projections.getProjectionByCode("EPSG:3857")
-        val projected = mercator.eastNorth2latlonClamped(coord)
-
-        val formatter = DecimalDegreesCoordinateFormat.INSTANCE
-        val lat = formatter.latToString(projected)
-        val lon = formatter.lonToString(projected)
-        return "$lat,$lon"
-    }
 
     override fun processDatasetEvent(event: AbstractDatasetChangedEvent?) {
         when (event) {

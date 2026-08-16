@@ -3,7 +3,6 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation
 import org.openstreetmap.josm.command.ChangePropertyCommand
 import org.openstreetmap.josm.command.Command
 import org.openstreetmap.josm.command.SequenceCommand
-import org.openstreetmap.josm.data.coor.EastNorth
 import org.openstreetmap.josm.data.osm.*
 import org.openstreetmap.josm.data.validation.Severity
 import org.openstreetmap.josm.data.validation.Test
@@ -14,7 +13,6 @@ import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.OSMAddress
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.CommonSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.ValidationSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
@@ -28,12 +26,10 @@ import javax.swing.JOptionPane
 import javax.swing.JPanel
 
 
-class EGRNDuplicateAddressesTest : Test(
-    I18n.tr("EGRN duplicate addresses"),
+class EGRNNewDuplicateAddressesTest : Test(
+    I18n.tr("EGRN duplicate addresses new"),
     I18n.tr("EGRN test for duplicate addresses received from registry")
 ) {
-
-    private var duplicateAddressToPrimitivesMap: Map<String, Set<OsmPrimitive>> = mutableMapOf()
 
     override fun visit(w: Way) {
         visitPrimitive(w)
@@ -47,89 +43,43 @@ class EGRNDuplicateAddressesTest : Test(
 
     private fun visitPrimitive(w: OsmPrimitive) {
         if (!w.isUsable) return
-        if (ValidationSettingsReader.ENABLE_NEW_DOUBLES_CHECK.get()) return
-        //запуск для одного полученного примитива добавляет все ошибки дубликации
-        //если переменная не пуста, проход уже был - но если верить отладчику, она всегда пуста
-        if (duplicateAddressToPrimitivesMap.isNotEmpty()) return
-        //верно ли это? обрабатываем лишь те, что уже помечены как дубликаты при импорте.
-        val markedAsDoubles = RussiaAddressHelperPlugin.cache.getProcessed(EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)
-            .filter { !RussiaAddressHelperPlugin.cache.isIgnored(it.key, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND) }
-            .keys.filter { !it.isDeleted }
-        Logging.info("EGRN-PLUGIN Got all marked as doubles validated primitives, size ${markedAsDoubles.size}")
-        if (markedAsDoubles.isEmpty()) return
-        Logging.info("EGRN-PLUGIN Start form all addressed primitives map")
-        val allLoadedPrimitives = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives()
-            .filter { p ->
-                p.hasKey("building") && p.hasKey("addr:housenumber")
-                        && (p.hasKey("addr:street") || p.hasKey("addr:place")) &&
-                        ((p is Way &&  p.nodes.isNotEmpty()) || (p is Relation && p.memberPrimitives.isNotEmpty()))
-            }.map { p -> Pair(p, GeometryHelper.getPrimitiveCentroid(p)) }
-        Logging.info("EGRN-PLUGIN Finish filtering all addressed primitives map, size ${allLoadedPrimitives.size}")
-        val existingPrimitivesMap = allLoadedPrimitives.groupBy { getOsmInlineAddress(it.first) }
-        Logging.info("EGRN-PLUGIN Finish associating all addressed primitives map, size ${existingPrimitivesMap.size}")
+        if (!ValidationSettingsReader.ENABLE_NEW_DOUBLES_CHECK.get()) return
 
-        markedAsDoubles.forEach outer@{ primitive ->
-            if (!RussiaAddressHelperPlugin.cache.contains(primitive)) {
-                Logging.warn("Doubles check for object not in cache, id={0}", primitive.id)
-                return@outer
-            }
-            //нужно ли это? мы уже взяли не заигноренные примитивы
-            if (RussiaAddressHelperPlugin.cache.isIgnored(primitive, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)) {
-                return@outer
-            }
-
-            val addressInfo = RussiaAddressHelperPlugin.cache.get(primitive)!!.addressInfo
-            val coordinate =
-                RussiaAddressHelperPlugin.cache.get(primitive)!!.coordinate ?: GeometryHelper.getPrimitiveCentroid(
-                    primitive
-                )
-            val addresses = addressInfo!!.addresses
-            addresses.forEach {
-                val inlineAddress = it.getOsmAddress().getInlineAddress(",", ignoreFlats = true)
-                if (inlineAddress == null) {
-                    Logging.warn("Doubles check for object without address id={0}", primitive.id)
-                    return@forEach
-                }
-                var affectedPrimitives =
-                    duplicateAddressToPrimitivesMap.getOrDefault(
-                        inlineAddress,
-                        mutableSetOf()
-                    )
-                affectedPrimitives = affectedPrimitives.plus(primitive)
-                affectedPrimitives = affectedPrimitives.plus(
-                    getOsmDoublesWithinSetDistance(
-                        it.getOsmAddress(),
-                        coordinate,
-                        existingPrimitivesMap
-                    )
-                )
-                duplicateAddressToPrimitivesMap =
-                    duplicateAddressToPrimitivesMap.plus(Pair(inlineAddress, affectedPrimitives))
-            }
-        }
-        Logging.info("EGRN-PLUGIN Finish creating duplicated addressToPrimitivesMap, size ${duplicateAddressToPrimitivesMap.size}")
-        duplicateAddressToPrimitivesMap.forEach { entry ->
-            val errorPrimitives = entry.value
-            val highlightPrimitives: List<OsmPrimitive> = errorPrimitives.map { p -> GeometryHelper.getOuterWays(p) }.flatten()
-            errors.add(
-                TestError.builder(
-                    this, Severity.WARNING,
-                    EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND.code
-                )
-                    .message(I18n.tr(EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND.message) + ": ${entry.key}")
-                    .primitives(errorPrimitives)
-                    .highlight(highlightPrimitives)
-                    .build()
+        if (!RussiaAddressHelperPlugin.cache.contains(w) || RussiaAddressHelperPlugin.cache.isIgnored(
+                w,
+                EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND
             )
-        }
-        Logging.info("EGRN-PLUGIN Finish error adding")
-        return
+        ) return
+
+        val doubledAddress = RussiaAddressHelperPlugin.cache.get(w)?.addressInfo?.getPreferredAddress()?.getOsmAddress() ?: return
+
+        val markedAsDoubles =
+            RussiaAddressHelperPlugin.addressRegistry.getDoubles(w, doubledAddress.getBaseAddressTags())
+
+        if (markedAsDoubles.isEmpty()) return
+        val affectedPrimitives = markedAsDoubles.plus(w)
+        //тут будут исключены из подсветки точечные адреса. А надо ли нам это делать?
+        val highlightPrimitives: List<OsmPrimitive> =
+            affectedPrimitives.map { p -> GeometryHelper.getOuterWays(p) }.flatten()
+        errors.add(
+            TestError.builder(
+                this, Severity.WARNING,
+                EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND.code
+            )
+                .message(
+                    I18n.tr(EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND.message) +
+                            ": ${doubledAddress.getInlineAddress(", ", ignoreFlats = true)}"
+                )
+                .primitives(affectedPrimitives)
+                .highlight(highlightPrimitives)
+                .build()
+        )
     }
 
     override fun fixError(testError: TestError): Command? {
         val assignAllLimit = 5
         //примитивы содержат и новые и уже существующие в ОСМ
-        val affectedPrimitives = testError.primitives
+        val affectedPrimitives = testError.primitives.toSet()
 
         val primitive = affectedPrimitives.find { RussiaAddressHelperPlugin.cache.contains(it) }
         if (primitive == null) {
@@ -239,6 +189,7 @@ class EGRNDuplicateAddressesTest : Test(
             msg = "Added duplicate address tags to all found primitives"
 
             RussiaAddressHelperPlugin.cache.ignoreValidator(affectedPrimitives, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)
+            RussiaAddressHelperPlugin.cache.markProcessed(affectedPrimitives, EGRNTestCode.EGRN_VALID_ADDRESS_ADDED)
         }
 
         if (answer == 4) {
@@ -257,6 +208,7 @@ class EGRNDuplicateAddressesTest : Test(
             )
             msg = "Moved address tags to biggest building"
             RussiaAddressHelperPlugin.cache.ignoreValidator(affectedPrimitives, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)
+            RussiaAddressHelperPlugin.cache.markProcessed(affectedPrimitives, EGRNTestCode.EGRN_VALID_ADDRESS_ADDED)
         }
 
         if (answer == 5) {
@@ -292,6 +244,7 @@ class EGRNDuplicateAddressesTest : Test(
             )
             msg = "Moved address tags to building closest to highway"
             RussiaAddressHelperPlugin.cache.ignoreValidator(affectedPrimitives, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)
+            RussiaAddressHelperPlugin.cache.markProcessed(affectedPrimitives, EGRNTestCode.EGRN_VALID_ADDRESS_ADDED)
         }
 
         if (answer == 6) {
@@ -312,31 +265,11 @@ class EGRNDuplicateAddressesTest : Test(
     }
 
     override fun endTest() {
-        duplicateAddressToPrimitivesMap = mutableMapOf()
         super.endTest()
     }
 
     override fun isFixable(testError: TestError): Boolean {
-        return testError.tester is EGRNDuplicateAddressesTest
-    }
-
-    private fun getOsmDoublesWithinSetDistance(
-        address: OSMAddress,
-        coordinate: EastNorth,
-        existingAddressesMap: Map<String, List<Pair<OsmPrimitive, EastNorth>>>
-    ): List<OsmPrimitive> {
-        val inlineAddress = address.getInlineAddress(",", ignoreFlats = true)!!
-        return existingAddressesMap.getOrDefault(inlineAddress, listOf())
-            .filter { CommonSettingsReader.CLEAR_DOUBLE_DISTANCE.get() > it.second.distance(coordinate) }
-            .map { it.first }
-    }
-
-    private fun getOsmInlineAddress(p: OsmPrimitive): String {
-        return if (p.hasKey("addr:street")) {
-            "${p["addr:street"]}, ${p["addr:housenumber"]}"
-        } else {
-            "${p["addr:place"]}, ${p["addr:housenumber"]}"
-        }
+        return testError.tester is EGRNNewDuplicateAddressesTest
     }
 
     private fun removeAddressTagsCommand(primitives: Collection<OsmPrimitive>): Command {

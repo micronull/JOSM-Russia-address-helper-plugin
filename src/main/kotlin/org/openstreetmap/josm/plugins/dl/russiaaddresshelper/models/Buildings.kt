@@ -60,8 +60,6 @@ class Buildings(objects: List<OsmPrimitive>) {
 
         val preparedTags: MutableMap<String, String> = mutableMapOf()
 
-        //val addressNodes: MutableList<Node> = mutableListOf()
-
         val importedGeometry: MutableList<Pair<List<Command>, OsmPrimitive?>> = mutableListOf()
 
         fun requestNewApi(layer: NSPDLayer): Request {
@@ -102,17 +100,12 @@ class Buildings(objects: List<OsmPrimitive>) {
             val map = MainApplication.getMap()
             val ds = map.mapView.layerManager.editDataSet
             val cmds: MutableList<Command> = mutableListOf()
-            /*            for (building in items) {
-                            building.addressNodes.forEach { node ->
-                                cmds.add(AddCommand(ds, node))
-                            }
-                        }*/
 
             sanitize()
 
             val changedObjects: MutableList<OsmPrimitive> = mutableListOf()
 
-            //разве вся дальнейшая обработка не должна проводиться в хэндлере загрузки, после выхода из скоупа?
+
             if (items.size > 0) {
                 for (building in items) {
                     if (building.osmPrimitive is Node && building.importedGeometry.isNotEmpty()) {
@@ -288,31 +281,6 @@ class Buildings(objects: List<OsmPrimitive>) {
         return channel
     }
 
-    private fun printReport(
-        requestsTotal: Long,
-        failuresTotal: Long,
-        retriesTotal: Long,
-        noRetriesLeft: Long,
-        startTime: LocalDateTime?,
-        finishTime: LocalDateTime?
-    ) {
-        Logging.info("EGRN-PLUGIN report:")
-        Logging.info("EGRN-PLUGIN total requests per session: ${RussiaAddressHelperPlugin.totalRequestsPerSession}")
-        Logging.info("EGRN-PLUGIN total SUCCESS requests per session: ${RussiaAddressHelperPlugin.totalSuccessRequestsPerSession}")
-        Logging.info("EGRN-PLUGIN total requests: $requestsTotal")
-        Logging.info("EGRN-PLUGIN total failures: $failuresTotal")
-        Logging.info("EGRN-PLUGIN total retries: $retriesTotal, average ${retriesTotal / requestsTotal.toFloat()}")
-        Logging.info("EGRN-PLUGIN no retries left failures: $noRetriesLeft")
-        Logging.info(
-            "EGRN-PLUGIN time elapsed: ${
-                ChronoUnit.MINUTES.between(
-                    startTime,
-                    finishTime
-                )
-            } min ${ChronoUnit.SECONDS.between(startTime, finishTime)} sec"
-        )
-    }
-
     private suspend fun parseResponses(
         channel: Channel<ChannelData>,
         loadListener: LoadListener? = null
@@ -321,7 +289,7 @@ class Buildings(objects: List<OsmPrimitive>) {
 
         for (d in channel) {
             //TODO если внутри скоупа происходит исключение, процесс загрузки просто молча виснет
-            //обернуть эксепшоны или избавиться от асинхронности вовсе
+            //обернуть эксепшоны ?
             defers += scope.async {
                 val nspdResponse: NSPDResponse = d.responseBody
                 Logging.info("EGRN-PLUGIN Got data from EGRN: $nspdResponse")
@@ -353,7 +321,7 @@ class Buildings(objects: List<OsmPrimitive>) {
                             val features = buildingGeometryResponse.features
                             if (features.size > 1) {
                                 Logging.warn("EGRN PLUGIN more than 1 geometry feature for point building, skipping other ${features.size - 1} ")
-                            }
+                            } // TODO (а если больше одной фичи вернулось?)
                             val feature = features[0]
                             val tagsForBuilding: MutableMap<String, String> = mutableMapOf()
                             tagsForBuilding.putAll(splitLongValues(feature.getTags("autoremove:egrn:")))
@@ -380,28 +348,21 @@ class Buildings(objects: List<OsmPrimitive>) {
                                 if (generatedBuilding.first.isNotEmpty() && generatedBuilding.second != null) {
                                     d.building.importedGeometry.add(generatedBuilding)
                                     primitive = generatedBuilding.second!!
-                                    val parsedAddressInfo = nspdResponse.parseAddresses(d.building.coordinate)
-
-                                    RussiaAddressHelperPlugin.cache.add(
-                                        primitive,
-                                        d.building.coordinate,
-                                        nspdResponse,
-                                        parsedAddressInfo
-                                    )
                                 }
                             }
                         } else {
                             if (MassActionSettingsReader.EGRN_MASS_ACTION_GENERATE_ADDRESS_POINTS.get()) {
-                                 val parsedAddressInfo = nspdResponse.parseAddresses(d.building.coordinate)
+                                //TODO Сгенерированные точки не обрабатываются валидаторами, поэтому если адрес не присвоен из-за флагов парсинга, то понять причину без отладчика невозможно
+                                val parsedAddressInfo = nspdResponse.parseAddresses(d.building.coordinate)
                                 if (parsedAddressInfo.canAssignAddress()) {
                                     val address = parsedAddressInfo.getPreferredAddress()
                                     d.building.preparedTags.plusAssign(getAddressTagsForClickAction(address))
                                 } else {
                                     d.building.preparedTags.plusAssign(defaultRemoveMeTags)
-                                    d.building.preparedTags.plusAssign(collectAllEgrnTags(nspdResponse))
-                                    if (parsedAddressInfo.addresses.isNotEmpty()) {
-                                        d.building.preparedTags.plusAssign(collectAllAddressTags(parsedAddressInfo.addresses))
-                                    }
+                                }
+                                d.building.preparedTags.plusAssign(collectAllEgrnTags(nspdResponse))
+                                if (parsedAddressInfo.addresses.isNotEmpty()) {
+                                    d.building.preparedTags.plusAssign(collectAllAddressTags(parsedAddressInfo.addresses))
                                 }
                             }
                         }
@@ -425,6 +386,7 @@ class Buildings(objects: List<OsmPrimitive>) {
                             }
                         }
                     }
+
                     if (!nspdResponse.hasReadableAddress()) {
                         Logging.info("EGRN PLUGIN no addresses found for for request $nspdResponse")
 
@@ -447,20 +409,20 @@ class Buildings(objects: List<OsmPrimitive>) {
 
                         val preferredOsmAddress = parsedAddressInfo.getPreferredAddress()
                         if (preferredOsmAddress != null) {
-                            if (d.building.osmPrimitive is Node) {
-                                d.building.preparedTags.putAll(
-                                    TagHelper.getAddressTagsForMassAction(
-                                        preferredOsmAddress
+                            if (d.building.osmPrimitive !is Node || d.building.importedGeometry.isNotEmpty()) {
+                                //костыль чтобы не присваивать адрес если есть проблемы
+                                if (parsedAddressInfo.canAssignAddress()) {
+                                    d.building.preparedTags.plusAssign(
+                                        splitLongValue(
+                                            "addr:RU:egrn",
+                                            preferredOsmAddress.egrnAddress
+                                        )
                                     )
-                                )
-                            }
-                            //костыль чтобы не присваивать адрес если есть проблемы
-                            if (parsedAddressInfo.canAssignAddress()) {
-                                d.building.preparedTags.plusAssign(splitLongValue("addr:RU:egrn",preferredOsmAddress.egrnAddress))
-                                //спорное решение - добавляем зданию адрес БЕЗ номеров квартир
-                                d.building.preparedTags.plusAssign(
-                                    preferredOsmAddress.getOsmAddress().getBaseAddressTagsWithSource()
-                                )
+                                    //спорное решение - добавляем зданию адрес БЕЗ номеров квартир
+                                    d.building.preparedTags.plusAssign(
+                                        preferredOsmAddress.getOsmAddress().getBaseAddressTagsWithSource()
+                                    )
+                                }
                             }
                         }
                     }
@@ -472,12 +434,36 @@ class Buildings(objects: List<OsmPrimitive>) {
         return defers
     }
 
+    private fun printReport(
+        requestsTotal: Long,
+        failuresTotal: Long,
+        retriesTotal: Long,
+        noRetriesLeft: Long,
+        startTime: LocalDateTime?,
+        finishTime: LocalDateTime?
+    ) {
+        Logging.info("EGRN-PLUGIN report:")
+        Logging.info("EGRN-PLUGIN total requests per session: ${RussiaAddressHelperPlugin.totalRequestsPerSession}")
+        Logging.info("EGRN-PLUGIN total SUCCESS requests per session: ${RussiaAddressHelperPlugin.totalSuccessRequestsPerSession}")
+        Logging.info("EGRN-PLUGIN total requests: $requestsTotal")
+        Logging.info("EGRN-PLUGIN total failures: $failuresTotal")
+        Logging.info("EGRN-PLUGIN total retries: $retriesTotal, average ${retriesTotal / requestsTotal.toFloat()}")
+        Logging.info("EGRN-PLUGIN no retries left failures: $noRetriesLeft")
+        Logging.info(
+            "EGRN-PLUGIN time elapsed: ${
+                ChronoUnit.MINUTES.between(
+                    startTime,
+                    finishTime
+                )
+            } min ${ChronoUnit.SECONDS.between(startTime, finishTime)} sec"
+        )
+    }
+
     private fun sanitize() {
         items.removeAll { (it.preparedTags.isEmpty() && it.osmPrimitive !is Node) || (it.osmPrimitive is Node && it.importedGeometry.isEmpty() && it.preparedTags.isEmpty()) }
 
-        //костыль, поскольку алгоритм удаления дублей нужно сильно переработать для случая импорта геометрии
         if (items.isNotEmpty()) {
-            items = DeleteDoubles().clear(items)
+            items = DeleteDoubles().clearAddresses(items)
         }
     }
 

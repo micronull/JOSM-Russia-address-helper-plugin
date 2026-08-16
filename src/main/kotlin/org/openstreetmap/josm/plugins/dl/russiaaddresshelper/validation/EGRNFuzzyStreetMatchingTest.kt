@@ -76,9 +76,7 @@ class EGRNFuzzyStreetMatchingTest : Test(
         parsedStreetToPrimitiveMap.forEach { entry ->
             val errorPrimitives = entry.value.first
             errorPrimitives.forEach{RussiaAddressHelperPlugin.cache.markProcessed(it, EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)}
-            val highlightPrimitives: List<OsmPrimitive> = errorPrimitives.mapNotNull { p ->
-                GeometryHelper.getBiggestPoly(p)
-            }
+            val highlightPrimitives: List<OsmPrimitive> = errorPrimitives.map{ p -> GeometryHelper.getOuterWays(p)}.flatten()
             errors.add(
                 TestError.builder(
                     this, Severity.ERROR,
