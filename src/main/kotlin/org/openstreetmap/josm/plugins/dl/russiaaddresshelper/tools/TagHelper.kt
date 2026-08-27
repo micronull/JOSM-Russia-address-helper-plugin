@@ -47,7 +47,7 @@ class TagHelper {
                 }
 
                 if (resultFloors != null || resultUndergroundFloors != null) {
-                    if (resultUndergroundFloors == null || resultUndergroundFloors == 0) {
+                    if (resultUndergroundFloors == null || resultUndergroundFloors == 0 || resultFloors == 1) {
                         buildTags["building:levels"] = resultFloors.toString()
                     } else {
                         var levels: Int?
@@ -81,7 +81,7 @@ class TagHelper {
             if (!PARSE_CULTURAL_HERITAGE.get()) return mutableMapOf()
             val culturalHeritageValue = feature?.properties?.options?.culturalHeritageVal
             if (culturalHeritageValue.isNullOrBlank()) return mutableMapOf()
-            Logging.info("EGRN_Plugin: recieved cultural_heritage_val $culturalHeritageValue")
+            Logging.info("EGRN_Plugin: received cultural_heritage_val $culturalHeritageValue")
             result.putAll(splitLongValues(mutableMapOf("autoremove:egrn_heritage" to culturalHeritageValue)))
             val heritageValues: List<String> = culturalHeritageValue.split(",").map { it.trim() }
             val egrokn = heritageValues[0]
@@ -328,7 +328,7 @@ class TagHelper {
 
         fun splitLongValue(tag: String, value: String, maxChunkSize: Int = 255): MutableMap<String, String> {
             if (value.length <= maxChunkSize) {
-                return mutableMapOf(Pair(tag, value))
+                return mutableMapOf(Pair(tag, value.trim()))
             }
             val parts: MutableMap<String, String> = mutableMapOf()
             var partIndex = 1

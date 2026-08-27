@@ -25,7 +25,7 @@ data class NSPDProperties(
         val result = mutableMapOf<String, String>()
 
         if (!categoryName.isNullOrBlank() && !filter.contains("categoryName")) {
-            result[prefix + "categoryName"] = categoryName
+            result[prefix + "categoryName"] = categoryName.trim()
         }
 
         val optionsTags = options?.getExtTags(prefix, filter)
@@ -34,11 +34,11 @@ data class NSPDProperties(
         }
 
         if (!descr.isNullOrBlank() && !filter.contains("descr") && descr.compareTo(result[prefix+"cad_num"]?:"", true)!= 0) {
-            result[prefix + "descr"] = descr
+            result[prefix + "descr"] = descr.trim()
         }
 
         if (!label.isNullOrBlank() && !filter.contains("label") && label.compareTo(result[prefix+"cad_num"]?:"", true)!= 0 ) {
-            result[prefix + "label"] = label
+            result[prefix + "label"] = label.trim()
         }
 
         if (systemInfo != null && !filter.contains("created_at")) {
@@ -140,7 +140,7 @@ data class NSPDOptions(
     fun getExtTags(prefix: String = "nspd:", filter: Set<String> = setOf()): MutableMap<String, String> {
         val result = mutableMapOf<String, String>()
         if (!cadNum.isNullOrBlank() && !filter.contains("cad_num")) {
-            result[prefix + "cad_num"] = cadNum
+            result[prefix + "cad_num"] = cadNum.trim()
         }
         var resultUndergroundFloors: Int? = null
         if (!undergroundFloors.isNullOrBlank() && !filter.contains("underground_floors")) {
@@ -166,57 +166,58 @@ data class NSPDOptions(
         }
 
         if (!materials.isNullOrBlank() && !filter.contains("materials")) {
-            result[prefix + "materials"] = materials
+            result[prefix + "materials"] = materials.trim()
         }
         if (!purpose.isNullOrBlank() && !filter.contains("purpose")) {
-            result[prefix + "purpose"] = purpose
+            result[prefix + "purpose"] = purpose.trim()
         }
         if (!buildRecordTypeValue.isNullOrBlank() && !filter.contains("buildRecordTypeValue")) {
-            result[prefix + "buildRecordTypeValue"] = buildRecordTypeValue
+            result[prefix + "buildRecordTypeValue"] = buildRecordTypeValue.trim()
         }
 
         if (!permittedUseEstablishedByDocument.isNullOrBlank() && !filter.contains("permittedUseEstablishedByDocument")) {
-            result[prefix + "permittedUseEstablishedByDocument"] = permittedUseEstablishedByDocument
+            result[prefix + "permittedUseEstablishedByDocument"] = permittedUseEstablishedByDocument.trim()
         }
 
         if (!permittedUseName.isNullOrBlank() && !filter.contains("permittedUseName")) {
-            result[prefix + "permittedUseName"] = permittedUseName
+            result[prefix + "permittedUseName"] = permittedUseName.trim()
         }
 
         if (!ownershipType.isNullOrBlank() && !filter.contains("ownershipType")) {
-            result[prefix + "ownershipType"] = ownershipType
+            result[prefix + "ownershipType"] = ownershipType.trim()
         }
 
         if (!yearBuilt.isNullOrBlank() && !filter.contains("year_built")) {
-            result[prefix + "year_built"] = yearBuilt
+            result[prefix + "year_built"] = yearBuilt.trim()
 
         }
 
         if (!constructYearBuilt.isNullOrBlank() && !filter.contains("year_built")) {
-            result[prefix + "construct_year_built"] = constructYearBuilt
+            result[prefix + "construct_year_built"] = constructYearBuilt.trim()
         }
 
         if (!yearCommissioning.isNullOrBlank() && !filter.contains("year_comissioning")) {
-            result[prefix + "year_comissioning"] = yearCommissioning
+            result[prefix + "year_comissioning"] = yearCommissioning.trim()
         }
 
         if (!constructYearCommissioning.isNullOrBlank() && !filter.contains("year_comissioning")) {
-            result[prefix + "construct_year_comissioning"] = constructYearCommissioning        }
+            result[prefix + "construct_year_comissioning"] = constructYearCommissioning.trim()
+        }
 
         if (!buildingName.isNullOrBlank() && !filter.contains("building_name")) {
-            result[prefix + "building_name"] = buildingName
+            result[prefix + "building_name"] = buildingName.trim()
         }
 
         if (!constructName.isNullOrBlank() && !filter.contains("construct_name")) {
-            result[prefix + "construct_name"] = constructName
+            result[prefix + "construct_name"] = constructName.trim()
         }
 
         if (!constructPurpose.isNullOrBlank() && !filter.contains("construct_purpose")) {
-            result[prefix + "construct_purpose"] = constructPurpose
+            result[prefix + "construct_purpose"] = constructPurpose.trim()
         }
 
         if (!culturalHeritageVal.isNullOrBlank() && !filter.contains("cultural_heritage")) {
-            result[prefix + "cultural_heritage"] = culturalHeritageVal
+            result[prefix + "cultural_heritage"] = culturalHeritageVal.trim()
         }
 
         return result
