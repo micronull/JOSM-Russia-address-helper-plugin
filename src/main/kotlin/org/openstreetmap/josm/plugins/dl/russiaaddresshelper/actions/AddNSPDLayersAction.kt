@@ -50,7 +50,7 @@ class AddNSPDLayersAction : JosmAction(
     }
 
     private fun getCommonHeaders():Map<String,String> {
-        return mapOf("Referer" to EgrnSettingsReader.NSPD_SITE_URL.get())
+        return mapOf("Referer" to EgrnSettingsReader.NSPD_SITE_URL.get(), "User-Agent" to EgrnSettingsReader.EGRN_REQUEST_USER_AGENT.get())
     }
 
 }
