@@ -14,5 +14,7 @@ class ValidationSettingsReader {
 
         val ENABLE_NEW_DOUBLES_CHECK = BooleanProperty("dl.russiaaddresshelper.validation.enable_new_doubles_check", true)
 
+        val THRESHOLD_FOR_CACHE_DIRTY_CHECK = IntegerProperty("dl.russiaaddresshelper.validation.threshold_for_cache_dirty_check", 10)
+
     }
 }

@@ -9,7 +9,8 @@ data class ValidationRecord(
     val coordinate: EastNorth?,
     val addressInfo: ParsedAddressInfo?,
     val ignored: MutableSet<EGRNTestCode> = mutableSetOf(),
-    val processed: MutableSet<EGRNTestCode> = mutableSetOf()
+    val processed: MutableSet<EGRNTestCode> = mutableSetOf(),
+    var isClean : Boolean = true
 ) {
     fun ignore (code : EGRNTestCode) {
         ignored.add(code)
@@ -39,5 +40,9 @@ data class ValidationRecord(
         return processed.contains(code)
     }
 
+
+    fun setDirty() {
+        this.isClean = false
+    }
 
 }

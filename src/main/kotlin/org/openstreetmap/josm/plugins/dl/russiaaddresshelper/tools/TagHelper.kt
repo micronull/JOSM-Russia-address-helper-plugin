@@ -326,7 +326,7 @@ class TagHelper {
             return result
         }
 
-        fun splitLongValue(tag: String, value: String, maxChunkSize: Int = 255): MutableMap<String, String> {
+        fun splitLongValue(tag: String, value: String, maxChunkSize: Int = 254): MutableMap<String, String> {
             if (value.length <= maxChunkSize) {
                 return mutableMapOf(Pair(tag, value.trim()))
             }

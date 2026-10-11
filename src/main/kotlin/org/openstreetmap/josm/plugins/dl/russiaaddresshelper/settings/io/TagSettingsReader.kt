@@ -23,6 +23,7 @@ class TagSettingsReader {
                 "chapel" to listOf<String>("часовня"),
                 "parking" to listOf<String>("паркинг","автостоянка","парковка"),
                 "dormitory" to listOf<String>("общежити"),
+                "cowshed" to listOf<String>("коровник"),
             )
         )
 

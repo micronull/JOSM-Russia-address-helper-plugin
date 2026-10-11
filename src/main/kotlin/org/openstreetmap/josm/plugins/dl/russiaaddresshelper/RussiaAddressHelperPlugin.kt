@@ -42,6 +42,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
     }
 
     companion object {
+
         val ACTION_NAME = I18n.tr("Russia address helper")!!
         val ICON_NAME = "icon.svg"
 
@@ -55,6 +56,7 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
 
         var totalRequestsPerSession = 0L
         var totalSuccessRequestsPerSession = 0L
+        var cacheHitsPerSession = 0L
 
         val selectAction: SelectAction = SelectAction()
         val clickAction: ClickAction = ClickAction()

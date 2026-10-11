@@ -1,7 +1,10 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation
 
 import org.openstreetmap.josm.data.coor.EastNorth
+import org.openstreetmap.josm.data.osm.Node
 import org.openstreetmap.josm.data.osm.OsmPrimitive
+import org.openstreetmap.josm.data.osm.Relation
+import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.data.osm.event.*
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.layer.LayerManager
@@ -10,6 +13,9 @@ import org.openstreetmap.josm.gui.layer.LayerManager.LayerRemoveEvent
 import org.openstreetmap.josm.gui.layer.OsmDataLayer
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NSPDResponse
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsedAddressInfo
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.ValidationSettingsReader.Companion.THRESHOLD_FOR_CACHE_DIRTY_CHECK
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
+import org.openstreetmap.josm.tools.Logging
 import java.util.concurrent.ConcurrentHashMap
 
 
@@ -80,7 +86,7 @@ class ValidatorCache : DataSetListenerAdapter.Listener, LayerChangeListener {
         responses[primitive] = ValidationRecord(response, coordinate, addressInfo)
     }
 
-    fun get(primitive: OsmPrimitive): ValidationRecord? {
+    operator fun get(primitive: OsmPrimitive): ValidationRecord? {
         return responses[primitive]
     }
 
@@ -89,12 +95,55 @@ class ValidatorCache : DataSetListenerAdapter.Listener, LayerChangeListener {
     }
 
 
+    private fun markDirtyIfChanged(changedPrimitive: OsmPrimitive, threshold: Int) {
+        if (changedPrimitive is Node) return
+        val record = responses[changedPrimitive] ?: return
+        if (!record.isClean) return
+        if (changedPrimitive is Way || changedPrimitive is Relation) {
+            val changedCoordinate = GeometryHelper.getPrimitiveCentroid(changedPrimitive)
+            if (changedCoordinate.distance(record.coordinate) > threshold) {
+                record.setDirty()
+                Logging.debug("EGRN Plugin: primitive from cache was changed more than threshold and was marked dirty")
+            }
+        }
+    }
+
     override fun processDatasetEvent(event: AbstractDatasetChangedEvent?) {
         when (event) {
             is PrimitivesRemovedEvent -> primitivesRemoved(event)
             is DataChangedEvent -> dataChangedEvent(event)
+            is WayNodesChangedEvent -> wayNodesChangedEvent(event)
+            is NodeMovedEvent -> nodeMovedEvent(event)
         }
 
+    }
+
+    private fun nodeMovedEvent(event: NodeMovedEvent) {
+        val movedNode = event.node
+        if (movedNode.dataSet != null) {
+            movedNode.referrers.forEach {
+               markDirtyIfChanged(it,THRESHOLD_FOR_CACHE_DIRTY_CHECK.get())
+            }
+        }
+    }
+
+    private fun wayNodesChangedEvent(event: WayNodesChangedEvent) {
+        val changedWay = event.changedWay
+        if (changedWay.isDeleted) {
+            responses.remove(changedWay)
+            return
+        }
+
+        if (changedWay != null) {
+            markDirtyIfChanged(changedWay, THRESHOLD_FOR_CACHE_DIRTY_CHECK.get())
+        }
+
+        if (changedWay.dataSet != null) {
+            val changedWayReferrers = changedWay.referrers
+            changedWayReferrers.forEach {
+                markDirtyIfChanged(it, THRESHOLD_FOR_CACHE_DIRTY_CHECK.get())
+            }
+        }
     }
 
     override fun layerAdded(e: LayerManager.LayerAddEvent?) {
@@ -119,9 +168,18 @@ class ValidatorCache : DataSetListenerAdapter.Listener, LayerChangeListener {
     }
 
     private fun dataChangedEvent(event: DataChangedEvent?) {
-        val events = event?.events ?: emptyList()
-        events.filter { it is PrimitivesRemovedEvent }
-            .forEach { primitivesRemoved(it as PrimitivesRemovedEvent) }
+        val events = event?.events
+        if (events != null) {
+            events.filterIsInstance<PrimitivesRemovedEvent>()
+                .forEach { primitivesRemoved(it) }
+        } else {
+            //mass change, need to mark all cache dirty
+            dirtyAll()
+        }
+    }
+
+    fun dirtyAll() {
+        responses.forEach { (_, record) -> record.setDirty() }
     }
 
     fun initListener() {

@@ -24,15 +24,18 @@ class PlaceParser : IParser<ParsedPlace> {
             val primitivesGroupedByName = foundPrimitives2.groupBy { it.name }.toMutableMap()
             val primitivesGroupedByEgrnName =
                 foundPrimitives.filter { p -> p.hasTag("egrn_name") }.groupBy { it["egrn_name"] }
-            primitivesGroupedByEgrnName.forEach { entry ->
+            val primitivesGroupedByOtherNames = primitivesGroupedByEgrnName.plus(foundPrimitives.filter { p -> p.hasTag("alt_name") }.groupBy { it["alt_name"] })
+
+              primitivesGroupedByOtherNames.forEach { entry ->
                 if (primitivesGroupedByName[entry.key] == null) {
-                    primitivesGroupedByName.put(entry.key, entry.value)
+                    primitivesGroupedByName[entry.key] = entry.value
                 } else {
                     var existingPrimitives = primitivesGroupedByName[entry.key]
                     existingPrimitives = existingPrimitives!!.plus(entry.value)
                     primitivesGroupedByName[entry.key] = existingPrimitives
                 }
             }
+
             primitivesToCompare.putIfAbsent(type.name, primitivesGroupedByName)
         }
         return ParsedPlace.identify(address, placeTypes, primitivesToCompare)
