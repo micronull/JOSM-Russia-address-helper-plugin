@@ -45,7 +45,7 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
         panel.add(JLabel(I18n.tr("Delay between requests in seconds:")), GBC.std())
         panel.add(egrnRequestDelay, GBC.eop().insets(5, 0, 0, 5))
 
-        panel.add(JLabel(I18n.tr("Total requests to EGRN in current session (total/success):")), GBC.std())
+        panel.add(JLabel(I18n.tr("Total requests to EGRN in current session (total/success/cache):")), GBC.std())
         panel.add(egrnTotalRequestsCounter, GBC.eop().insets(5, 0, 0, 5))
 
         panel.add(JLabel(I18n.tr("Resolution of request, pixel per meter:")), GBC.std())
@@ -69,7 +69,7 @@ class EgrnRequestSettingsPanel : JPanel(GridBagLayout()) {
         egrnRequestDelay.text = EgrnSettingsReader.REQUEST_DELAY.get().toString()
         disableSSLforRequests.isSelected = EgrnSettingsReader.EGRN_DISABLE_SSL_FOR_REQUEST.get()
         egrnTotalRequestsCounter.text =
-            "${RussiaAddressHelperPlugin.totalRequestsPerSession}/${RussiaAddressHelperPlugin.totalSuccessRequestsPerSession}"
+            "${RussiaAddressHelperPlugin.totalRequestsPerSession}/${RussiaAddressHelperPlugin.totalSuccessRequestsPerSession}/${RussiaAddressHelperPlugin.cacheHitsPerSession}"
         egrnTotalRequestsCounter.isEnabled = false
         requestPixelResolution.text = EgrnSettingsReader.REQUEST_PIXEL_RESOLUTION.get().toString()
         requestBoundaryMargin.text = EgrnSettingsReader.REQUEST_BOUNDS_MARGIN.get().toString()

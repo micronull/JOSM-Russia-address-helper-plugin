@@ -454,8 +454,8 @@ msgstr "Слишком много последовательных неудач,
 msgid "Selected more than set limit buildings, only first %s will be processed"
 msgstr "Выбрано больше зданий, чем установлено в настройках, будет запрошено только %s объектов из выделения"
 
-msgid "Total requests to EGRN in current session (total/success):"
-msgstr "Всего запросов к ЕГРН в текущей сессии (всего/успех):"
+msgid "Total requests to EGRN in current session (total/success/cache):"
+msgstr "Всего запросов к ЕГРН в текущей сессии (всего/успех/кэшированных):"
 
 msgid "Request limit for single select action:"
 msgstr "Лимит количества зданий в одном запросе массовой загрузки:"
