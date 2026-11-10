@@ -117,7 +117,7 @@ class EGRNMultipleValidAddressTest : Test(
         correctionTable.cellSelectionEnabled = false
         correctionTable.setValueAt(true, preferredIndex, correctionTable.correctionTableModel.applyColumn)
         correctionTable.autoResizeMode = JTable.AUTO_RESIZE_OFF
-        correctionTable.preferredScrollableViewportSize = Dimension(800, 96)
+        correctionTable.preferredScrollableViewportSize = Dimension(800, 160)
         correctionTable.columnModel.getColumn(0).preferredWidth = 400
         correctionTable.columnModel.getColumn(1).preferredWidth = 220
         correctionTable.columnModel.getColumn(2).preferredWidth = 100

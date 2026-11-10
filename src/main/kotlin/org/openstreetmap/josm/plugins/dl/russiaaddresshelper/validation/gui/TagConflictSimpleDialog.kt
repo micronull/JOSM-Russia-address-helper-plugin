@@ -52,7 +52,17 @@ class TagConflictSimpleDialog(
         )
         contentPanel.add(egrnTagsLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL).insets(0, 0, 0, 10))
 
-        val addressLabel = JLabel("Адрес из ЕГРН: $egrnAddress")
+        // setMaxWidth у JMultilineLabel в этой версии JOSM не ограничивает ширину,
+        // поэтому переносим строку вручную — иначе подпись растягивает диалог до 800 px
+        val addressText = "Адрес из ЕГРН: ${egrnAddress ?: ""}"
+        val addressHtml = wrapText(addressText, 72).joinToString("<br>") { line ->
+            if (line.startsWith("Адрес из ЕГРН:")) {
+                "<b>Адрес из ЕГРН:</b>" + line.removePrefix("Адрес из ЕГРН:")
+            } else {
+                line
+            }
+        }
+        val addressLabel = JMultilineLabel(addressHtml, false, true)
         contentPanel.add(addressLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL).insets(0, 10, 0, 10))
         val tablePanel = JPanel(GridBagLayout())
         tagsTable.tableHeader.reorderingAllowed = false
@@ -61,13 +71,15 @@ class TagConflictSimpleDialog(
         tagsTable.cellSelectionEnabled = false
         tagsTable.rowSelectionAllowed = true
         tagsTable.autoResizeMode = JTable.AUTO_RESIZE_OFF
-        tagsTable.preferredScrollableViewportSize = Dimension(800, 400)
-        tagsTable.columnModel.getColumn(0).preferredWidth = 150
-        tagsTable.columnModel.getColumn(1).preferredWidth = 100
-        tagsTable.columnModel.getColumn(2).preferredWidth = 100
-        tagsTable.columnModel.getColumn(3).preferredWidth = 100
+        // колонки узкие: длинные значения переносит WrappingCellRenderer,
+        // высота строки подбирается в TagConflictsTable.adjustRowHeight.
+        // Диалог при этом остаётся уже исходного (было 743 px из-за длинной подписи).
+        tagsTable.columnModel.getColumn(0).preferredWidth = 120
+        tagsTable.columnModel.getColumn(1).preferredWidth = 150
+        tagsTable.columnModel.getColumn(2).preferredWidth = 150
+        tagsTable.columnModel.getColumn(3).preferredWidth = 150
         val pane = JScrollPane(tagsTable)
-        pane.preferredSize = Dimension(455, 100)
+        pane.preferredSize = Dimension(600, 100)
         tablePanel.add(pane, GBC.eol().anchor(GBC.NORTH).fill(GBC.HORIZONTAL))
 
         //add buttons
@@ -87,6 +99,33 @@ class TagConflictSimpleDialog(
         this.setupDialog()
         tagsTable.setButton(this.buttons.first())
         tagsTable.mergeCompleteCheck()
+    }
+
+    /**
+     * Переносит текст по словам, не разрывая сокращения с номером («д. 188», «ул. Ленина»).
+     * JMultilineLabel в JOSM 18902 игнорирует setMaxWidth, поэтому строки режем сами.
+     */
+    private fun wrapText(text: String, limit: Int): List<String> {
+        val words = text.split(" ")
+        val lines = mutableListOf<String>()
+        val current = StringBuilder()
+        var glueNext = false
+        for (word in words) {
+            val overflow = current.length + 1 + word.length > limit
+            if (current.isNotEmpty() && !glueNext && overflow) {
+                lines.add(current.toString())
+                current.setLength(0)
+            }
+            if (current.isNotEmpty()) {
+                current.append(' ')
+            }
+            current.append(word)
+            glueNext = word.length <= 3 && word.endsWith(".")
+        }
+        if (current.isNotEmpty()) {
+            lines.add(current.toString())
+        }
+        return lines
     }
 
     private fun configureTableButtons() {

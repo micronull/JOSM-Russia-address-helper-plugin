@@ -22,13 +22,13 @@ class AddressCorrectionTableModel(corrections: List<AddressCorrection>) :
     override fun getCorrectionValueAt(rowIndex: Int, colIndex: Int): Any? {
         val correction = this.corrections[rowIndex] as AddressCorrection
         return when (colIndex) {
-            0 -> formatAddress(correction.address.egrnAddress, 40)
-            1 -> correction.address.getOsmAddress().getInlineAddress(",")
-            2 -> correction.address.layer?.description ?: if (correction.address.isBuildingAddress()) {
-                I18n.tr("BUILDING")
-            } else {
-                I18n.tr("PARCEL")
-            }
+            0 -> formatAddress(correction.address.egrnAddress, 55)
+            1 -> wrapAddress(correction.address.getOsmAddress().getInlineAddress(",") ?: "", 30)
+            2 -> wrapAddress(
+                correction.address.layer?.description
+                    ?: if (correction.address.isBuildingAddress()) I18n.tr("BUILDING") else I18n.tr("PARCEL"),
+                14
+            )
             else -> null
         }
     }
@@ -41,28 +41,83 @@ class AddressCorrectionTableModel(corrections: List<AddressCorrection>) :
         return corrections.filterIndexed { index, _ -> super.getApply(index) }.first()
     }
 
-    private fun formatAddress(address: String, charLimit: Int): Array<String> {
-        if (address.length < charLimit) {
-            return arrayOf(address)
+    /**
+     * Переносит адрес по словам, чтобы он целиком помещался в узкой колонке.
+     * Короткий «хвост» после запятой (номер дома) стараемся не отрывать от улицы.
+     */
+    private fun wrapAddress(address: String, charLimit: Int): Array<String> {
+        if (address.isBlank()) return arrayOf("")
+        if (address.length <= charLimit) return arrayOf(address)
+
+        val rawWords = address.split(" ")
+        val words = mutableListOf<String>()
+        var i = 0
+        while (i < rawWords.size) {
+            var word = rawWords[i]
+            if (word.endsWith(",") && i + 1 < rawWords.size &&
+                word.length + 1 + rawWords[i + 1].length <= charLimit
+            ) {
+                word = "$word ${rawWords[i + 1]}"
+                i++
+            }
+            words.add(word)
+            i++
         }
-        var addressParts = address.split(",")
-        if (addressParts.size == 1) {
-            addressParts = address.split(" ")
-        }
-        if (addressParts.size == 1) {
-            return arrayOf(address)
-        }
-        var result: Array<String> = arrayOf()
-        var accumulator = ""
-        for (part in addressParts) {
-            accumulator = "$accumulator$part${if (addressParts.last() != part) "," else ""}"
-            if (accumulator.length > charLimit) {
-                result = result.plus(accumulator)
-                accumulator = ""
+
+        val result = mutableListOf<String>()
+        val line = StringBuilder()
+        for (word in words) {
+            if (line.isEmpty()) {
+                line.append(word)
+            } else if (line.length + 1 + word.length <= charLimit) {
+                line.append(' ').append(word)
+            } else {
+                result.add(line.toString())
+                line.setLength(0)
+                line.append(word)
             }
         }
-        if (accumulator.isNotBlank()) result = result.plus(accumulator)
-        return result
+        if (line.isNotEmpty()) result.add(line.toString())
+        return result.toTypedArray()
+    }
+
+    /**
+     * Разбивает адрес ЕГРН на строки, стараясь резать по запятым.
+     * В отличие от прежней версии лимит проверяется до добавления части,
+     * поэтому ни одна строка не выходит за ширину колонки и не обрезается «…».
+     * Слишком длинная часть дополнительно переносится по словам.
+     */
+    private fun formatAddress(address: String, charLimit: Int): Array<String> {
+        if (address.length <= charLimit) {
+            return arrayOf(address)
+        }
+
+        val pieces = mutableListOf<String>()
+        for (rawPart in address.split(",")) {
+            val part = rawPart.trim()
+            if (part.isEmpty()) continue
+            if (part.length <= charLimit) {
+                pieces.add(part)
+            } else {
+                pieces.addAll(wrapAddress(part, charLimit))
+            }
+        }
+
+        val result = mutableListOf<String>()
+        val line = StringBuilder()
+        for (piece in pieces) {
+            val candidate = if (line.isEmpty()) piece else "$line, $piece"
+            if (line.isEmpty() || candidate.length <= charLimit) {
+                line.setLength(0)
+                line.append(candidate)
+            } else {
+                result.add(line.toString())
+                line.setLength(0)
+                line.append(piece)
+            }
+        }
+        if (line.isNotEmpty()) result.add(line.toString())
+        return result.toTypedArray()
     }
 
     override fun setValueAt(aValue: Any?, rowIndex: Int, columnIndex: Int) {
