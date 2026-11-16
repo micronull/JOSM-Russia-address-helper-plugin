@@ -83,6 +83,13 @@ class EGRNPlaceNotFoundTest : Test(
     }
 
     override fun fixError(testError: TestError): Command? {
+        // Диалог и повторный запрос — только после endUpdate() из FixTask, иначе
+        // перерисовка карты и рабочий поток валидатора блокируют друг друга.
+        RussiaAddressHelperPlugin.runFixAfterDatasetUpdate { fixErrorDeferred(testError) }
+        return null
+    }
+
+    private fun fixErrorDeferred(testError: TestError): Command? {
         var egrnPlaceName = ""
         val affectedHousenumbers = mutableListOf<String>()
         val affectedAddresses = mutableListOf<ParsedAddress>()

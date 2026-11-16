@@ -30,6 +30,7 @@ import org.openstreetmap.josm.tools.Logging
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 import javax.swing.JOptionPane
+import javax.swing.SwingUtilities
 
 // FIXME: такой молодой, а уже легаси...
 class Buildings(objects: List<OsmPrimitive>) {
@@ -140,7 +141,10 @@ class Buildings(objects: List<OsmPrimitive>) {
                     I18n.tr("Import address data for selected objects")
                 }
                 val c: Command = SequenceCommand(commandDescription, cmds)
-                UndoRedoHandler.getInstance().add(c)
+                // JOSM требует изменять данные в EDT: UndoRedoHandler.add() вызывает
+                // DataSet.beginUpdate() (write lock), и из рабочего потока это даёт
+                // взаимную блокировку с StyledMapRenderer, который держит read lock в EDT.
+                SwingUtilities.invokeAndWait { UndoRedoHandler.getInstance().add(c) }
 
                 val orthoCmds: MutableList<Command> = mutableListOf()
                 items.forEach {
@@ -152,12 +156,14 @@ class Buildings(objects: List<OsmPrimitive>) {
                     }
                 }
                 if (orthoCmds.isNotEmpty()) {
-                    UndoRedoHandler.getInstance()
-                        .add(SequenceCommand(I18n.tr("Orthogonalize imported geometry"), orthoCmds))
+                    val orthoCommand = SequenceCommand(I18n.tr("Orthogonalize imported geometry"), orthoCmds)
+                    SwingUtilities.invokeAndWait { UndoRedoHandler.getInstance().add(orthoCommand) }
                 }
             }
 
-            loadListener?.onComplete?.invoke(changedObjects.toTypedArray())
+            // onComplete тоже меняет данные (удаляет вспомогательную линию, меняет выделение),
+            // поэтому и он должен выполняться в EDT.
+            SwingUtilities.invokeAndWait { loadListener?.onComplete?.invoke(changedObjects.toTypedArray()) }
         }
         return scope
     }

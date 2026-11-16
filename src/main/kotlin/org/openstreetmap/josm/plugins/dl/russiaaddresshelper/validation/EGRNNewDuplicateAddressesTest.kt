@@ -13,7 +13,6 @@ import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.OSMAddress
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.ValidationSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper.Companion.splitLongValue
 import org.openstreetmap.josm.tools.GBC
@@ -43,7 +42,6 @@ class EGRNNewDuplicateAddressesTest : Test(
 
     private fun visitPrimitive(w: OsmPrimitive) {
         if (!w.isUsable) return
-        if (!ValidationSettingsReader.ENABLE_NEW_DOUBLES_CHECK.get()) return
 
         if (!RussiaAddressHelperPlugin.cache.contains(w) || RussiaAddressHelperPlugin.cache.isIgnored(
                 w,
@@ -77,6 +75,13 @@ class EGRNNewDuplicateAddressesTest : Test(
     }
 
     override fun fixError(testError: TestError): Command? {
+        // Диалог и повторный запрос — только после endUpdate() из FixTask, иначе
+        // перерисовка карты и рабочий поток валидатора блокируют друг друга.
+        RussiaAddressHelperPlugin.runFixAfterDatasetUpdate { fixErrorDeferred(testError) }
+        return null
+    }
+
+    private fun fixErrorDeferred(testError: TestError): Command? {
         val assignAllLimit = 5
         //примитивы содержат и новые и уже существующие в ОСМ
         val affectedPrimitives = testError.primitives.toSet()

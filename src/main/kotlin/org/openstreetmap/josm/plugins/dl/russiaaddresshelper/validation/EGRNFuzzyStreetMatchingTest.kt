@@ -166,10 +166,10 @@ class EGRNFuzzyStreetMatchingTest : Test(
         if (answer == 1) {
             val filteredPrimitives =
                 testError.primitives.filter { RussiaAddressHelperPlugin.cache.contains(it) }.toMutableList()
-            val doubled = RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
+            val doubled = RussiaAddressHelperPlugin.cleanFromDoublesUsingCache(filteredPrimitives)
             RussiaAddressHelperPlugin.cache.ignoreValidator(doubled, EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)
             filteredPrimitives.forEach {
-                val preferredAddress = RussiaAddressHelperPlugin.cache.get(it)!!.addressInfo?.getPreferredAddress()
+                val preferredAddress = RussiaAddressHelperPlugin.cache[it]!!.addressInfo?.getPreferredAddress()
                 val tags = preferredAddress!!.getOsmAddress().getBaseAddressTagsWithSource().toMutableMap()
                 tags.plusAssign(splitLongValue("addr:RU:egrn", preferredAddress.egrnAddress))
                 cmds.add(ChangePropertyCommand(listOf(it), tags))
@@ -187,10 +187,10 @@ class EGRNFuzzyStreetMatchingTest : Test(
 
             val filteredPrimitives =
                 testError.primitives.filter { RussiaAddressHelperPlugin.cache.contains(it) }.toMutableList()
-            val doubled = RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
+            val doubled = RussiaAddressHelperPlugin.cleanFromDoublesUsingCache(filteredPrimitives)
             RussiaAddressHelperPlugin.cache.ignoreValidator(doubled, EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)
             filteredPrimitives.forEach {
-                val preferredAddress = RussiaAddressHelperPlugin.cache.get(it)!!.addressInfo?.getPreferredAddress()
+                val preferredAddress = RussiaAddressHelperPlugin.cache[it]!!.addressInfo?.getPreferredAddress()
                 val tags = preferredAddress!!.getOsmAddress().getBaseAddressTagsWithSource().toMutableMap()
                 tags.plusAssign(Pair("addr:street", editedOsmStreetName))
                 tags.plusAssign(splitLongValue("addr:RU:egrn", preferredAddress.egrnAddress))

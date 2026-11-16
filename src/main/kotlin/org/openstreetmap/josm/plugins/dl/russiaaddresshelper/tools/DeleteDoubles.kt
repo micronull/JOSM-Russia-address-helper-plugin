@@ -8,9 +8,6 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.gui.Notification
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.models.Buildings
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.CommonSettingsReader
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.ValidationSettingsReader
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation.EGRNTestCode
 import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.Logging
@@ -37,36 +34,13 @@ class DeleteDoubles {
             items.forEach {
                 //костыль - просто пропускаем здания без адреса
                 if (!it.preparedTags.contains("addr:housenumber")) return@forEach
-
-                val streetOrPlace = if (StringUtils.isNotBlank(it.preparedTags["addr:street"])) {
-                    it.preparedTags["addr:street"]
+                val primitive = if (it.osmPrimitive is Node && it.importedGeometry.isNotEmpty()) {
+                    it.importedGeometry.first().second!!
                 } else {
-                    it.preparedTags["addr:place"]
+                    it.osmPrimitive
                 }
-                val house = it.preparedTags["addr:housenumber"]!!
-                val itemCentroid = it.coordinate
-                //перепроверить проблемы старого алгоритма в новом
-                if (ValidationSettingsReader.ENABLE_NEW_DOUBLES_CHECK.get()) {
-                    val primitive = if (it.osmPrimitive is Node && it.importedGeometry.isNotEmpty()) { it.importedGeometry.first().second!!} else {it.osmPrimitive}
-                    if (RussiaAddressHelperPlugin.addressRegistry.getDoubles(primitive, it.preparedTags).isNotEmpty()) {
-                        processDouble(it)
-                    }
-                } else {
-                    //если мы включаем режим "валидации", то есть запрашиваем данные ЕГРН для которых уже есть адресные данные в ОСМ,
-                    //то тут происходит "интересное" - примитив здания сравнивается сам с собой, и считается дубликатом, поэтому вторичные тэги ему не присваиваются
-                    //eще один фатальный баг - мапа адресов ОСМ хранит только одно сочетание "улица - номер дома - координата".
-                    //поэтому, если присутствует два одинаковых адреса, а в мапу попал дальний от текущего запроса - то будет выдан адрес-дубль
-                    if (osmAddressMap.containsKey(streetOrPlace) && osmAddressMap[streetOrPlace]!!.contains(house)) {
-                        val distance = itemCentroid.distance(osmAddressMap[streetOrPlace]?.get(house) ?: itemCentroid)
-                        if (distance < CommonSettingsReader.CLEAR_DOUBLE_DISTANCE.get()) {
-                            Logging.info("EGRN PLUGIN remove existing in OSM address $streetOrPlace $house")
-                            processDouble(it)
-                        } else {
-                            Logging.info(
-                                "EGRN PLUGIN found double for address, but not mark it for removal, because distance $distance is bigger than ${CommonSettingsReader.CLEAR_DOUBLE_DISTANCE.get()}"
-                            )
-                        }
-                    }
+                if (RussiaAddressHelperPlugin.addressRegistry.getDoubles(primitive, it.preparedTags).isNotEmpty()) {
+                    processDouble(it)
                 }
             }
 
@@ -116,7 +90,7 @@ class DeleteDoubles {
                         Notification("$msg $street, $house").setIcon(JOptionPane.WARNING_MESSAGE).show()
 
                         doubles.toList().drop(1).forEach {
-                           processDouble(it)
+                            processDouble(it)
                         }
                     }
                 }
@@ -141,12 +115,6 @@ class DeleteDoubles {
             primitiveToAssignTags = it.osmPrimitive
         }
         if (primitiveToAssignTags != null) {
-            if (!ValidationSettingsReader.ENABLE_NEW_DOUBLES_CHECK.get()) {
-                RussiaAddressHelperPlugin.cache.markProcessed(
-                    primitiveToAssignTags,
-                    EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND
-                )
-            }
             removePreparedAddressTags(it)
         }
     }

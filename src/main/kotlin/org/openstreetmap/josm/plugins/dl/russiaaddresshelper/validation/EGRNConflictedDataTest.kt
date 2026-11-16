@@ -73,7 +73,9 @@ class EGRNConflictedDataTest : Test(
                 tagsFromEgrn.putAll(TagHelper.getBuildingTags(buildingFeature, NSPDLayer.UNFINISHED))
             }
         }
-        return tagsFromEgrn.filter { p.hasTag(it.key) && p[it.key] != it.value && !(it.key == "building" && it.value == "yes") }
+        val hasAssignedStreetName = RussiaAddressHelperPlugin.cache[p]!!.isIgnored(EGRNTestCode.EGRN_STREET_FUZZY_MATCHING)
+        return tagsFromEgrn.filter { p.hasTag(it.key) && p[it.key] != it.value
+                && (!(it.key == "building" && it.value == "yes") || !(it.key == "addr:street" && hasAssignedStreetName))}
     }
 
     override fun fixError(testError: TestError): Command? {

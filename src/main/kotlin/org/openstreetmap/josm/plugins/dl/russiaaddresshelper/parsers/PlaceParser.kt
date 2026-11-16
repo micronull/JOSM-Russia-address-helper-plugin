@@ -15,6 +15,7 @@ class PlaceParser : IParser<ParsedPlace> {
         val allLoadedPrimitives = editDataSet.allNonDeletedCompletePrimitives()
         //на вход подается мапа <тип, map<имя, List<примитив>>
         //необходимо отфильтровать в зависимости от типа
+        // будет ли выигрыш, если мы перейдем на использование кэша мест? там уже собраны места ОСМ, но нужно их перегнать в мапу
         val primitivesToCompare: MutableMap<String, Map<String, List<OsmPrimitive>>> = mutableMapOf()
         placeTypes.types.forEach { type ->
             val foundPrimitives =

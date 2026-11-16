@@ -115,7 +115,7 @@ internal class AddressParserTest {
         ds.addPrimitive(getPlace("1-й микрорайон", "suburb"))
         ds.addPrimitive(getPlace("8-й квартал", "quarter"))
         ds.addPrimitive(getPlace("Голубино", "town"))
-        return ds;
+        return ds
     }
 
     private fun getStreet(name: String): Way {
@@ -136,6 +136,7 @@ internal class AddressParserTest {
         return node1
     }
 
+
     companion object {
         @JvmStatic
         fun addresses() = listOf(
@@ -144,6 +145,14 @@ internal class AddressParserTest {
                 "Голубино",
                 null,
                 "1Б",
+                "",
+                null
+            ),
+            Arguments.of(
+                "Российская Федерация, Московская область, г.о. Одинцовский, тер. СНТ Хуторок, пер. Хуторский, стр. 66",
+                null,
+                "Хуторский переулок",
+                "66",
                 "",
                 null
             ),

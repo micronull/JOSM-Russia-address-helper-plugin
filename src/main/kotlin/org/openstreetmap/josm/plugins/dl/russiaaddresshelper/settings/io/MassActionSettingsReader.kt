@@ -23,12 +23,6 @@ class MassActionSettingsReader {
         val EGRN_MASS_ACTION_USE_EXT_ATTRIBUTES = BooleanProperty("dl.russiaaddresshelper.mass.use_extednded_attributes", true)
 
         /**
-         * Hidden settings to enable old feature - select updated buildings after mass request. Conflicts with filtering, can cause hangup!
-         * @since 0.9.6.5
-         */
-        val EGRN_MASS_ACTION_SELECT_UPDATED_AFTER = BooleanProperty("dl.russiaaddresshelper.mass.select_updated", false)
-
-        /**
         * Generate address points when doing mass request by selected way, and no building is found.
         * @since 0.9.6.8
         */
