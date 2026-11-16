@@ -110,15 +110,15 @@ class TagHelper {
             result[prefix + "heritage"] = parsedEgroknData.getOsmHeritageCategory()
             result["autoremove:category"] = parsedEgroknData.categoryName
 
-            val heritageName :String
+            val heritageName: String
             if (heritageValues.size >= 3) {
                 if (heritageValues.size == 4) {
                     result["autoremove:start_date"] = heritageValues[3]
-                     heritageName = heritageValues[2]
+                    heritageName = heritageValues[2]
                 } else {
                     heritageName = heritageValues.drop(2).joinToString(",")
                 }
-                result[prefix + "name:heritage"] = heritageName
+                result[prefix + "heritage:name"] = heritageName
                 result[prefix + "historic"] = getPossibleHistoricValue(heritageName)
             }
 
@@ -326,28 +326,39 @@ class TagHelper {
             return result
         }
 
-        fun splitLongValue(tag: String, value: String, maxChunkSize: Int = 254): MutableMap<String, String> {
+        fun splitLongValue(tag: String, inputValue: String, maxChunkSize: Int = 254): MutableMap<String, String> {
+            val value = CyrillicHomoglyphs.replace(inputValue.replace(Regex("\\s+"), " ").trim())
             if (value.length <= maxChunkSize) {
                 return mutableMapOf(Pair(tag, value.trim()))
             }
-            val parts: MutableMap<String, String> = mutableMapOf()
-            var partIndex = 1
+            val splitString = splitLongString(value, maxChunkSize)
+
+            return splitString.mapIndexed { index: Int, s: String ->"$tag:p${index+1}" to s }.toMap().toMutableMap()
+        }
+
+        fun splitLongString(value: String, maxChunkSize: Int, isAddress: Boolean = false): Array<String> {
             var start = 0
+            val result: MutableList<String> = mutableListOf()
+            var partIndex = 0
             while (start < value.length) {
                 var end = minOf(start + maxChunkSize, value.length)
                 if (end < value.length) {
-                    val lastComma = value.lastIndexOf(',', end) + 1
-                    if (lastComma > start) {
-                        end = lastComma
-                    } else {
-                        val lastSpace = value.lastIndexOf(' ', end)
-                        if (lastSpace > start) {
-                            end = lastSpace
+                    val lastDivider = getLastDivider(value, end)
+                    if (lastDivider != null) {
+                        if (isAddress && (value[lastDivider-1] == '.' || value[lastDivider+1].isDigit())) {
+                            val previousDivider = getLastDivider(value, lastDivider - 1)
+                            end = if (previousDivider != null) {
+                                previousDivider + 1
+                            } else {
+                                lastDivider+1
+                            }
+                        } else {
+                            end = lastDivider + 1
                         }
                     }
                 }
 
-                parts["$tag:p$partIndex"] = value.substring(start, end).trim()
+                result.add(value.substring(start, end).trim())
 
                 start = end
                 while (start < value.length && value[start].isWhitespace()) {
@@ -355,7 +366,32 @@ class TagHelper {
                 }
                 partIndex++
             }
-            return parts
+            return result.toTypedArray()
+        }
+
+        private fun getLastDivider(value: String, endIndex : Int) : Int? {
+            val delimiters = setOf(';', ',', ' ')
+            return delimiters.firstNotNullOfOrNull { char ->
+                val lastIndex = value.lastIndexOf(char,endIndex)
+                if (lastIndex != -1) lastIndex else null
+            }
+        }
+    }
+
+    object CyrillicHomoglyphs {
+        // Латиница -> кириллица (визуально совпадающие глифы)
+        private val MAP: Map<Char, Char> = mapOf(
+            // строчная латиница
+            'a' to 'а', 'c' to 'с', 'e' to 'е', 'o' to 'о',
+            'p' to 'р', 'x' to 'х', 'y' to 'у',
+            // прописная латиница
+            'A' to 'А', 'B' to 'В', 'C' to 'С', 'E' to 'Е',
+            'H' to 'Н', 'K' to 'К', 'M' to 'М', 'O' to 'О',
+            'P' to 'Р', 'T' to 'Т', 'X' to 'Х', 'Y' to 'У'
+        )
+
+        fun replace(input: String): String = buildString(input.length) {
+            for (ch in input) append(MAP[ch] ?: ch)
         }
     }
 

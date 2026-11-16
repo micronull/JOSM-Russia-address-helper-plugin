@@ -40,16 +40,17 @@ class EGRNAddressAddedTest : Test(
     private fun visitForPrimitive(p: OsmPrimitive) {
         if (!p.isUsable) return
         val egrnResult = RussiaAddressHelperPlugin.cache.get(p)
-        if (egrnResult != null && egrnResult.addressInfo?.getPreferredAddress() != null) {
-            val preferredAddress = egrnResult.addressInfo.getPreferredAddress()!!
-            if (preferredAddress.getOsmAddress().getBaseAddressTagsWithSource().all { p.hasTag(it.key, it.value) }) {
+        if (egrnResult != null && egrnResult.addressInfo?.getDistinctValidAddresses(true)?.isNotEmpty() == true) {
+            val validAddresses = egrnResult.addressInfo.getDistinctValidAddresses(true)
+            val addedAddress = validAddresses.find { address -> address.getOsmAddress().getBaseAddressTagsWithSource().all { p.hasTag(it.key, it.value) } }
+            if (addedAddress != null) {
                 RussiaAddressHelperPlugin.cache.markProcessed(p, EGRNTestCode.EGRN_VALID_ADDRESS_ADDED)
                 errors.add(
                     TestError.builder(
                         this, Severity.WARNING,
                         EGRNTestCode.EGRN_VALID_ADDRESS_ADDED.code
                     )
-                        .message(I18n.tr(EGRNTestCode.EGRN_VALID_ADDRESS_ADDED.message), preferredAddress.egrnAddress)
+                        .message(I18n.tr(EGRNTestCode.EGRN_VALID_ADDRESS_ADDED.message), addedAddress.egrnAddress)
                         .primitives(p)
                         .build()
                 )

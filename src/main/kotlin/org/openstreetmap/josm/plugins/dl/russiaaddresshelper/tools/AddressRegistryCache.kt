@@ -67,13 +67,13 @@ class AddressRegistryCache : AddressToPlacesRegistry(), DataSetListenerAdapter.L
                 }
             }
 
-            // если изменилась граница place - удалить ее из places, потом добавить - чтобы сбросить данные о входящих в нее домиках
+            //Если изменилась граница place - удалить ее из places, потом добавить - чтобы сбросить данные о входящих в нее домиках
             //если домик перетащили - удаляем его из и добавляем его
-            // более сложный вариант - отслеживать, какие домики вывалились из плейса, и удалять только их. Но неясно, как
-            //проблема - event приходит на каждую ноду вэя. в результате домики удаляются и добавляются столько раз, сколько нодов в контуре
+            //более сложный вариант - отслеживать, какие домики вывалились из плейса, и удалять только их. Но неясно, как
+            //проблема - event приходит на каждую ноду вэя. В результате домики удаляются и добавляются столько раз, сколько нодов в контуре
             is NodeMovedEvent -> {
                 val movedNode = event.node
-                if (movedNode.dataSet != null) {
+                if (movedNode.dataSet != null) { //может быть пустым если нода удалена в результате отмены
 
                     movedNode.referrers.forEach {
                         if (isInPlacesCache(it) || isInPrimitivesCache(it)) {
@@ -81,9 +81,6 @@ class AddressRegistryCache : AddressToPlacesRegistry(), DataSetListenerAdapter.L
                             this.add(it)
                         }
                     }
-                } else {
-                    //тут бывает DataIntegrityError - при перемещении точки контура, а потом отмене - т.е когда нода удаляется
-                    Logging.warn("EGRN PLUGIN trying to do something with primitive without dataset")
                 }
             }
 

@@ -165,7 +165,7 @@ class EGRNInitialsStreetMatchingTest : Test(
 
             val filteredPrimitives =
                 testError.primitives.filter { RussiaAddressHelperPlugin.cache.contains(it) }.toMutableList()
-            val doubles = RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
+            val doubles = RussiaAddressHelperPlugin.cleanFromDoublesUsingCache(filteredPrimitives)
             if (doubles.isNotEmpty()) {
                 val msg = I18n.tr("Duplicate addresses was not assigned")
                 val doublesAddresses =

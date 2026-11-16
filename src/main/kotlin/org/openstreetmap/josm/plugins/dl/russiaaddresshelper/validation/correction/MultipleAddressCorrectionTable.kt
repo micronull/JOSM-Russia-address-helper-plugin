@@ -27,15 +27,21 @@ class MultipleAddressCorrectionTable(corrections: MutableList<AddressCorrection>
             if (value is Array<*>) {
                 val arrayValue = value as Array<String?>
                 setListData(arrayValue)
-                if (arrayValue.size > 1) {
-                    val newHeight = table.rowHeight * arrayValue.size
-                    if (table.getRowHeight(row) != newHeight) {
-                        table.setRowHeight(row, newHeight)
-                    }
-                }
             } else {
-                val valueAsArray = arrayOf((value as String))
+                val valueAsArray = arrayOf(value.toString())
                 setListData(valueAsArray)
+            }
+
+            // высота строки — по самой высокой ячейке: у колонок разное число строк,
+            // иначе перенос в одной колонке обрежется из-за другой
+            var lines = 1
+            for (c in 0 until table.columnCount) {
+                val cellValue = table.model.getValueAt(row, c)
+                if (cellValue is Array<*>) lines = maxOf(lines, cellValue.size)
+            }
+            val newHeight = table.rowHeight * lines
+            if (table.getRowHeight(row) != newHeight) {
+                table.setRowHeight(row, newHeight)
             }
 
             val model = table.model as AddressCorrectionTableModel

@@ -208,24 +208,16 @@ class SelectAction : JosmAction(
                 }
             }
 
-            //получаем зависание, если то, что хотим выделить, попадает под фильтрацию фильтрами редактора
-            //поэтому функционал выделения управляется скрытой настройкой, иначе выделение сбрасывается
-            //TODO удалить настройку после тестирования
-            if (MassActionSettingsReader.EGRN_MASS_ACTION_SELECT_UPDATED_AFTER.get()) {
-                if (isLineSelected) {
-                    if (splittedPart != null) {
-                        layerManager.editDataSet.addSelected(splittedPart)
-                        if (splittedPart.isSelectable) {
-                            layerManager.editDataSet.setSelected(splittedPart)
-
-                        }
+            if (isLineSelected) {
+                if (splittedPart != null) {
+                    layerManager.editDataSet.addSelected(splittedPart)
+                    if (splittedPart.isSelectable) {
+                        layerManager.editDataSet.setSelected(splittedPart)
                     }
-                } else {
-                    layerManager.editDataSet.addSelected(*changeBuildings)
-                    layerManager.editDataSet.setSelected(*changeBuildings.filter { it.isSelectable }.toTypedArray())
                 }
             } else {
-                layerManager.editDataSet.clearSelection()
+                layerManager.editDataSet.addSelected(*changeBuildings)
+                layerManager.editDataSet.setSelected(*changeBuildings.filter { it.isSelectable }.toTypedArray())
             }
 
             //валидируем все, все что у нас в кэше на данный момент и не удалено (может быть ситуация с удалением слоя в котором были уже закэшированные данные)

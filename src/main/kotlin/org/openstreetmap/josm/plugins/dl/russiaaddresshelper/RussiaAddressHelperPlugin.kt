@@ -1,11 +1,11 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper
 
 import org.openstreetmap.josm.actions.UploadAction
+import org.openstreetmap.josm.command.Command
+import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.Version
-import org.openstreetmap.josm.data.osm.Node
 import org.openstreetmap.josm.data.osm.OsmDataManager
 import org.openstreetmap.josm.data.osm.OsmPrimitive
-import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.data.validation.OsmValidator
 import org.openstreetmap.josm.data.validation.ValidationTask
 import org.openstreetmap.josm.gui.MainApplication
@@ -20,16 +20,15 @@ import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.NspdApi
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.PluginSetting
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.EgrnSettingsReader
-import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.settings.io.ValidationSettingsReader
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.AddressRegistryCache
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.uploadhooks.EGRNCleanPluginCache
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.uploadhooks.EGRNUploadTagFilter
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation.*
-import org.openstreetmap.josm.tools.Geometry
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.ImageProvider
 import org.openstreetmap.josm.tools.Logging
 import javax.swing.JMenu
+import javax.swing.SwingUtilities
 
 class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
     init {
@@ -76,6 +75,39 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             )
         }
 
+        /**
+         * Откладывает обработку ошибки валидатора до завершения текущего обновления данных.
+         *
+         * JOSM при автоисправлении держит DataSet.beginUpdate() (write-lock) на EDT, пока
+         * вызывает fixError в рабочем потоке. Пока блокировка удерживается, перерисовка карты
+         * в EDT ждёт расчёт стилей в других потоках, а те ждут read-lock. Любой invokeAndWait
+         * из рабочего потока в этот момент приводит к взаимной блокировке.
+         *
+         * Поэтому диалог и повторный запрос выполняются после того, как write-lock освобождён.
+         */
+        fun runFixAfterDatasetUpdate(action: () -> Command?) {
+            MainApplication.worker.submit {
+                try {
+                    val dataSet = OsmDataManager.getInstance().editDataSet
+                    if (dataSet != null) {
+                        // Ждём, пока FixTask завершит beginUpdate()/endUpdate().
+                        val readLock = dataSet.readLock
+                        readLock.lock()
+                        readLock.unlock()
+                    }
+                    SwingUtilities.invokeLater {
+                        try {
+                            action()?.let { UndoRedoHandler.getInstance().add(it) }
+                        } catch (t: Throwable) {
+                            Logging.error(t)
+                        }
+                    }
+                } catch (t: Throwable) {
+                    Logging.error(t)
+                }
+            }
+        }
+
         fun runEgrnValidation(selection: Collection<OsmPrimitive?>) {
             val map = MainApplication.getMap()
             if (map == null || !map.isVisible) return
@@ -91,52 +123,10 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             MainApplication.worker.submit(ValidationTask(egrnTests, selection, null))
         }
 
-        fun cleanFromDoubles(primitives: MutableList<OsmPrimitive>): Set<OsmPrimitive> {
-
-            if (ValidationSettingsReader.ENABLE_NEW_DOUBLES_CHECK.get()) {
-                return cleanFromDoublesUsingCache(primitives)
-            }
-            //получает на вход мутабельный список примитивов, которым хотим присвоить адрес.
-            //удаляем из него все примитивы, для которых есть дубликат предпочитаемого адреса в ОСМ или среди них самих
-            //возвращаем список дублей
-            val needToAssignAddressPrimitives = primitives.filter {
-                cache.contains(it)
-                        && cache.get(it)?.addressInfo?.getPreferredAddress() != null
-                        && !it.hasKey("addr:housenumber")
-            }
-            val needToAssignAddressPrimitivesMap = needToAssignAddressPrimitives.groupBy { getParsedInlineAddress(it) }
-
-            val doubleAddressPrimitives: MutableSet<OsmPrimitive> = mutableSetOf()
-            val osmBuildingsAddressMap = getOsmAddressesMap()
-
-            needToAssignAddressPrimitivesMap.forEach { (address, listToProcess) ->
-                if (listToProcess.isEmpty()) return@forEach
-                if (osmBuildingsAddressMap.containsKey(address)) {
-                    //уже есть дубль в данных ОСМ
-                    primitives.removeAll(listToProcess)
-                    doubleAddressPrimitives.addAll(listToProcess)
-                    return@forEach
-                }
-
-                val assignToPrimitive = listToProcess.filterIsInstance<Way>().maxByOrNull { Geometry.computeArea(it) }
-                if (assignToPrimitive == null) {
-                    Logging.error("EGRN PLUGIN Something went wrong when finding doubles, building has no area")
-                    primitives.removeAll(listToProcess)
-                    return@forEach
-                }
-                val doubles = listToProcess.minus(assignToPrimitive)
-                primitives.removeAll(doubles)
-                doubleAddressPrimitives.addAll(doubles)
-            }
-
-            cache.markProcessed(doubleAddressPrimitives, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)
-            return doubleAddressPrimitives
-        }
-
         fun cleanFromDoublesUsingCache(primitives: MutableList<OsmPrimitive>): Set<OsmPrimitive> {
             val needToAssignAddressPrimitives = primitives.filter {
                 cache.contains(it)
-                        && cache.get(it)?.addressInfo?.getPreferredAddress() != null
+                        && cache[it]?.addressInfo?.getPreferredAddress() != null
                         && !it.hasKey("addr:housenumber")
             }
 
@@ -153,55 +143,26 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
             cache.markProcessed(doubleAddressPrimitives, EGRNTestCode.EGRN_ADDRESS_DOUBLE_FOUND)
             return doubleAddressPrimitives
         }
-        private fun getPrimitivePreparedTags(primitive: OsmPrimitive) : Map<String,String> {
-            return cache.get(primitive)?.addressInfo?.getPreferredAddress()?.getOsmAddress()?.getBaseAddressTags() ?: mutableMapOf()
+
+        private fun getPrimitivePreparedTags(primitive: OsmPrimitive): Map<String, String> {
+            return cache[primitive]?.addressInfo?.getPreferredAddress()?.getOsmAddress()?.getBaseAddressTags()
+                ?: mutableMapOf()
         }
 
-        fun findDoubledAddresses(addresses: MutableList<ParsedAddress>): Set<ParsedAddress> {
-            //получает на вход мутабельный список адресов, которым хотим проверить на дубликаты среди данных ОСМ.
-            //возвращаем список дублей
-
-            val doubleAddresses: MutableSet<ParsedAddress> = mutableSetOf()
-            val osmBuildingsAddressMap = getOsmAddressesMap()
-
-            addresses.forEach {
-                val inlineAddress = it.getOsmAddress().getInlineAddress(",", true)
-                if (osmBuildingsAddressMap.containsKey(inlineAddress)) {
-                    //уже есть дубль в данных ОСМ
-                    doubleAddresses.add(it)
-                }
-            }
-            return doubleAddresses
-        }
-
-        fun findDoubledAddressesWithCache(addresses: MutableList<ParsedAddress>, primitive: OsmPrimitive): Set<ParsedAddress> {
+        fun findDoubledAddressesWithCache(
+            addresses: MutableList<ParsedAddress>,
+            primitive: OsmPrimitive
+        ): Set<ParsedAddress> {
             //получает на вход мутабельный список адресов, которым хотим проверить на дубликаты среди данных ОСМ.
             //удаляем из него все примитивы, для которых есть дубликат предпочитаемого адреса в ОСМ
             //возвращаем список дублей
-             val doubleAddresses: MutableSet<ParsedAddress> = mutableSetOf()
+            val doubleAddresses: MutableSet<ParsedAddress> = mutableSetOf()
             addresses.forEach {
                 if (addressRegistry.getDoubles(primitive, it.getOsmAddress().getBaseAddressTags()).isNotEmpty()) {
                     doubleAddresses.add(it)
                 }
             }
             return doubleAddresses
-        }
-
-        private fun getOsmAddressesMap(): Map<String, List<OsmPrimitive>> {
-            val osmBuildingsWithAddress = OsmDataManager.getInstance().editDataSet.allNonDeletedCompletePrimitives()
-                .filter { p ->
-                    p !is Node && p.hasKey("building") && p.hasKey("addr:housenumber") && (p.hasKey("addr:street") || p.hasKey(
-                        "addr:place"
-                    ))
-                }
-            val osmBuildingsAddressMap = osmBuildingsWithAddress.groupBy { getOsmInlineAddress(it) }
-            return osmBuildingsAddressMap
-        }
-
-
-        private fun getParsedInlineAddress(primitive: OsmPrimitive): String {
-            val prefAddress = cache.get(primitive)?.addressInfo?.getPreferredAddress() ?: return ""
-            return prefAddress.getOsmAddress().getInlineAddress(",", true) ?: ""
         }
 
         private fun isPlaceAddress(primitive: OsmPrimitive): Boolean {
@@ -236,7 +197,6 @@ class RussiaAddressHelperPlugin(info: PluginInformation) : Plugin(info) {
         OsmValidator.addTest(EGRNFlatsInAddressTest::class.java)
         OsmValidator.addTest(EGRNPlaceNotFoundTest::class.java)
         OsmValidator.addTest(EGRNFuzzyOrInitialsPlaceMatchTest::class.java)
-        OsmValidator.addTest(EGRNDuplicateAddressesTest::class.java)
         OsmValidator.addTest(EGRNNewDuplicateAddressesTest::class.java)
         OsmValidator.addTest(EGRNStreetOrPlaceTooFarTest::class.java)
         OsmValidator.addTest(EGRNConflictedDataTest::class.java)

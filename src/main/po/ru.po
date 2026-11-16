@@ -394,8 +394,14 @@ msgstr "Валидация адресов для которых не нашел�
 msgid "Retry address matching"
 msgstr "Заново сопоставить адреса"
 
+msgid "Name selected street and retry"
+msgstr "Присвоить имя улице и перезапросить"
+
 msgid "Added tags from RussiaAddressHelper PlaceNotFound validator"
 msgstr "Добавление тэгов валидатором PlaceNotFound"
+
+msgid "Assigned street name from EGRN"
+msgstr "Присвоение имени улицы по данным ЕГРН"
 
 msgid "EGRN street not found"
 msgstr "ЕГРН улица не найдена"

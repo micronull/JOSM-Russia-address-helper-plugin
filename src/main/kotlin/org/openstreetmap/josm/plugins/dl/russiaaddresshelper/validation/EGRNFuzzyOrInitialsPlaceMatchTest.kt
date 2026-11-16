@@ -100,6 +100,13 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
     }
 
     override fun fixError(testError: TestError): Command? {
+        // Диалог и повторный запрос — только после endUpdate() из FixTask, иначе
+        // перерисовка карты и рабочий поток валидатора блокируют друг друга.
+        RussiaAddressHelperPlugin.runFixAfterDatasetUpdate { fixErrorDeferred(testError) }
+        return null
+    }
+
+    private fun fixErrorDeferred(testError: TestError): Command? {
 
         val affectedHousenumbers = mutableSetOf<String>()
         var egrnPlaceName = ""
@@ -176,7 +183,7 @@ class EGRNFuzzyOrInitialsPlaceMatchTest : Test(
         if (answer == 1) {
             val filteredPrimitives =
                 testError.primitives.filter { RussiaAddressHelperPlugin.cache.contains(it) }.toMutableList()
-            val doubles = RussiaAddressHelperPlugin.cleanFromDoubles(filteredPrimitives)
+            val doubles = RussiaAddressHelperPlugin.cleanFromDoublesUsingCache(filteredPrimitives)
             RussiaAddressHelperPlugin.cache.ignoreValidator(doubles, EGRNTestCode.getByCode(testError.code)!!)
             filteredPrimitives.forEach {
                 val preferredAddress = RussiaAddressHelperPlugin.cache.responses[it]!!.addressInfo!!.getPreferredAddress()

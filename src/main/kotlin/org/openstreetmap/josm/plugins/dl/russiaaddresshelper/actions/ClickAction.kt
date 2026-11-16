@@ -254,7 +254,7 @@ class ClickAction : MapMode(
             )
             val buildingsToCheck: MutableList<OsmPrimitive> = mutableListOf(buildingPrimitive!!)
             primitivesToValidate.add(buildingPrimitive!!)
-            RussiaAddressHelperPlugin.cleanFromDoubles(buildingsToCheck)
+            RussiaAddressHelperPlugin.cleanFromDoublesUsingCache(buildingsToCheck)
             if (buildingsToCheck.isNotEmpty() && parsedAddressInfo.canAssignAddress()) {
                 val addressTags = mutableMapOf<String, String>()
                 val preferredAddress = parsedAddressInfo.getPreferredAddress()!!

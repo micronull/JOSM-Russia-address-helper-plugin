@@ -3,6 +3,7 @@ package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation.gui
 import org.openstreetmap.josm.data.osm.OsmPrimitive
 import org.openstreetmap.josm.gui.ExtendedDialog
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel
+import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.TagHelper
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
 import org.openstreetmap.josm.tools.ImageProvider
@@ -52,7 +53,10 @@ class TagConflictSimpleDialog(
         )
         contentPanel.add(egrnTagsLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL).insets(0, 0, 0, 10))
 
-        val addressLabel = JLabel("Адрес из ЕГРН: $egrnAddress")
+        val prefix = "Адрес из ЕГРН:</br>"
+        val splitAddress = TagHelper.splitLongString(egrnAddress?: "", 72, true)
+        val addressHtml = prefix + splitAddress.joinToString("<br>")
+        val addressLabel = JMultilineLabel(addressHtml, false, true)
         contentPanel.add(addressLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL).insets(0, 10, 0, 10))
         val tablePanel = JPanel(GridBagLayout())
         tagsTable.tableHeader.reorderingAllowed = false
@@ -61,13 +65,14 @@ class TagConflictSimpleDialog(
         tagsTable.cellSelectionEnabled = false
         tagsTable.rowSelectionAllowed = true
         tagsTable.autoResizeMode = JTable.AUTO_RESIZE_OFF
-        tagsTable.preferredScrollableViewportSize = Dimension(800, 400)
-        tagsTable.columnModel.getColumn(0).preferredWidth = 150
-        tagsTable.columnModel.getColumn(1).preferredWidth = 100
-        tagsTable.columnModel.getColumn(2).preferredWidth = 100
-        tagsTable.columnModel.getColumn(3).preferredWidth = 100
+        // колонки узкие: длинные значения переносит WrappingCellRenderer,
+        // высота строки подбирается в TagConflictsTable.adjustRowHeight.
+        tagsTable.columnModel.getColumn(0).preferredWidth = 120
+        tagsTable.columnModel.getColumn(1).preferredWidth = 150
+        tagsTable.columnModel.getColumn(2).preferredWidth = 150
+        tagsTable.columnModel.getColumn(3).preferredWidth = 150
         val pane = JScrollPane(tagsTable)
-        pane.preferredSize = Dimension(455, 100)
+        pane.preferredSize = Dimension(600, 100)
         tablePanel.add(pane, GBC.eol().anchor(GBC.NORTH).fill(GBC.HORIZONTAL))
 
         //add buttons

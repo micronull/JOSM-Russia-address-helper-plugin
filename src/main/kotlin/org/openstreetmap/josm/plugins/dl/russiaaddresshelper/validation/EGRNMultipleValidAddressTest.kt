@@ -47,22 +47,30 @@ class EGRNMultipleValidAddressTest : Test(
         if (!p.isUsable) return
 
         if (RussiaAddressHelperPlugin.cache.contains(p)) {
-            val data: ValidationRecord = RussiaAddressHelperPlugin.cache.get(p)!!
+            val data: ValidationRecord = RussiaAddressHelperPlugin.cache[p]!!
             val addressInfo = data.addressInfo ?: ParsedAddressInfo(listOf())
-            if (addressInfo.getDistinctValidAddresses(true).size > 1 && !data.isIgnored(EGRNTestCode.EGRN_HAS_MULTIPLE_VALID_ADDRESSES)
+            val distinctValidAddresses = addressInfo.getDistinctValidAddresses(true)
+            if (distinctValidAddresses.size > 1 && !data.isIgnored(EGRNTestCode.EGRN_HAS_MULTIPLE_VALID_ADDRESSES)
                 && !p.hasTag("addr:housenumber")
             ) {
+                var severity = Severity.ERROR
+                var additionalMessage = ""
                 RussiaAddressHelperPlugin.cache.markProcessed(p, EGRNTestCode.EGRN_HAS_MULTIPLE_VALID_ADDRESSES)
+                if (allAddressesAreDoubles(distinctValidAddresses, p)) {
+                    severity = Severity.WARNING
+                    additionalMessage = " (дубликаты)"
+                }
+
                 val firstAddress = addressInfo.getPreferredAddress()!!
                 val secondAddress = addressInfo.getValidAddresses().first { it != firstAddress }
                 val highlightPrimitive = GeometryHelper.getOuterWays(p)
                 errors.add(
                     TestError.builder(
-                        this, Severity.ERROR,
+                        this, severity,
                         EGRNTestCode.EGRN_HAS_MULTIPLE_VALID_ADDRESSES.code
                     )
                         .message(
-                            I18n.tr(EGRNTestCode.EGRN_HAS_MULTIPLE_VALID_ADDRESSES.message) + ": ${
+                            I18n.tr(EGRNTestCode.EGRN_HAS_MULTIPLE_VALID_ADDRESSES.message) + additionalMessage + ": ${
                                 firstAddress.getOsmAddress().getInlineAddress(",")
                             } / ${secondAddress.getOsmAddress().getInlineAddress(",")}"
                         )
@@ -74,6 +82,10 @@ class EGRNMultipleValidAddressTest : Test(
         }
     }
 
+    private fun allAddressesAreDoubles(distinctValidAddresses: List<ParsedAddress>, p: OsmPrimitive): Boolean {
+        return distinctValidAddresses.all { address -> RussiaAddressHelperPlugin.addressRegistry.getDoubles(p, address.getOsmAddress().getBaseAddressTags()).isNotEmpty() }
+    }
+
     override fun fixError(testError: TestError): Command? {
         //для этого валидатора в списке всегда 1 примитив
         val primitive = testError.primitives.iterator().next()
@@ -83,12 +95,7 @@ class EGRNMultipleValidAddressTest : Test(
             val addressInfo = RussiaAddressHelperPlugin.cache.get(primitive)?.addressInfo
             affectedAddresses.addAll(addressInfo!!.getValidAddresses())
         }
-        var doubledAddresses : Set<ParsedAddress> = mutableSetOf()
-        if (ValidationSettingsReader.ENABLE_NEW_DOUBLES_CHECK.get()) {
-             doubledAddresses = findDoubledAddressesWithCache(affectedAddresses, primitive)
-        } else {
-             doubledAddresses = RussiaAddressHelperPlugin.findDoubledAddresses(affectedAddresses)
-        }
+        val doubledAddresses : Set<ParsedAddress> = findDoubledAddressesWithCache(affectedAddresses, primitive)
 
         val corrections = affectedAddresses.map { AddressCorrection(it, doubledAddresses.contains(it)) }.toMutableList()
         var preferredIndex = corrections.indexOfFirst { it.address.isBuildingAddress() }
@@ -117,7 +124,7 @@ class EGRNMultipleValidAddressTest : Test(
         correctionTable.cellSelectionEnabled = false
         correctionTable.setValueAt(true, preferredIndex, correctionTable.correctionTableModel.applyColumn)
         correctionTable.autoResizeMode = JTable.AUTO_RESIZE_OFF
-        correctionTable.preferredScrollableViewportSize = Dimension(800, 96)
+        correctionTable.preferredScrollableViewportSize = Dimension(800, 160)
         correctionTable.columnModel.getColumn(0).preferredWidth = 400
         correctionTable.columnModel.getColumn(1).preferredWidth = 220
         correctionTable.columnModel.getColumn(2).preferredWidth = 100
@@ -166,6 +173,7 @@ class EGRNMultipleValidAddressTest : Test(
 
         if (cmds.isNotEmpty()) {
             return SequenceCommand(I18n.tr("Added tags from RussiaAddressHelper MultipleValidAddress validator"), cmds)
+
         }
         return null
     }

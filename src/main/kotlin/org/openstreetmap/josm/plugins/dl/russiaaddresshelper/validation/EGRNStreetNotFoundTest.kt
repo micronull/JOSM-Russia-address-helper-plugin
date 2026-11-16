@@ -1,7 +1,10 @@
 package org.openstreetmap.josm.plugins.dl.russiaaddresshelper.validation
 
 import org.apache.commons.lang3.StringUtils
+import org.openstreetmap.josm.command.ChangePropertyCommand
 import org.openstreetmap.josm.command.Command
+import org.openstreetmap.josm.command.SequenceCommand
+import org.openstreetmap.josm.data.UndoRedoHandler
 import org.openstreetmap.josm.data.osm.*
 import org.openstreetmap.josm.data.validation.Severity
 import org.openstreetmap.josm.data.validation.Test
@@ -9,14 +12,19 @@ import org.openstreetmap.josm.data.validation.TestError
 import org.openstreetmap.josm.gui.ExtendedDialog
 import org.openstreetmap.josm.gui.MainApplication
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel
+import org.openstreetmap.josm.gui.widgets.JosmTextField
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.RussiaAddressHelperPlugin
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.api.ParsingFlags
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.parsers.ParsedAddress
 import org.openstreetmap.josm.plugins.dl.russiaaddresshelper.tools.GeometryHelper
 import org.openstreetmap.josm.tools.GBC
 import org.openstreetmap.josm.tools.I18n
+import org.openstreetmap.josm.tools.ImageProvider
+import org.openstreetmap.josm.tools.ImageProvider.ImageSizes
+import java.awt.Dimension
 import java.awt.GridBagLayout
 import java.awt.event.ActionEvent
+import javax.swing.JButton
 import javax.swing.JPanel
 
 
@@ -78,12 +86,19 @@ class EGRNStreetNotFoundTest : Test(
     }
 
     override fun fixError(testError: TestError): Command? {
+        // Диалог и повторный запрос — только после endUpdate() из FixTask, иначе
+        // перерисовка карты и рабочий поток валидатора блокируют друг друга.
+        RussiaAddressHelperPlugin.runFixAfterDatasetUpdate { fixErrorDeferred(testError) }
+        return null
+    }
+
+    private fun fixErrorDeferred(testError: TestError): Command? {
         var egrnStreetName = ""
         val affectedHousenumbers = mutableListOf<String>()
         val affectedAddresses = mutableListOf<ParsedAddress>()
         testError.primitives.forEach {
             if (RussiaAddressHelperPlugin.cache.contains(it)) {
-                val addressInfo = RussiaAddressHelperPlugin.cache.get(it)?.addressInfo
+                val addressInfo = RussiaAddressHelperPlugin.cache[it]?.addressInfo
                 val addresses =
                     addressInfo?.addresses!!.filter { it.flags.contains(ParsingFlags.CANNOT_FIND_STREET_OBJECT_IN_OSM) }
                 val preferredAddress: ParsedAddress = addresses.first()
@@ -103,8 +118,10 @@ class EGRNStreetNotFoundTest : Test(
             "Несколько (${affectedHousenumbers.size}) зданий (номера ${affectedHousenumbers.joinToString(", ")})" +
                     "<br> получили из ЕГРН адрес с именем улицы: <b>${egrnStreetName}</b>,<br>" +
                     "который не был сопоставлен с улицей, существующей в данных ОСМ.<br>" +
-                    "Для разрешения ошибки вы можете присвоить линии улицы имя согласно соответственно полученными из ЕГРН данным и " +
+                    "Для разрешения ошибки вы можете присвоить линии улицы имя согласно соответственно полученными из ЕГРН данным и<br> " +
                     "<a href =https://wiki.openstreetmap.org/wiki/RU:%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D1%8F/%D0%A1%D0%BE%D0%B3%D0%BB%D0%B0%D1%88%D0%B5%D0%BD%D0%B8%D0%B5_%D0%BE%D0%B1_%D0%B8%D0%BC%D0%B5%D0%BD%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B8_%D0%B4%D0%BE%D1%80%D0%BE%D0%B3>правилам именования улиц в ОСМ</a>" +
+                    "<br>(Кратко - прилагательное впереди, существительное сзади - Солнечная улица, улица Труда)" +
+                    "<br>" +
                     "<br>Если в ЕГРН содержится некорректное имя, не сопоставляемое плагином с именем улицы, " +
                     "<br>можно присвоить линии улицы тэг <b>egrn_name = $egrnStreetName</b> чтобы форсировать сопоставление",
             false,
@@ -122,8 +139,35 @@ class EGRNStreetNotFoundTest : Test(
         egrnAddressesLabel.setMaxWidth(800)
         p.add(egrnAddressesLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
 
+        val dataSet: DataSet = OsmDataManager.getInstance().editDataSet
+        val selectedToProcess = dataSet.selected.toList()
+        val isStreetWaySelected = selectedToProcess.isNotEmpty() && selectedToProcess.all{ it -> it is Way && it.hasKey("highway")}
+        val osmStreetNameEditBox = JosmTextField(egrnStreetName)
+        osmStreetNameEditBox.isEnabled = isStreetWaySelected
+        osmStreetNameEditBox.preferredSize = Dimension(100, 20)
+
+        val reversePartsButton = JButton(ImageProvider.get("dialogs/refresh", ImageSizes.SMALLICON))
+        reversePartsButton.isEnabled = isStreetWaySelected
+        reversePartsButton.toolTipText = "Поменять местами части названия"
+        p.add(reversePartsButton, GBC.std().anchor(GBC.CENTER).fill(GBC.NONE).insets(5))
+        p.add(osmStreetNameEditBox, GBC.eol().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
+
+        reversePartsButton.addActionListener {
+            run {
+                val addressParts = osmStreetNameEditBox.text.split(' ').toMutableList()
+                if (addressParts.size > 1) {
+                    val first = addressParts.removeFirst()
+                    addressParts.add(first)
+                    osmStreetNameEditBox.text = addressParts.joinToString(" ")
+                }
+            }
+        }
+
+
+
+        val button1Text = if(isStreetWaySelected) "Name selected street and retry" else "Retry address matching"
         val buttonTexts = arrayOf(
-            I18n.tr("Retry address matching"),
+            I18n.tr(button1Text),
             I18n.tr("Ignore error"),
             I18n.tr("Cancel")
         )
@@ -146,7 +190,12 @@ class EGRNStreetNotFoundTest : Test(
         }
 
         if (answer == 1) {
-            val dataSet: DataSet = OsmDataManager.getInstance().editDataSet ?: return null
+            if (isStreetWaySelected) {
+                val streetName = osmStreetNameEditBox.text
+                val assignNameCommands = selectedToProcess.map {it -> ChangePropertyCommand(it, "name", streetName) }
+                UndoRedoHandler.getInstance().add(SequenceCommand(I18n.tr("Assigned street name from EGRN"), assignNameCommands))
+            }
+
             dataSet.setSelected(testError.primitives)
             RussiaAddressHelperPlugin.selectAction.actionPerformed(ActionEvent(this, 0, ""))
         }
