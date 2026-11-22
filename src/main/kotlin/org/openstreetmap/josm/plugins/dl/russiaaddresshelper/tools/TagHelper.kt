@@ -337,25 +337,32 @@ class TagHelper {
         }
 
         fun splitLongString(value: String, maxChunkSize: Int, isAddress: Boolean = false): Array<String> {
+            if (maxChunkSize <= 0) {
+                return arrayOf(value)
+            }
             var start = 0
             val result: MutableList<String> = mutableListOf()
-            var partIndex = 0
             while (start < value.length) {
                 var end = minOf(start + maxChunkSize, value.length)
                 if (end < value.length) {
-                    val lastDivider = getLastDivider(value, end)
-                    if (lastDivider != null) {
-                        if (isAddress && (value[lastDivider-1] == '.' || value[lastDivider+1].isDigit())) {
-                            val previousDivider = getLastDivider(value, lastDivider - 1)
-                            end = if (previousDivider != null) {
+                    val lastDivider = getLastDivider(value, start, end)
+                    if (lastDivider != null && lastDivider > start) {
+                        val charBefore = value[lastDivider - 1]
+                        val charAfter = if (lastDivider + 1 < value.length) value[lastDivider + 1] else null
+                        if (isAddress && (charBefore == '.' || charAfter?.isDigit() == true)) {
+                            val previousDivider = getLastDivider(value, start + 1, lastDivider - 1)
+                            end = if (previousDivider != null && previousDivider > start) {
                                 previousDivider + 1
                             } else {
-                                lastDivider+1
+                                lastDivider + 1
                             }
                         } else {
                             end = lastDivider + 1
                         }
                     }
+                }
+                if (end <= start) {
+                    end = minOf(start + maxChunkSize, value.length)
                 }
 
                 result.add(value.substring(start, end).trim())
@@ -364,17 +371,26 @@ class TagHelper {
                 while (start < value.length && value[start].isWhitespace()) {
                     start++
                 }
-                partIndex++
             }
             return result.toTypedArray()
         }
 
-        private fun getLastDivider(value: String, endIndex : Int) : Int? {
-            val delimiters = setOf(';', ',', ' ')
-            return delimiters.firstNotNullOfOrNull { char ->
-                val lastIndex = value.lastIndexOf(char,endIndex)
-                if (lastIndex != -1) lastIndex else null
+        /**
+         * Returns the last delimiter index within [startIndex, endIndex) or null if there is none.
+         */
+        private fun getLastDivider(value: String, startIndex: Int, endIndex: Int): Int? {
+            if (endIndex <= startIndex) {
+                return null
             }
+            val delimiters = setOf(';', ',', ' ')
+            var lastDivider: Int? = null
+            for (char in delimiters) {
+                val lastIndex = value.lastIndexOf(char, endIndex - 1)
+                if (lastIndex >= startIndex && (lastDivider == null || lastIndex > lastDivider)) {
+                    lastDivider = lastIndex
+                }
+            }
+            return lastDivider
         }
     }
 
