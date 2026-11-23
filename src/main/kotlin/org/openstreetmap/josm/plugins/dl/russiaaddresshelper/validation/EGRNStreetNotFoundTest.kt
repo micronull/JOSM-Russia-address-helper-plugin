@@ -26,6 +26,8 @@ import java.awt.GridBagLayout
 import java.awt.event.ActionEvent
 import javax.swing.JButton
 import javax.swing.JPanel
+import javax.swing.JScrollPane
+import javax.swing.ScrollPaneConstants
 
 
 class EGRNStreetNotFoundTest : Test(
@@ -137,7 +139,11 @@ class EGRNStreetNotFoundTest : Test(
         }
         val egrnAddressesLabel = JMultilineLabel(labelText, false, true)
         egrnAddressesLabel.setMaxWidth(800)
-        p.add(egrnAddressesLabel, GBC.eop().anchor(GBC.CENTER).fill(GBC.HORIZONTAL))
+        val addressesScroll = JScrollPane(egrnAddressesLabel)
+        addressesScroll.preferredSize = Dimension(780, 220)
+        addressesScroll.verticalScrollBarPolicy = ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
+        addressesScroll.horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+        p.add(addressesScroll, GBC.eop().anchor(GBC.CENTER).fill(GBC.BOTH))
 
         val dataSet: DataSet = OsmDataManager.getInstance().editDataSet
         val selectedToProcess = dataSet.selected.toList()
